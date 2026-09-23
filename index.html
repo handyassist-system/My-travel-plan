@@ -59,20 +59,19 @@
     border-radius:var(--radius-lg); padding:36px 26px 30px; text-align:center;
     box-shadow:0 16px 40px rgba(45,50,56,0.08); position:relative;
   }
-  .login-badge{
-    width:64px; height:64px; border-radius:50%; background:var(--seal); color:#fff;
-    display:flex; align-items:center; justify-content:center; font-size:24px;
-    font-family:var(--serif); font-weight:700;
-    box-shadow:0 10px 24px rgba(232,115,74,0.3);
-    margin:0 auto 16px;
+  .login-logo{
+    width:76px; height:76px; border-radius:18px; display:block; margin:0 auto 14px;
+    box-shadow:0 10px 24px rgba(45,50,56,0.12);
+    -webkit-touch-callout:none; user-select:none; pointer-events:none;
   }
-  #loginScreen h1{font-size:21px; margin:0 0 6px; font-family:var(--serif); letter-spacing:2px;}
-  #loginScreen p.eyebrow{color:var(--sub); font-size:12px; margin:0 0 22px; letter-spacing:2px;}
+  #loginScreen h1{font-size:22px; font-weight:800; margin:0 0 6px; letter-spacing:0;}
+  #loginScreen p.eyebrow{color:var(--sub); font-size:13px; margin:0 0 20px; letter-spacing:0; line-height:1.6;}
   #pwInput{
     width:100%; box-sizing:border-box; padding:15px; border-radius:var(--radius-md);
     border:1px solid var(--line); background:var(--bg); font-size:16px;
     text-align:center; margin-bottom:6px;
   }
+  .login-tip{margin-top:10px; font-size:12.5px; color:var(--sub); text-align:center;}
   /* 登入頁：條款勾選、說明、管理員登入（智在生活 Standard） */
   .login-consent{display:flex; align-items:flex-start; gap:8px; margin-top:12px; text-align:left;
     font-size:12.5px; color:var(--sub); line-height:1.7;}
@@ -106,13 +105,13 @@
   #pwInput:focus{outline:none; border-color:var(--seal);}
   #loginBtn{
     width:100%; padding:14px; border:none; border-radius:var(--radius-md); margin-top:14px;
-    background:var(--seal); color:#fff; font-size:15px; font-weight:700; letter-spacing:4px;
+    background:var(--seal); color:#fff; font-size:16px; font-weight:700; letter-spacing:0;
   }
-  #loginError{color:var(--seal); font-size:13px; height:16px; margin-top:4px;}
+  #loginError{color:var(--seal); font-size:13px; min-height:16px; margin-top:6px; line-height:1.6;}
 
   /* ---------- Header ---------- */
   header{padding:22px 20px 4px; position:sticky; top:0; background:var(--paper); z-index:10;}
-  header h1{font-size:23px; margin:0 0 8px; font-family:var(--serif); font-weight:700; letter-spacing:1px;}
+  header h1{font-size:22px; margin:0 0 8px; font-weight:800; letter-spacing:0;}
   header .sub{color:var(--sub); font-size:12px;}
   .trip-sel{background:var(--card); border:1px solid var(--line); color:var(--ink); font-size:13.5px;
     font-weight:600; padding:9px 14px; border-radius:999px; max-width:100%; position:relative;}
@@ -123,6 +122,32 @@
   .day-date-row .day-date-label{padding:0;}
   .header-trip-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;}
   .header-trip-row .trip-sel{flex:1; min-width:0; text-align:left;}
+  /* ---------- 設定（整頁式）---------- */
+  #settingsPage{display:none; position:fixed; inset:0; z-index:200; background:var(--bg);
+    max-width:520px; margin:0 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  #settingsPage.show{display:block;}
+  .set-head{position:sticky; top:0; z-index:2; background:var(--card); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:4px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px;}
+  .set-head h2{margin:0; font-size:18px; font-weight:800;}
+  .set-back{background:none; border:none; font-size:30px; line-height:1; color:var(--ink);
+    padding:0 10px 4px; margin-left:-4px;}
+  .set-body{padding:16px 16px calc(28px + env(safe-area-inset-bottom));}
+  .set-group{font-size:12.5px; color:var(--sub); font-weight:700; margin:18px 4px 8px;}
+  .set-card{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;}
+  .set-row{width:100%; display:flex; align-items:center; gap:12px; background:none; border:none;
+    border-bottom:1px solid var(--line); padding:15px 16px; font-size:15px; color:var(--ink); text-align:left;}
+  .set-row:last-child{border-bottom:none;}
+  .set-row:active{background:var(--bg);}
+  .set-row .ic{font-size:18px; width:22px; text-align:center; flex:none;}
+  .set-row .tx{flex:1;}
+  .set-row .ar{color:var(--sub); font-size:18px;}
+  .set-row.danger{color:var(--seal); font-weight:700;}
+  .set-acc{padding:16px;}
+  .set-acc .em{font-size:15px; font-weight:700; word-break:break-all;}
+  .set-acc .pl{margin-top:8px; display:inline-block; font-size:12.5px; font-weight:700;
+    background:var(--seal-soft); color:var(--seal); border-radius:999px; padding:5px 12px;}
+  .set-acc .ex{margin-top:8px; font-size:12.5px; color:var(--sub);}
+  .set-foot{text-align:center; color:var(--sub); font-size:12px; margin-top:26px;}
   .settings-menu-item{
     display:block; width:100%; text-align:left; background:none; border:none;
     color:var(--ink); font-size:14px; padding:13px 16px; font-family:inherit;
@@ -318,14 +343,15 @@
 
   <div id="loginScreen">
     <div class="passport-frame">
-      <div class="login-badge">境</div>
+      <img src="icon-192.png" alt="旅遊計畫" class="login-logo" draggable="false">
       <h1>旅遊計畫</h1>
-      <p class="eyebrow">通行憑證 · 請輸入 Email</p>
-      <input id="pwInput" type="email" inputmode="email" autocomplete="email" maxlength="60" placeholder="you@example.com">
+      <p class="eyebrow">行程 · 航班 · 花費 · 採買，一次搞定</p>
+      <input id="pwInput" type="email" inputmode="email" autocomplete="email" maxlength="60" placeholder="請輸入 Email">
+      <div class="login-tip">🎁 首次登入即享 14 天全功能免費試用</div>
       <label class="login-consent"><input type="checkbox" id="agreeChk"> <span>我已閱讀並同意 <a id="termsLink">《服務條款與隱私政策》</a></span></label>
-      <button id="loginBtn">登　入</button>
+      <button id="loginBtn">登入</button>
       <div id="loginError"></div>
-      <div class="login-hint">🎁 首次登入即享 14 天全功能免費試用<br>👨‍👩‍👧 同行的人共用同一帳號：把收到的登入信轉寄給對方，在他手機點連結即可</div>
+      <div class="login-hint">👨‍👩‍👧 同行的人共用同一帳號：帳號主人登入後，把收到的登入信轉寄給對方，在他手機點連結就能登入</div>
       <button id="adminLoginToggle" type="button" class="btn-secondary">🔧 管理員登入</button>
       <div id="adminLoginBox" style="display:none;margin-top:12px;text-align:left">
         <input id="adminEmailInput" type="email" inputmode="email" autocomplete="username" placeholder="管理員 Email" class="admin-input">
@@ -343,17 +369,6 @@
       <div style="display:flex; align-items:center; justify-content:space-between; position:relative;">
         <h1 id="pageTitle">📅 行程 <span id="appVerTag" style="font-size:10px;color:var(--sub);font-weight:400;white-space:nowrap">v1.0</span></h1>
         <button id="settingsBtn" title="設定" style="background:none; border:none; font-size:20px; padding:4px 8px;">⚙️</button>
-        <div id="settingsMenu" style="display:none; position:absolute; top:36px; right:0; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px rgba(45,50,56,0.12); min-width:180px; z-index:30; overflow:hidden;">
-          <button id="shareTripBtn" class="settings-menu-item" style="display:none;">📤 分享行程</button>
-          <button id="exportWordBtn" class="settings-menu-item" style="display:none;">🖨️ 列印／存PDF</button>
-          <div style="height:1px; background:var(--line);"></div>
-          <button id="installAppBtn" class="settings-menu-item">📲 安裝到手機桌面</button>
-          <button id="shareAppBtn" class="settings-menu-item">🔗 分享這個 App</button>
-          <button id="supportBtn" class="settings-menu-item">💬 聯繫客服</button>
-          <button id="termsBtn" class="settings-menu-item">📄 服務條款</button>
-          <div style="height:1px; background:var(--line);"></div>
-          <button id="logoutBtn" class="settings-menu-item" title="登出">🚪 登出</button>
-        </div>
       </div>
       <div class="header-trip-row">
         <button id="tripSelBtn" class="trip-sel">目前：<span id="tripSelName">—</span> ▾</button>
@@ -439,6 +454,41 @@
   <div class="fab-wrap">
     <button id="memoFab" style="display:none;">📝</button>
     <button id="fab" style="display:none;">＋</button>
+  </div>
+
+  <!-- ===== 設定（整頁式，智在生活 Standard）===== -->
+  <div id="settingsPage">
+    <div class="set-head">
+      <button id="settingsBackBtn" class="set-back" type="button">‹</button>
+      <h2>⚙️ 設定</h2>
+    </div>
+    <div class="set-body">
+      <div class="set-card" id="setAccountCard"></div>
+
+      <div class="set-group">目前行程</div>
+      <div class="set-card">
+        <button id="shareTripBtn" class="set-row" type="button"><span class="ic">📤</span><span class="tx">分享行程</span><span class="ar">›</span></button>
+        <button id="exportWordBtn" class="set-row" type="button"><span class="ic">🖨️</span><span class="tx">列印／存 PDF</span><span class="ar">›</span></button>
+      </div>
+
+      <div class="set-group">應用程式</div>
+      <div class="set-card">
+        <button id="installAppBtn" class="set-row" type="button"><span class="ic">📲</span><span class="tx">安裝到手機桌面</span><span class="ar">›</span></button>
+        <button id="shareAppBtn" class="set-row" type="button"><span class="ic">🔗</span><span class="tx">分享這個 App</span><span class="ar">›</span></button>
+      </div>
+
+      <div class="set-group">支援</div>
+      <div class="set-card">
+        <button id="supportBtn" class="set-row" type="button"><span class="ic">💬</span><span class="tx">聯繫客服</span><span class="ar">›</span></button>
+        <button id="termsBtn" class="set-row" type="button"><span class="ic">📄</span><span class="tx">服務條款與隱私政策</span><span class="ar">›</span></button>
+      </div>
+
+      <div class="set-card" style="margin-top:18px">
+        <button id="logoutBtn" class="set-row danger" type="button"><span class="ic">🚪</span><span class="tx">登出</span><span class="ar">›</span></button>
+      </div>
+
+      <div class="set-foot">旅遊計畫 <span id="setVerTag">v1.0</span></div>
+    </div>
   </div>
 
   <div id="bottomNav" style="display:none;">
@@ -901,7 +951,7 @@ const PLAN_CACHE_KEY = "travel_plan_cache", PLAN_GRACE_MS = 3*86400000, VERIFY_T
 
 let auth=null;  try{ auth = firebase.auth(); }catch(e){ auth=null; }
 let rtdb=null;  try{ rtdb = firebase.database(); }catch(e){ rtdb=null; }   // 會員資料放 Realtime Database，跟另外兩支同一套
-let myEmail=null, myPlan="free", isAdminUser=false;
+let myEmail=null, myPlan="free", myExpiry="", isAdminUser=false;
 
 function isEmail(x){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x); }
 function emailKey(e){ return String(e||"").toLowerCase().replace(/[.#$\[\]]/g,"_"); }
@@ -1018,7 +1068,7 @@ async function proceedLogin(email, manual){
   myEmail=email;
   isAdminUser = email.toLowerCase()===ADMIN_EMAIL;
   if(isAdminUser){
-    myPlan="full";
+    myPlan="full"; myExpiry="";
   } else {
     var res;
     try{ res=await verifyCustomer(email); }catch(e){ res={ok:true, plan:planFromCache(email), offline:true}; }
@@ -1034,7 +1084,7 @@ async function proceedLogin(email, manual){
       loginError.textContent="已達裝置上限（"+dev.limit+" 台），請透過官方 LINE 聯繫客服";
       return true;
     }
-    myPlan=res.plan;
+    myPlan=res.plan; myExpiry=res.expiry||"";
     if(!res.offline){
       if(res.newTrial){ setTimeout(function(){ alert("🎉 歡迎！\n\n已為你開啟 "+TRIAL_DAYS+" 天全功能免費試用\n到期日："+res.expiry+"\n\n到期後行程仍看得到，採買清單也還能用 😊"); }, 400); }
       else if(res.expired){ setTimeout(function(){ alert("試用已到期\n\n行程還看得到、採買清單還能用，\n想繼續新增或修改行程，請透過官方 LINE 升級 😊"); }, 400); }
@@ -1064,7 +1114,7 @@ async function tryLogin(){
   }catch(e){
     loginError.textContent="寄送失敗："+((e&&e.message)?e.message:"請稍後再試");
   }
-  loginBtn.disabled=false; loginBtn.textContent="登　入";
+  loginBtn.disabled=false; loginBtn.textContent="登入";
 }
 loginBtn.addEventListener("click", tryLogin);
 pwInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") tryLogin(); });
@@ -1158,18 +1208,41 @@ document.getElementById("logoutBtn").addEventListener("click", ()=>{
   go();
 });
 
-const settingsMenu = document.getElementById("settingsMenu");
-document.getElementById("settingsBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  settingsMenu.style.display = settingsMenu.style.display==="block" ? "none" : "block";
-});
-document.addEventListener("click", (e)=>{
-  if(settingsMenu.style.display==="block" && !settingsMenu.contains(e.target) && e.target.id!=="settingsBtn"){
-    settingsMenu.style.display = "none";
-  }
-});
-settingsMenu.querySelectorAll(".settings-menu-item").forEach(btn=>{
-  btn.addEventListener("click", ()=>{ settingsMenu.style.display = "none"; });
+// ---------- 設定頁（整頁式）----------
+const settingsPage = document.getElementById("settingsPage");
+const PLAN_LABEL = { trial:"試用中", basic:"基本版", full:"完整版", family:"家庭版", free:"免費版" };
+function renderAccountCard(){
+  var box = document.getElementById("setAccountCard");
+  if(!box) return;
+  var plan = isAdminUser ? "管理員" : (PLAN_LABEL[myPlan] || "免費版");
+  var html = '<div class="set-acc"><div class="em">'+escapeHtml(myEmail||"—")+'</div>'+
+             '<div class="pl">'+plan+'</div>';
+  if(!isAdminUser && myExpiry) html += '<div class="ex">到期日：'+escapeHtml(myExpiry)+'</div>';
+  if(!isAdminUser && !canEdit()) html += '<div class="ex">免費版可查看行程、使用採買清單與分享行程</div>';
+  box.innerHTML = html + '</div>';
+}
+function openSettings(){
+  renderAccountCard();
+  var v = document.getElementById("setVerTag");
+  if(v) v.textContent = APP_VER + (isAdminUser ? " · "+BUILD_ID : "");
+  var trip = (typeof getActiveTrip==="function") ? getActiveTrip() : null;   // 沒有行程時隱藏「目前行程」那組
+  ["shareTripBtn","exportWordBtn"].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display = trip ? "flex" : "none";
+  });
+  var grp = document.querySelector("#settingsPage .set-group");
+  if(grp) grp.style.display = trip ? "block" : "none";
+  if(grp && grp.nextElementSibling) grp.nextElementSibling.style.display = trip ? "block" : "none";
+  settingsPage.classList.add("show");
+  settingsPage.scrollTop = 0;
+}
+function closeSettings(){ settingsPage.classList.remove("show"); }
+function settingsOpen(){ return settingsPage.classList.contains("show"); }
+document.getElementById("settingsBtn").addEventListener("click", openSettings);
+document.getElementById("settingsBackBtn").addEventListener("click", closeSettings);
+settingsPage.querySelectorAll(".set-row").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    if(btn.id!=="logoutBtn") setTimeout(closeSettings, 80);   // 登出會重新載入，不用關
+  });
 });
 
 // ---------- 分享 App / 客服 / 服務條款 ----------
@@ -1551,8 +1624,6 @@ function renderItinerary(){
   if(!getActiveTrip()){
     document.getElementById("dayTabs").innerHTML = "";
     document.getElementById("dayDateLabel").textContent = "";
-    document.getElementById("shareTripBtn").style.display = "none";
-    document.getElementById("exportWordBtn").style.display = "none";
     const list = document.getElementById("list");
     list.innerHTML = "";
     list.appendChild(noTripCTA());
@@ -1561,8 +1632,6 @@ function renderItinerary(){
   renderDayTabs();
   renderDayList();
   document.getElementById("dayDateLabel").textContent = computeDateForDay(currentDay);
-  document.getElementById("shareTripBtn").style.display = "block";
-  document.getElementById("exportWordBtn").style.display = "block";
 }
 function renderDayTabs(){
   const wrap = document.getElementById("dayTabs");
@@ -3917,8 +3986,7 @@ function appHandleBack(){
   if(sheet){ sheet.remove(); return true; }                                   // 條款／升級提示
   var masks=document.querySelectorAll('.modal-mask.show');
   if(masks.length){ masks[masks.length-1].classList.remove('show'); return true; }   // 最上層彈窗
-  var menu=document.getElementById('settingsMenu');
-  if(menu && menu.style.display==='block'){ menu.style.display='none'; return true; } // 設定選單
+  if(typeof settingsOpen==='function' && settingsOpen()){ closeSettings(); return true; }  // 設定頁
   var main=document.getElementById('mainScreen');
   if(!main || main.style.display==='none') return false;                      // 還在登入頁 → 離開
   if(currentTab!=='itinerary'){                                               // 其他分頁 → 回行程
