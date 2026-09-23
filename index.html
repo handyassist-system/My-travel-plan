@@ -347,6 +347,7 @@
           <button id="shareTripBtn" class="settings-menu-item" style="display:none;">📤 分享行程</button>
           <button id="exportWordBtn" class="settings-menu-item" style="display:none;">🖨️ 列印／存PDF</button>
           <div style="height:1px; background:var(--line);"></div>
+          <button id="installAppBtn" class="settings-menu-item">📲 安裝到手機桌面</button>
           <button id="shareAppBtn" class="settings-menu-item">🔗 分享這個 App</button>
           <button id="supportBtn" class="settings-menu-item">💬 聯繫客服</button>
           <button id="termsBtn" class="settings-menu-item">📄 服務條款</button>
@@ -1209,23 +1210,53 @@ document.getElementById("termsBtn").addEventListener("click", showTerms);
 const _termsLink = document.getElementById("termsLink");
 if(_termsLink) _termsLink.addEventListener("click", (e)=>{ e.preventDefault(); showTerms(); });
 
-// ---------- 安裝到手機桌面 ----------
+/* ---------- 安裝到手機桌面（智在生活 Standard，與行事曆同一套）----------
+   登入頁的按鈕「一律顯示」，不等瀏覽器許可：
+   Android 可一鍵安裝 → 直接跳系統視窗；其餘 → 展開圖文步驟。 */
+var _deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); _deferredPrompt = e; });
 (function installHint(){
-  const btn = document.getElementById("installHintBtn");
-  const help = document.getElementById("installHelp");
-  if(!btn) return;
-  let deferred = null;
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  if(standalone) return;
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  window.addEventListener("beforeinstallprompt", (e)=>{ e.preventDefault(); deferred = e; btn.style.display="block"; });
-  if(isIOS) btn.style.display = "block";
-  btn.addEventListener("click", async ()=>{
-    if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; btn.style.display="none"; return; }
-    help.style.display = "block";
-    help.innerHTML = isIOS
-      ? "iPhone / iPad：點畫面下方的「分享」<b>⬆️</b> → 往下找「加入主畫面」→ 右上角「新增」"
-      : "Android：點瀏覽器右上角「⋮」→「安裝應用程式」或「加到主畫面」";
+  var btn = document.getElementById("installHintBtn");
+  var help = document.getElementById("installHelp");
+  var menuBtn = document.getElementById("installAppBtn");
+  var standalone = false;
+  try{ standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; }catch(e){}
+  if(standalone){ if(menuBtn) menuBtn.style.display="none"; return; }   // 已是桌面 App → 兩顆都不顯示
+  if(btn) btn.style.display = "block";                                  // 在瀏覽器 → 一律顯示
+
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var STEPS = isIOS
+    ? '📱 <b>安裝步驟：</b><br>1. 請改用「<b>Safari 瀏覽器</b>」開啟本頁<br>2. 點下方「<b>分享</b>」按鈕 ⬆️<br>3. 選「<b>加入主畫面</b>」<br><span style="display:block;margin-top:9px;padding-top:9px;border-top:1px dashed #DDD8CE;color:#8A8A93;font-size:11.5px">💡 若你已安裝過，請直接到手機桌面找「旅遊計畫」開啟</span>'
+    : '📲 <b>安裝步驟：</b><br>1. 請改用「<b>Chrome 瀏覽器</b>」開啟本頁<br>2. 點「<b>安裝到手機桌面</b>」<br>3. 跳出視窗 → 選「<b>安裝</b>」<br><span style="display:block;margin-top:9px;padding-top:9px;border-top:1px dashed #DDD8CE;color:#8A8A93;font-size:11.5px">💡 若你已安裝過，請直接到手機桌面找「旅遊計畫」開啟</span>';
+  var STEPS_PLAIN = isIOS
+    ? "安裝步驟：\n1. 請改用 Safari 瀏覽器開啟本頁\n2. 點下方「分享」按鈕 ⬆️\n3. 選「加入主畫面」"
+    : "安裝步驟：\n1. 請改用 Chrome 瀏覽器開啟本頁\n2. 點瀏覽器選單（⋮）\n3. 選「安裝應用程式／加到主畫面」";
+
+  function showHelp(html){ if(help){ help.innerHTML = html; help.style.display = "block"; } }
+  function doInstall(fromMenu){
+    if(_deferredPrompt){                                                // Android 可一鍵安裝
+      _deferredPrompt.prompt();
+      _deferredPrompt.userChoice.then(function(r){
+        _deferredPrompt = null;
+        if(r && r.outcome === "accepted"){
+          showHelp('⏳ <b>安裝中，請稍候…</b><br><span style="color:#E8735C;font-size:11.5px;font-weight:700">請勿關閉本頁</span><span style="color:#8A8A93;font-size:11.5px">，完成後桌面會出現圖示</span>');
+          if(btn){ btn.textContent="⏳ 安裝中…"; btn.disabled=true; btn.style.opacity=".6"; }
+        } else {
+          showHelp("已取消安裝，可隨時再點上方按鈕安裝");
+        }
+      });
+      return;
+    }
+    if(fromMenu) alert("安裝到手機桌面\n\n"+STEPS_PLAIN);                 // 主畫面選單 → 用對話框
+    else showHelp(STEPS);                                               // 登入頁 → 展開圖文步驟
+  }
+  if(btn) btn.addEventListener("click", function(){ doInstall(false); });
+  if(menuBtn) menuBtn.addEventListener("click", function(){ doInstall(true); });
+
+  window.addEventListener("appinstalled", function(){
+    if(btn){ btn.textContent="✅ 已開始安裝"; btn.disabled=true; btn.style.opacity="1"; btn.style.background="#F0EEEA"; btn.style.color="#9A9AA2"; btn.style.borderColor="#E3DED4"; btn.style.fontWeight="600"; }
+    showHelp('<span style="color:#8A8A93;font-size:12.5px">需稍等幾秒等待桌面圖示出現</span><br><span style="color:#E8735C;font-size:12.5px;font-weight:700">請勿關閉視窗！</span>');
+    if(menuBtn) menuBtn.style.display="none";
   });
 })();
 
