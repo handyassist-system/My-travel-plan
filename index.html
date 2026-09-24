@@ -22,13 +22,14 @@
   onload="window.__gmapsStatus = 'loaded';" onerror="window.__gmapsStatus = 'load_error';"></script>
 <style>
   :root{
-    --paper:#FCF6EF;
-    --bg:#FBF2E8;
+    --paper:#FBF8F3;   /* 智在生活標準底色 */
+    --bg:#F6F2EC;      /* 淺色填充：提示框、次要區塊 */
     --card:#FFFFFF;
     --ink:#3A2E27;
     --sub:#9C8B7A;
-    --line:#F0E1D0;
+    --line:#EDE7DF;
     --seal:#E8734A;
+    --danger:#C0392B;   /* 刪除／登出，四支一致 */
     --accent:#E8734A;
     --seal-soft:#FCE4D6;
     --accent-soft:#FCE4D6;
@@ -55,7 +56,7 @@
     min-height:100vh; padding:32px;
   }
   .passport-frame{
-    width:100%; max-width:300px; background:var(--card); border:1px solid var(--line);
+    width:100%; max-width:360px; background:var(--card); border:1px solid var(--line);
     border-radius:var(--radius-lg); padding:36px 26px 30px; text-align:center;
     box-shadow:0 16px 40px rgba(45,50,56,0.08); position:relative;
   }
@@ -65,10 +66,11 @@
     -webkit-touch-callout:none; user-select:none; pointer-events:none;
   }
   #loginScreen h1{font-size:22px; font-weight:800; margin:0 0 6px; letter-spacing:0;}
-  #loginScreen p.eyebrow{color:var(--sub); font-size:13px; margin:0 0 20px; letter-spacing:0; line-height:1.6;}
+  #loginScreen p.eyebrow{color:var(--sub); font-size:13.5px; margin:0 0 20px; letter-spacing:0; line-height:1.6;}
+  #loginScreen p.eyebrow .kw{font-size:12px; opacity:.7;}
   #pwInput{
     width:100%; box-sizing:border-box; padding:15px; border-radius:var(--radius-md);
-    border:1px solid var(--line); background:var(--bg); font-size:16px;
+    border:1px solid var(--line); background:#fff; font-size:16px;
     text-align:center; margin-bottom:6px;
   }
   .login-tip{margin-top:10px; font-size:12.5px; color:var(--sub); text-align:center;}
@@ -82,8 +84,16 @@
   .btn-secondary{width:100%; margin-top:12px; padding:12px; border-radius:var(--radius-md);
     background:transparent; color:var(--seal); border:1.5px solid var(--seal);
     font-size:14px; font-weight:700;}
+
+  /* 管理員入口：低調文字樣式，避免引起一般使用者好奇（智在生活 Standard） */
+  #adminLoginToggle{
+    width:100%; margin-top:18px; padding:8px; background:none; border:none;
+    color:var(--sub); font-size:12.5px; font-weight:400; opacity:.75;
+    text-decoration:none; cursor:pointer;
+  }
+  #adminLoginToggle:active{opacity:1;}
   .admin-input{width:100%; box-sizing:border-box; padding:13px 14px; border-radius:var(--radius-md);
-    border:1px solid var(--line); background:var(--bg); font-size:15px; margin-bottom:8px;}
+    border:1px solid var(--line); background:#fff; font-size:15px; margin-bottom:8px;}
   #adminLoginBtn{width:100%; padding:13px; border:none; border-radius:var(--radius-md);
     background:var(--seal); color:#fff; font-size:15px; font-weight:700;}
   /* 有新版本橫幅 */
@@ -102,7 +112,7 @@
   .ro-card .ro-line{display:block; margin-top:18px; background:#06C755; color:#fff; padding:13px;
     border-radius:12px; text-decoration:none; font-weight:700;}
   .ro-card .ro-close{width:100%; margin-top:10px; background:none; border:none; color:var(--sub); font-size:13px; padding:10px;}
-  #pwInput:focus{outline:none; border-color:var(--seal);}
+  #pwInput:focus{outline:none; border-color:var(--seal); box-shadow:0 0 0 3px var(--seal-soft);}
   #loginBtn{
     width:100%; padding:14px; border:none; border-radius:var(--radius-md); margin-top:14px;
     background:var(--seal); color:#fff; font-size:16px; font-weight:700; letter-spacing:0;
@@ -123,7 +133,7 @@
   .header-trip-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;}
   .header-trip-row .trip-sel{flex:1; min-width:0; text-align:left;}
   /* ---------- 設定（整頁式）---------- */
-  #settingsPage{display:none; position:fixed; inset:0; z-index:200; background:var(--bg);
+  #settingsPage{display:none; position:fixed; inset:0; z-index:200; background:var(--paper);
     max-width:520px; margin:0 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
   #settingsPage.show{display:block;}
   .set-head{position:sticky; top:0; z-index:2; background:var(--card); border-bottom:1px solid var(--line);
@@ -141,7 +151,7 @@
   .set-row .ic{font-size:18px; width:22px; text-align:center; flex:none;}
   .set-row .tx{flex:1;}
   .set-row .ar{color:var(--sub); font-size:18px;}
-  .set-row.danger{color:var(--seal); font-weight:700;}
+  .set-row.danger{color:var(--danger); font-weight:700;}
   .set-acc{padding:16px;}
   .set-acc .em{font-size:15px; font-weight:700; word-break:break-all;}
   .set-acc .pl{margin-top:8px; display:inline-block; font-size:12.5px; font-weight:700;
@@ -293,8 +303,11 @@
   .field{margin-bottom:16px;}
   .field label{font-size:13px; color:var(--sub); display:block; margin-bottom:7px;}
   .field input, .field textarea, .field select{
-    width:100%; padding:13px 14px; border-radius:var(--radius-sm); border:1px solid var(--line);
-    font-size:15.5px; background:var(--bg); font-family:inherit;
+    width:100%; padding:13px 14px; border-radius:var(--radius-md); border:1px solid var(--line);
+    font-size:16px; background:var(--card); font-family:inherit;   /* 16px：iPhone 才不會自動放大 */
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none; border-color:var(--seal); box-shadow:0 0 0 3px var(--seal-soft);
   }
   .field textarea{resize:vertical; min-height:56px;}
   .field input:disabled{background:var(--seal-soft); color:var(--seal); font-weight:700; opacity:1; border-color:var(--seal-soft);}
@@ -345,7 +358,7 @@
     <div class="passport-frame">
       <img src="icon-192.png" alt="旅遊計畫" class="login-logo" draggable="false">
       <h1>旅遊計畫</h1>
-      <p class="eyebrow">行程 · 航班 · 花費 · 採買，一次搞定</p>
+      <p class="eyebrow">把計畫，變成旅程。</p>
       <input id="pwInput" type="email" inputmode="email" autocomplete="email" maxlength="60" placeholder="請輸入 Email">
       <div class="login-tip">🎁 首次登入即享 14 天全功能免費試用</div>
       <label class="login-consent"><input type="checkbox" id="agreeChk"> <span>我已閱讀並同意 <a id="termsLink">《服務條款與隱私政策》</a></span></label>
@@ -608,7 +621,7 @@
       </div>
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
     </div>
-    <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:var(--seal-soft); color:var(--seal); font-size:14px; font-weight:600; margin-bottom:10px;">🗑 刪除這段交通</button>
+    <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這段交通</button>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="transCancel">取消</button>
       <button class="btn btn-primary" id="transSave">儲存</button>
@@ -942,7 +955,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "0923-1";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "0924-5";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1043,6 +1056,34 @@ async function checkDevice(email, plan){
   return {ok:true};
 }
 
+async function kickOtherDevices(email){
+  var key=emailKey(email), id=_devId(), now=Date.now();
+  var only={}; only[id]={ name:_devName(), last:now, first:now };
+  try{ await rtdb.ref(SUBS_PATH+key+"/devices").set(only); return true; }catch(e){ return false; }
+}
+// 裝置上限提示（智在生活 Standard：客戶可自行登出其他裝置）
+function showDeviceLimit(email, plan, limit){
+  var old=document.getElementById("devSheet"); if(old) old.remove();
+  var d=document.createElement("div");
+  d.className="ro-sheet"; d.id="devSheet";
+  d.innerHTML='<div class="ro-card">'+
+    '<div style="font-size:44px;line-height:1;margin-bottom:10px">📱</div>'+
+    '<h3>已達裝置上限</h3>'+
+    '<p>您目前的方案可在 <b style="color:var(--seal)">'+limit+' 台裝置</b>使用。<br>若這是您的新手機，可登出其他裝置。</p>'+
+    '<button id="dlKick" style="width:100%;border:none;background:var(--seal);color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:800">這是我的新裝置，登出其他裝置</button>'+
+    '<a class="ro-line" style="margin-top:10px" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服</a>'+
+    '<button class="ro-close" id="dlClose">關閉</button></div>';
+  document.body.appendChild(d);
+  function close(){ var el=document.getElementById("devSheet"); if(el) el.remove(); }
+  document.getElementById("dlKick").addEventListener("click", async function(){
+    var b=this; b.textContent="處理中…"; b.disabled=true;
+    var ok=await kickOtherDevices(email);
+    if(ok){ close(); alert("已登出其他裝置，請重新登入"); location.reload(); }
+    else { b.textContent="失敗，請再試一次"; b.disabled=false; }
+  });
+  document.getElementById("dlClose").addEventListener("click", close);
+  d.addEventListener("click", function(e){ if(e.target===d) close(); });
+}
 function renderVerTag(){
   var el=document.getElementById("appVerTag");
   if(el) el.textContent = APP_VER + (isAdminUser ? " · "+BUILD_ID : "");
@@ -1081,7 +1122,8 @@ async function proceedLogin(email, manual){
     var dev = res.offline ? {ok:true} : await checkDevice(email, res.plan);
     if(!dev.ok){
       showLoginScreen();
-      loginError.textContent="已達裝置上限（"+dev.limit+" 台），請透過官方 LINE 聯繫客服";
+      loginError.textContent="已達裝置上限（"+dev.limit+" 台）";
+      showDeviceLimit(email, res.plan, dev.limit);
       return true;
     }
     myPlan=res.plan; myExpiry=res.expiry||"";
