@@ -2,24 +2,39 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>旅遊計畫</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2D3238">
+<meta name="theme-color" content="#E8734A">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
-  window.__gmapsStatus = "loading";
+  // 地圖改成「用到才載入」：多數人開 App 不會馬上看地圖，
+  // 無條件載入等於每次開啟都算一次 Google Maps 用量，也拖慢啟動速度。
+  window.__gmapsStatus = "idle";
   window.gm_authFailure = function(){ window.__gmapsStatus = "auth_failed"; };
+  window.__gmapsPromise = null;
+  window.loadGoogleMaps = function(){
+    if (window.google && window.google.maps) { window.__gmapsStatus = "loaded"; return Promise.resolve(true); }
+    if (window.__gmapsPromise) return window.__gmapsPromise;
+    window.__gmapsStatus = "loading";
+    window.__gmapsPromise = new Promise(function(resolve){
+      var el = document.createElement("script");
+      el.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyBG11nA1g7rzseSNfacM-xYzrG_rlTpy20&libraries=places&language=zh-TW";
+      el.async = true;
+      el.onload = function(){ window.__gmapsStatus = "loaded"; resolve(true); };
+      el.onerror = function(){ window.__gmapsStatus = "load_error"; window.__gmapsPromise = null; resolve(false); };
+      document.head.appendChild(el);
+    });
+    return window.__gmapsPromise;
+  };
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBG11nA1g7rzseSNfacM-xYzrG_rlTpy20&libraries=places&language=zh-TW"
-  onload="window.__gmapsStatus = 'loaded';" onerror="window.__gmapsStatus = 'load_error';"></script>
 <style>
   :root{
     --paper:#FBF8F3;   /* 智在生活標準底色 */
@@ -40,12 +55,14 @@
     --radius-lg:20px;
     --radius-md:14px;
     --radius-sm:10px;
+  /* ── 智在生活共用命名（四個 App 都用這組名字，值各自不同）── */
+  --primary:#E8734A; --surface:#FFFFFF;
     --serif:"Noto Serif TC",serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{
     margin:0; background:var(--paper); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+    font-family:'Noto Sans TC',-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   #app{max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom:78px;}
@@ -210,6 +227,14 @@
   .pack-card-compact{transition:padding 0.15s;}
   .pack-actions-hidden{display:none; margin-top:0; padding-top:0; border-top:none;}
   .pack-actions-show{display:flex !important; margin-top:8px !important; padding-top:8px !important; border-top:1px solid var(--line) !important;}
+  /* 點擊區補到 40px：只擴大可按範圍，不改外觀大小 */
+  .spot-actions button, .close-x, #fPhotoRemove, .icon-pill-btn, .transport-chip,
+  .exp-currency-toggle button{ position:relative; }
+  .spot-actions button::after, .close-x::after, #fPhotoRemove::after, .icon-pill-btn::after,
+  .transport-chip::after, .exp-currency-toggle button::after{
+    content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    min-width:40px; min-height:40px; width:100%; height:100%;
+  }
   .spot-actions button{width:27px; height:27px; border-radius:7px; border:none; background:var(--bg); color:var(--sub); font-size:12px;}
   .spot-actions button.del{color:var(--accent);}
 
@@ -346,6 +371,59 @@
     #printArea, #printArea *{visibility:visible;}
     #printArea{display:block; position:absolute; top:0; left:0; width:100%; padding:20px;}
   }
+/* ==================== 訂閱管理（跨 App）==================== */
+#subsPage{position:fixed;inset:0;background:#f5f6f8;z-index:10000;display:none;flex-direction:column;}
+#subsPage.on{display:flex;}
+.subs-head{background:#fff;border-bottom:1px solid #e5e7eb;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:8px;flex:none;}
+.subs-back{background:none;border:none;font-size:16px;color:#4A7A9B;padding:6px 4px;min-height:44px;cursor:pointer;font-family:inherit;}
+.subs-title{font-size:16px;font-weight:700;color:#2c3e50;flex:1;}
+.subs-count{font-size:12px;color:#95a5a6;}
+.subs-tools{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 12px 10px;flex:none;}
+.subs-search{width:100%;font-size:16px;font-family:inherit;padding:10px 12px;border:1px solid #dfe3e8;border-radius:10px;background:#f7f8fa;}
+.subs-search:focus{outline:none;border-color:#4A7A9B;background:#fff;}
+.subs-tabs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;-webkit-overflow-scrolling:touch;}
+.subs-tab{flex:none;border:1px solid #dfe3e8;background:#fff;color:#5a6a78;border-radius:999px;padding:7px 14px;font-size:13px;font-family:inherit;min-height:36px;cursor:pointer;white-space:nowrap;}
+.subs-tab.on{background:#4A7A9B;border-color:#4A7A9B;color:#fff;font-weight:600;}
+.subs-body{flex:1;overflow-y:auto;padding:12px 12px 100px;-webkit-overflow-scrolling:touch;}
+.subs-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.subs-email{font-size:14px;font-weight:600;color:#2c3e50;word-break:break-all;margin-bottom:2px;}
+.subs-key{font-size:11px;color:#b0b8bf;word-break:break-all;margin-bottom:8px;}
+.subs-line{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #f0f2f4;min-height:44px;cursor:pointer;}
+.subs-line:first-of-type{border-top:none;}
+.subs-ico{font-size:15px;width:20px;text-align:center;flex:none;}
+.subs-app{font-size:13px;color:#5a6a78;width:66px;flex:none;}
+.subs-stat{font-size:13px;flex:1;}
+.subs-arrow{color:#c8cfd6;font-size:16px;flex:none;}
+.subs-none{color:#c0c7ce;}
+.subs-ok{color:#2c3e50;}
+.subs-warn{color:#c87d1e;font-weight:600;}
+.subs-bad{color:#c0392b;font-weight:600;}
+.subs-gray{color:#95a5a6;}
+.subs-empty{text-align:center;color:#95a5a6;padding:48px 20px;font-size:14px;line-height:1.8;}
+.subs-fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:#4A7A9B;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:15px;font-weight:600;font-family:inherit;box-shadow:0 4px 14px rgba(74,122,155,.35);z-index:10001;cursor:pointer;min-height:48px;}
+/* 第二層表單 */
+#subsSheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10002;display:none;align-items:flex-end;}
+#subsSheet.on{display:flex;}
+.subs-sheet{background:#fff;width:100%;max-height:88vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
+.subs-sh-title{font-size:16px;font-weight:700;color:#2c3e50;margin-bottom:2px;word-break:break-all;}
+.subs-sh-sub{font-size:13px;color:#7b8794;margin-bottom:16px;}
+.subs-label{font-size:12px;color:#7b8794;margin:14px 0 6px;}
+.subs-input{width:100%;font-size:16px;font-family:inherit;padding:11px 12px;border:1px solid #dfe3e8;border-radius:10px;}
+.subs-input:focus{outline:none;border-color:#4A7A9B;box-shadow:0 0 0 3px rgba(74,122,155,.12);}
+.subs-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.subs-chip{border:1px solid #dfe3e8;background:#fff;color:#5a6a78;border-radius:10px;padding:9px 14px;font-size:13px;font-family:inherit;min-height:42px;cursor:pointer;}
+.subs-chip.on{background:#4A7A9B;border-color:#4A7A9B;color:#fff;font-weight:600;}
+.subs-calc{background:#f3f6f8;border-radius:10px;padding:10px 12px;font-size:13px;color:#2c3e50;margin-top:14px;}
+.subs-calc b{color:#4A7A9B;}
+.subs-primary{width:100%;background:#4A7A9B;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;font-family:inherit;margin-top:18px;min-height:50px;cursor:pointer;}
+.subs-primary:disabled{background:#c8cfd6;}
+.subs-ghost{width:100%;background:#fff;color:#7b8794;border:1px solid #dfe3e8;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;margin-top:10px;min-height:46px;cursor:pointer;}
+.subs-danger{width:100%;background:#fff;color:#c0392b;border:1px solid #f0c8c2;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;margin-top:10px;min-height:46px;cursor:pointer;}
+.subs-row2{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #f0f2f4;font-size:14px;color:#2c3e50;}
+.subs-row2 span:first-child{color:#7b8794;font-size:13px;width:52px;flex:none;}
+.subs-row2 .v{flex:1;}
+.subs-mini{border:1px solid #dfe3e8;background:#fff;color:#5a6a78;border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;min-height:34px;cursor:pointer;}
+
 </style>
 </head>
 <body>
@@ -360,7 +438,7 @@
       <h1>旅遊計畫</h1>
       <p class="eyebrow">把計畫，變成旅程。</p>
       <input id="pwInput" type="email" inputmode="email" autocomplete="email" maxlength="60" placeholder="請輸入 Email">
-      <div class="login-tip">🎁 首次登入即享 14 天全功能免費試用</div>
+      <div class="login-tip">🎁 免費建立第一個行程，所有功能都能用</div>
       <label class="login-consent"><input type="checkbox" id="agreeChk"> <span>我已閱讀並同意 <a id="termsLink">《服務條款與隱私政策》</a></span></label>
       <button id="loginBtn">登入</button>
       <div id="loginError"></div>
@@ -488,6 +566,11 @@
       <div class="set-card">
         <button id="installAppBtn" class="set-row" type="button"><span class="ic">📲</span><span class="tx">安裝到手機桌面</span><span class="ar">›</span></button>
         <button id="shareAppBtn" class="set-row" type="button"><span class="ic">🔗</span><span class="tx">分享這個 App</span><span class="ar">›</span></button>
+      </div>
+
+      <div class="set-group" id="setAdminGroup" style="display:none;">管理員</div>
+      <div class="set-card" id="setAdminCard" style="display:none;">
+        <button id="subsAdminBtn" class="set-row" type="button"><span class="ic">🔑</span><span class="tx">訂閱管理</span><span class="ar">›</span></button>
       </div>
 
       <div class="set-group">支援</div>
@@ -699,8 +782,8 @@
     <div class="field"><label>行程名稱</label><input id="trName" type="text" placeholder="例：上海五日遊"></div>
     <div class="field"><label>地區</label>
       <div class="chip-row" id="trRegionChips">
-        <div class="chip active" data-v="china">🇨🇳 大陸</div>
-        <div class="chip" data-v="japan">🇯🇵 日本</div>
+        <div class="chip active" data-v="japan">🇯🇵 日本</div>
+        <div class="chip" data-v="china">🇨🇳 大陸</div>
       </div>
     </div>
     <div class="row2">
@@ -866,15 +949,51 @@ function _isPackingDoc(data, ref){
   return false;
 }
 var _roSheetShown=false;
+// 免費版想用完整版功能時跳這個
+function showAdvancedSheet(featName){
+  if(_roSheetShown) return; _roSheetShown=true;
+  var d=document.createElement("div");
+  d.className="ro-sheet"; d.id="roSheet";
+  d.innerHTML='<div class="ro-card"><h3>🔒 '+(featName||"這個功能")+'需要完整版</h3>'+
+    '<p>免費版可以建立不限數量的行程，安排每天去哪裡。<br><br>'+
+    '完整版再加上：交通段銜接、花費彙總與匯率、行前準備清單、列印／存 PDF。</p>'+
+    payCardHtml({ app:'trv', email: myEmail || '', price:999, per:83, accent:'#E8734A' })+
+    '<a class="ro-line" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服</a>'+
+    '<button class="ro-close" id="roClose">關閉</button></div>';
+  document.body.appendChild(d);
+  if(window.payCardBind) payCardBind();
+  document.getElementById("roClose").addEventListener("click", function(){ d.remove(); _roSheetShown=false; });
+  d.addEventListener("click", function(e){ if(e.target===d){ d.remove(); _roSheetShown=false; } });
+}
+
+function showTripQuotaSheet(){
+  if(_roSheetShown) return; _roSheetShown=true;
+  var d=document.createElement("div");
+  d.className="ro-sheet"; d.id="roSheet";
+  d.innerHTML='<div class="ro-card"><h3>🔒 這個行程只能查看</h3>'+
+    '<p>這是試用期間建立的行程，裡面有完整版功能做出來的內容，所以到期後只能看。<br><br>'+
+    '你仍然可以建立新行程，安排每天去哪裡。</p>'+
+    payCardHtml({ app:'trv', email: myEmail || '', price:999, per:83, accent:'#E8734A' })+
+    '<a class="ro-line" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服</a>'+
+    '<button class="ro-close" id="roClose">關閉</button></div>';
+  document.body.appendChild(d);
+  if(window.payCardBind) payCardBind();
+  function close(){ var el=document.getElementById("roSheet"); if(el) el.remove(); _roSheetShown=false; }
+  document.getElementById("roClose").addEventListener("click", close);
+  d.addEventListener("click", function(e){ if(e.target===d) close(); });
+}
+
 function showUpgradeNeeded(){
   if(_roSheetShown) return; _roSheetShown=true;
   var d=document.createElement("div");
   d.className="ro-sheet"; d.id="roSheet";
-  d.innerHTML='<div class="ro-card"><h3>🔒 這是付費版功能</h3>'+
-    '<p>免費版可以查看已建立的行程、使用採買清單、分享行程。<br>新增或修改行程、航班、花費與地圖搜尋，升級後即可使用。</p>'+
-    '<a class="ro-line" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服升級</a>'+
+  d.innerHTML='<div class="ro-card"><h3>🔒 訂閱已到期</h3>'+
+    '<p>你的行程、花費、航班資料都還在，可以隨時查看，採買清單也照常使用。<br>要繼續新增或修改，續訂後就能恢復。</p>'+
+    payCardHtml({ app:'trv', email: myEmail || '', price:999, per:83, accent:'#E8734A' })+
+    '<a class="ro-line" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服</a>'+
     '<button class="ro-close" id="roClose">關閉</button></div>';
   document.body.appendChild(d);
+  if(window.payCardBind) payCardBind();
   function close(){ var el=document.getElementById("roSheet"); if(el) el.remove(); _roSheetShown=false; }
   document.getElementById("roClose").addEventListener("click", close);
   d.addEventListener("click", function(e){ if(e.target===d) close(); });
@@ -887,10 +1006,22 @@ function showUpgradeNeeded(){
   var batProto = Object.getPrototypeOf(db.batch());
   var _add=colProto.add, _set=docProto.set, _upd=docProto.update, _del=docProto.delete;
   var _bset=batProto.set, _bupd=batProto.update, _bdel=batProto.delete;
+  // 找出這筆資料屬於哪個行程：
+  //   有 tripId 就用它；是 trips 集合本身（新建行程）就放行。
+  function _tripOfWrite(data, ref){
+    if(data && data.tripId) return trips.find(function(t){ return t.id===data.tripId; }) || null;
+    if(ref && ref.parent && ref.parent.id === TRIPS_COLLECTION){
+      return trips.find(function(t){ return t.id===ref.id; }) || null;
+    }
+    return undefined;   // 判斷不出來
+  }
   function allow(data, ref){
-    if(canEdit()) return true;
+    if(isAdminUser || isPaidPlan(myPlan) || myPlan === "trial") return true;
     if(_isPackingDoc(data, ref)) return true;       // 採買清單免費版也能用
-    showUpgradeNeeded();
+    var t = _tripOfWrite(data, ref);
+    if(t === undefined) return true;                // 判斷不出來就放行，不要誤擋
+    if(canEditTrip(t)) return true;                 // t 為 null＝新建行程 → 放行
+    showTripQuotaSheet();                           // 這個行程是試用期建的，只能查看
     return false;
   }
   function withOwner(data){
@@ -904,9 +1035,12 @@ function showUpgradeNeeded(){
   docProto.set=function(data, opts){ if(!allow(data,this)) return Promise.reject(new Error("READ_ONLY")); return opts ? _set.call(this, withOwner(data), opts) : _set.call(this, withOwner(data)); };
   docProto.update=function(a,b){ if(!allow(typeof a==="object"?a:null,this)) return Promise.reject(new Error("READ_ONLY")); return (arguments.length>1) ? _upd.apply(this, arguments) : _upd.call(this,a); };
   docProto.delete=function(){ if(!allow(null,this)) return Promise.reject(new Error("READ_ONLY")); return _del.call(this); };
-  batProto.set=function(ref, data, opts){ if(!allow(data,ref)) return this; return opts ? _bset.call(this, ref, withOwner(data), opts) : _bset.call(this, ref, withOwner(data)); };
-  batProto.update=function(ref, a, b){ if(!allow(typeof a==="object"?a:null, ref)) return this; return (arguments.length>2) ? _bupd.apply(this, arguments) : _bupd.call(this, ref, a); };
-  batProto.delete=function(ref){ if(!allow(null, ref)) return this; return _bdel.call(this, ref); };
+  // batch 被擋時要記錄，commit 時整批拒絕 —— 不然會出現「行程刪了、底下項目沒刪」的孤兒資料
+  var _bcommit = batProto.commit;
+  batProto.set=function(ref, data, opts){ if(!allow(data,ref)){ this.__blocked=true; return this; } return opts ? _bset.call(this, ref, withOwner(data), opts) : _bset.call(this, ref, withOwner(data)); };
+  batProto.update=function(ref, a, b){ if(!allow(typeof a==="object"?a:null, ref)){ this.__blocked=true; return this; } return (arguments.length>2) ? _bupd.apply(this, arguments) : _bupd.call(this, ref, a); };
+  batProto.delete=function(ref){ if(!allow(null, ref)){ this.__blocked=true; return this; } return _bdel.call(this, ref); };
+  batProto.commit=function(){ if(this.__blocked) return Promise.reject(new Error("READ_ONLY")); return _bcommit.call(this); };
 })();
 
 // 免費版：把新增類按鈕收起來，避免點了才被擋
@@ -915,7 +1049,7 @@ function applyPlanLocks(){
   document.body.classList.toggle("read-only", !edit);
   var memo=document.getElementById("memoFab");
   if(fab) fab.dataset.locked = edit ? "" : "1";
-  if(memo) memo.style.display = edit ? memo.style.display : "none";
+  if(memo) memo.style.display = edit ? "" : "none";   // 升級後要恢復，不能指派回自己
   renderVerTag();
 }
 
@@ -955,11 +1089,11 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "0924-5";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "0924-7";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
-const TRIAL_DAYS = 14;
+// 旅遊：不限行程數，改鎖功能；試用 14 天從建立第一個行程起算（見 TRAVEL_TRIAL_DAYS）
 const PLAN_CACHE_KEY = "travel_plan_cache", PLAN_GRACE_MS = 3*86400000, VERIFY_TIMEOUT_MS = 8000;
 
 let auth=null;  try{ auth = firebase.auth(); }catch(e){ auth=null; }
@@ -967,11 +1101,99 @@ let rtdb=null;  try{ rtdb = firebase.database(); }catch(e){ rtdb=null; }   // �
 let myEmail=null, myPlan="free", myExpiry="", isAdminUser=false;
 
 function isEmail(x){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x); }
+// Email 正規化：gmail 的加號後綴與點號視為同一個帳號，避免換寫法重複試用
+function normEmail(e){
+  var v = String(e||"").trim().toLowerCase();
+  var at = v.lastIndexOf("@");
+  if(at < 1) return v;
+  var user = v.slice(0, at), host = v.slice(at+1);
+  if(host === "gmail.com" || host === "googlemail.com"){
+    user = user.split("+")[0].replace(/\./g, "");
+    host = "gmail.com";
+  }
+  return user + "@" + host;
+}
+// 資料路徑的 key 必須跟 Firebase 規則一致：
+//   $key == auth.token.email.toLowerCase().replace('.', '_')
+// 所以這裡「不能」做 Gmail 正規化，否則含點的 Gmail 會讀寫全被拒。
 function emailKey(e){ return String(e||"").toLowerCase().replace(/[.#$\[\]]/g,"_"); }
+// 只用於「這個信箱用過試用沒」的比對，不可當資料路徑
+function trialEmailKey(e){ return normEmail(e).replace(/[.#$\[\]]/g,"_"); }
 function isPaidPlan(p){ return p==="basic"||p==="full"||p==="family"; }
-function planDeviceLimit(p){ if(isPaidPlan(p)) return 4; if(p==="trial") return 2; return 1; }
-// 付費／試用／管理員才能編輯；免費版只能看（採買清單與分享例外）
-function canEdit(){ return isAdminUser || myPlan==="trial" || isPaidPlan(myPlan); }
+// 智在生活共用規則：免費 1 台／試用 3 台／完整版 3 台
+function planDeviceLimit(p){ if(isPaidPlan(p)||p==="trial") return 3; return 1; }
+// ── 旅遊的方案規則：不限行程數，改成鎖功能 ──
+// 試用 14 天，從「建立第一個行程」當天起算（不是註冊日），
+// 因為行程可能是三個月後的事，用註冊日計時會讓人一次都試不到。
+const TRAVEL_TRIAL_DAYS = 14;
+let myTripsCreated = 0;          // 仍保留計數，給後台看
+let myTrialStartedAt = 0;        // 0 = 還沒開始試用
+
+// 完整版才有的功能：交通段銜接、花費彙總、行前準備清單、列印 PDF
+function canUseAdvanced(){
+  return isAdminUser || isPaidPlan(myPlan) || myPlan === "trial";
+}
+
+// 行程數不限
+function canCreateTrip(){ return true; }
+
+// 這個行程能不能編輯：
+//   試用／完整版期間建立的行程，到期後只能看（裡面有付費功能做出來的內容）
+//   免費版建立的行程，永遠可以編輯，但只有基本功能
+function canEditTrip(trip){
+  if(isAdminUser || isPaidPlan(myPlan) || myPlan === "trial") return true;
+  if(!trip) return true;                       // 還沒選行程（例如正要新建）→ 放行
+  return trip.tier !== "trial" && trip.tier !== "paid";   // 沒有 tier 的舊行程視同可編輯
+}
+function canEdit(){ return canEditTrip(getActiveTrip()); }
+
+// 目前這個行程是不是唯讀（到期後的試用期行程）
+function isExpiredReadonly(){ return !canEdit(); }
+
+// 建立行程時要蓋的標記
+function currentTier(){
+  if(isAdminUser || isPaidPlan(myPlan)) return "paid";
+  if(myPlan === "trial") return "trial";
+  return "free";
+}
+
+// 建立第一個行程時才開始計時
+async function startTrialIfNeeded(){
+  if(isAdminUser || isPaidPlan(myPlan) || myPlan === "trial" || myTrialStartedAt) return false;
+  if(!rtdb || !myEmail) return false;
+  // 這台裝置用過試用了嗎？
+  try{
+    var t = await withTimeout(rtdb.ref("trial_devices/travel/"+_devId()).once("value"), VERIFY_TIMEOUT_MS);
+    if(t.val()) return false;
+    var e2 = await withTimeout(rtdb.ref("trial_devices/travel/e_"+trialEmailKey(myEmail)).once("value"), VERIFY_TIMEOUT_MS);
+    if(e2.val()) return false;
+  }catch(e){}
+  var now = Date.now(), expTs = now + TRAVEL_TRIAL_DAYS*86400000;
+  var expiry = _ymdTs(expTs);
+  myPlan = "trial"; myExpiry = expiry; myTrialStartedAt = now;
+  try{
+    // 只寫這三個欄位：deviceLimit 由 plan 推導，不需要存，也不該讓前端寫
+    await rtdb.ref(SUBS_PATH+emailKey(myEmail)).update({ plan:"trial", expiry:expiry, trialStartedAt:now });
+    await rtdb.ref("trial_devices/travel/"+_devId()).set({ firstTrialAt:now });
+    await rtdb.ref("trial_devices/travel/e_"+trialEmailKey(myEmail)).set({ firstTrialAt:now });
+  }catch(e){}
+  savePlanCache(myEmail, "trial", expiry);
+  applyPlanLocks();
+  return true;
+}
+
+async function bumpTripsCreated(){
+  myTripsCreated += 1;
+  if(!rtdb || !myEmail) return;
+  try{ await rtdb.ref(SUBS_PATH+emailKey(myEmail)+"/tripsCreated").set(myTripsCreated); }catch(e){}
+}
+
+// 擋下需要完整版的動作
+function needAdvanced(featName){
+  if(canUseAdvanced()) return false;
+  showAdvancedSheet(featName);
+  return true;
+}
 
 function withTimeout(pr, ms){
   return Promise.race([pr, new Promise(function(_,rej){ setTimeout(function(){ var e=new Error("timeout"); e.code="TIMEOUT"; rej(e); }, ms); })]);
@@ -1007,11 +1229,14 @@ async function verifyCustomer(email){
   }
   var sub=snap.val();
   if(!sub){
-    var expTs=now+TRIAL_DAYS*86400000;
-    var rec={ email:email, plan:"trial", expiry:_ymdTs(expTs), status:"active", deviceLimit:2, createdAt:now, lastSeen:now, devices:{} };
+    // 新帳號先給免費版，不立刻開始計時 ——
+    // 出國可能是三個月後的事，用註冊日算試用會讓人一次都試不到。
+    // 真正的試用在「建立第一個行程」時才啟動（見 startTrialIfNeeded）。
+    var rec={ email:email, plan:"free", expiry:"", status:"active", deviceLimit:1,
+              tripsCreated:0, trialStartedAt:0, createdAt:now, lastSeen:now, devices:{} };
     try{ await rtdb.ref(SUBS_PATH+key).set(rec); }catch(e){}
-    savePlanCache(email, "trial", rec.expiry);
-    return { ok:true, plan:"trial", expiry:rec.expiry, newTrial:true };
+    savePlanCache(email, "free", "");
+    return { ok:true, plan:"free", expiry:"", newFree:true, tripsCreated:0 };
   }
   if(sub.status==="disabled") return { ok:false, msg:"此帳號已停用，請聯繫客服" };
   try{ rtdb.ref(SUBS_PATH+key+"/lastSeen").set(now); }catch(e){}
@@ -1019,7 +1244,9 @@ async function verifyCustomer(email){
   var expired = expMs && now>expMs;
   var effPlan = expired ? "free" : (sub.plan||"free");
   savePlanCache(email, effPlan, sub.expiry);
-  return { ok:true, plan:effPlan, expiry:sub.expiry, expired:!!expired };
+  return { ok:true, plan:effPlan, expiry:sub.expiry, expired:!!expired,
+           tripsCreated: Number(sub.tripsCreated||0),
+           trialStartedAt: Number(sub.trialStartedAt||0) };
 }
 
 var DEV_KEY="travel_devid";
@@ -1074,6 +1301,7 @@ function showDeviceLimit(email, plan, limit){
     '<a class="ro-line" style="margin-top:10px" href="'+LINE_SUPPORT_URL+'" target="_blank" rel="noopener">💬 聯繫客服</a>'+
     '<button class="ro-close" id="dlClose">關閉</button></div>';
   document.body.appendChild(d);
+  if(window.payCardBind) payCardBind();
   function close(){ var el=document.getElementById("devSheet"); if(el) el.remove(); }
   document.getElementById("dlKick").addEventListener("click", async function(){
     var b=this; b.textContent="處理中…"; b.disabled=true;
@@ -1109,7 +1337,7 @@ async function proceedLogin(email, manual){
   myEmail=email;
   isAdminUser = email.toLowerCase()===ADMIN_EMAIL;
   if(isAdminUser){
-    myPlan="full"; myExpiry="";
+    myPlan="full"; myExpiry=""; myTripsCreated=0;
   } else {
     var res;
     try{ res=await verifyCustomer(email); }catch(e){ res={ok:true, plan:planFromCache(email), offline:true}; }
@@ -1126,10 +1354,11 @@ async function proceedLogin(email, manual){
       showDeviceLimit(email, res.plan, dev.limit);
       return true;
     }
-    myPlan=res.plan; myExpiry=res.expiry||"";
+    myPlan=res.plan; myExpiry=res.expiry||""; myTripsCreated=Number(res.tripsCreated||0);
+    myTrialStartedAt=Number(res.trialStartedAt||0);
     if(!res.offline){
-      if(res.newTrial){ setTimeout(function(){ alert("🎉 歡迎！\n\n已為你開啟 "+TRIAL_DAYS+" 天全功能免費試用\n到期日："+res.expiry+"\n\n到期後行程仍看得到，採買清單也還能用 😊"); }, 400); }
-      else if(res.expired){ setTimeout(function(){ alert("試用已到期\n\n行程還看得到、採買清單還能用，\n想繼續新增或修改行程，請透過官方 LINE 升級 😊"); }, 400); }
+      if(res.newFree){ setTimeout(function(){ alert("🎉 歡迎\n\n免費版可以建立不限數量的行程，\n安排每天要去哪裡。\n\n建立第一個行程後，會開始 14 天全功能試用，\n交通段、花費彙總、行前準備、列印 PDF 都能用。"); }, 400); }
+      else if(res.expired){ setTimeout(function(){ alert("訂閱已到期\n\n行程、花費、航班資料都還在，\n可以隨時查看，採買清單也照常使用。\n想繼續新增或修改，續訂即可恢復 😊"); }, 400); }
     }
   }
   try{ localStorage.setItem(AUTH_KEY, email); }catch(e){}
@@ -1209,6 +1438,7 @@ async function adminLogin(){
   var t=document.getElementById("adminLoginToggle"), box=document.getElementById("adminLoginBox");
   if(t&&box) t.addEventListener("click", function(){ box.style.display = box.style.display==="none" ? "block" : "none"; });
   var b=document.getElementById("adminLoginBtn"); if(b) b.addEventListener("click", adminLogin);
+  var sb=document.getElementById("subsAdminBtn"); if(sb) sb.addEventListener("click", function(){ subsAdmin.open(); });
   var pi=document.getElementById("adminPwInput"); if(pi) pi.addEventListener("keydown", function(e){ if(e.key==="Enter") adminLogin(); });
 })();
 
@@ -1223,7 +1453,7 @@ async function enterApp(){
   await migrateOwnerIfNeeded();
   startListening();
   startTripsListening();
-  initAutocomplete();
+  // 不在這裡載地圖 —— 等使用者真的開地圖分頁或新增地點時才載
 }
 
 async function autoLogin(){
@@ -1252,7 +1482,7 @@ document.getElementById("logoutBtn").addEventListener("click", ()=>{
 
 // ---------- 設定頁（整頁式）----------
 const settingsPage = document.getElementById("settingsPage");
-const PLAN_LABEL = { trial:"試用中", basic:"基本版", full:"完整版", family:"家庭版", free:"免費版" };
+const PLAN_LABEL = { trial:"試用中", basic:"完整版", full:"完整版", family:"完整版", free:"免費版" };
 function renderAccountCard(){
   var box = document.getElementById("setAccountCard");
   if(!box) return;
@@ -1274,6 +1504,9 @@ function openSettings(){
   var grp = document.querySelector("#settingsPage .set-group");
   if(grp) grp.style.display = trip ? "block" : "none";
   if(grp && grp.nextElementSibling) grp.nextElementSibling.style.display = trip ? "block" : "none";
+  ["setAdminGroup","setAdminCard"].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display = isAdminUser ? "block" : "none";
+  });
   settingsPage.classList.add("show");
   settingsPage.scrollTop = 0;
 }
@@ -1294,7 +1527,7 @@ document.getElementById("shareAppBtn").addEventListener("click", async ()=>{
   try{
     if(navigator.share){ await navigator.share({ title:"旅遊計畫", text:"旅遊計畫 App", url:APP_URL }); return; }
     await navigator.clipboard.writeText(text);
-    alert("已複製連結，貼給朋友就可以了");
+    travelToast("已複製連結，貼給朋友就可以了");
   }catch(e){ if(e && e.name==="AbortError") return; prompt("複製這個連結分享給朋友：", APP_URL); }
 });
 document.getElementById("supportBtn").addEventListener("click", ()=>{
@@ -1305,25 +1538,15 @@ const TERMS_HTML =
   '<div style="text-align:left;font-size:13.5px;line-height:1.75;max-height:60vh;overflow:auto">'+
   '<p><b>1. 服務內容</b><br>本 App 提供旅遊行程、航班、花費與採買清單的記錄工具，資料儲存於 Google Firebase。</p>'+
   '<p><b>2. 帳號與共用</b><br>以 Email 登入連結驗證身分。同行者可共用同一帳號，但同時登入的裝置數量依方案限制。</p>'+
-  '<p><b>3. 試用與付費</b><br>首次登入享 14 天全功能試用。試用結束後仍可查看既有行程、使用採買清單與分享行程；新增與編輯行程、航班、花費、地圖搜尋需付費方案。</p>'+
-  '<p><b>4. 付款</b><br>付款採藍新金流或轉帳，完成後由客服開通。數位服務一經開通恕不退費，如有服務問題請透過 LINE 客服協助。</p>'+
+  '<p><b>3. 免費額度與付費</b><br>免費版可建立不限數量的行程，安排每天的景點、時間與地圖。建立第一個行程後起算 14 天全功能試用，期間可使用交通段銜接、花費彙總與匯率、行前準備清單、列印／存 PDF。試用結束未訂閱者，試用期間建立的行程轉為唯讀（資料保留、可匯出），仍可建立新行程並使用基本功能。</p>'+
+  '<p><b>4. 付款</b><br>付款方式以 App 內公告為準，完成後由客服開通。數位服務一經開通恕不退費，如有服務問題請透過 LINE 客服協助。</p>'+
   '<p><b>5. 資料與隱私</b><br>僅蒐集登入 Email 與您自行輸入的行程內容，不會提供給第三方。您可隨時聯繫客服刪除帳號與資料。</p>'+
   '<p><b>6. 免責</b><br>行程、航班等資訊由使用者自行輸入，本服務不保證正確性，實際請以航空公司與店家公告為準。</p>'+
   '<p><b>7. 聯絡方式</b><br>LINE 客服：@373pfdee</p>'+
   '</div>';
-function showTerms(){
-  if(document.getElementById("termsSheet")) return;
-  const d = document.createElement("div");
-  d.className = "ro-sheet"; d.id = "termsSheet";
-  d.innerHTML = '<div class="ro-card">'+TERMS_HTML+'<button class="ro-close" id="termsClose">關閉</button></div>';
-  document.body.appendChild(d);
-  const close = ()=>{ const el=document.getElementById("termsSheet"); if(el) el.remove(); };
-  document.getElementById("termsClose").addEventListener("click", close);
-  d.addEventListener("click", (e)=>{ if(e.target===d) close(); });
-}
-document.getElementById("termsBtn").addEventListener("click", showTerms);
+document.getElementById("termsBtn").addEventListener("click", function(){ legalDocs.open("terms"); });
 const _termsLink = document.getElementById("termsLink");
-if(_termsLink) _termsLink.addEventListener("click", (e)=>{ e.preventDefault(); showTerms(); });
+if(_termsLink) _termsLink.addEventListener("click", (e)=>{ e.preventDefault(); legalDocs.open("terms"); });
 
 /* ---------- 安裝到手機桌面（智在生活 Standard，與行事曆同一套）----------
    登入頁的按鈕「一律顯示」，不等瀏覽器許可：
@@ -1524,6 +1747,7 @@ function computeDateForDay(day){
 // ---------- Bottom nav ----------
 bottomNav.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
+    if(btn.dataset.tab === "expense" && needAdvanced("花費彙總")) return;
     currentTab = btn.dataset.tab;
     bottomNav.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
@@ -1557,7 +1781,7 @@ function renderAll(){
   if(currentTab==="expense") renderExpense();
   if(currentTab==="flight") renderFlightForm();
   if(currentTab==="packing") renderPacking();
-  if(currentTab==="map") renderMap();
+  if(currentTab==="map"){ loadGoogleMaps().then(renderMap); }
   renderHolding();
 }
 
@@ -1618,7 +1842,7 @@ function renderMap(){
     msg.className = "empty";
     msg.innerHTML = mapDayFilter==="all"
       ? `<span class="emoji">📍</span>還沒有帶座標的地點<br>透過搜尋建議新增的地點才會顯示在地圖上`
-      : `<span class="emoji">📍</span>「${mapDayFilter}」還沒有帶座標的地點`;
+      : `<span class="emoji">📍</span>「${mapDayFilter}」還沒有帶座標的地點<br>透過搜尋建議新增的地點才會顯示在地圖上`;
     canvas.appendChild(msg);
     return;
   }
@@ -2167,7 +2391,10 @@ function placesStatusMessage(){
 function checkPlacesStatus(elId){
   const el = document.getElementById(elId || "placesStatus");
   // Retry init in case the script finished loading after our first attempt
-  if(!placesReady && window.google && google.maps && google.maps.places){ initAutocomplete(); }
+  if(!placesReady){
+    if(window.google && google.maps && google.maps.places){ initAutocomplete(); }
+    else { loadGoogleMaps().then(function(ok){ if(ok){ initAutocomplete(); } checkPlacesStatus(elId); }); return; }
+  }
   if(placesReady){ el.style.display = "none"; return; }
   el.textContent = placesStatusMessage();
   el.style.display = "block";
@@ -2288,7 +2515,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
   if(!editingSpotId){
     const dup = items.find(i=>i.tripId===activeTripId && i.type==="spot" && i.name && i.name.trim()===name);
     if(dup){
-      const goAhead = confirm(`「${name}」在 ${dup.day} 已經有一筆一樣名稱的地點了，確定還是要新增嗎？\n（如果是想調整原本那筆，建議取消後改用編輯）`);
+      const goAhead = await askConfirm("名稱重複", `「${name}」在 ${dup.day} 已經有一筆一樣名稱的地點了。\n如果是想調整原本那筆，建議取消後改用編輯。`, "還是新增");
       if(!goAhead) return;
     }
   }
@@ -2315,7 +2542,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
       await db.collection(COLLECTION).add(data);
     }
     closeSpotModal();
-  }catch(e){ console.error("save spot failed", e); alert("儲存失敗，請檢查網路連線"); }
+  }catch(e){ console.error("save spot failed", e); travelToast(failMsg("儲存", e)); }
 });
 
 // ---------- Transport modal ----------
@@ -2548,6 +2775,7 @@ document.getElementById("tJrCustomConfirm").addEventListener("click", ()=>{
 
 
 function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, isLeadingOverride){
+  if(needAdvanced("交通段銜接")) return;
   pendingTransport.id = it ? it.id : null;
   currentTransportPrevTime = prevTime || "";
   const tripForModal = getActiveTrip();
@@ -2697,9 +2925,9 @@ document.getElementById("tExpToggle").addEventListener("click", ()=>{
 });
 document.getElementById("transDelete").addEventListener("click", async ()=>{
   if(!pendingTransport.id) return;
-  if(!confirm("確定要刪除這段交通嗎？")) return;
+  if(!await askConfirm("刪除這段交通", "刪除後無法復原。", "刪除")) return;
   try{ await db.collection(COLLECTION).doc(pendingTransport.id).delete(); closeTransportModal(); }
-  catch(e){ console.error("delete transport failed", e); alert("刪除失敗，請檢查網路連線"); }
+  catch(e){ console.error("delete transport failed", e); travelToast(failMsg("刪除", e)); }
 });
 transModalMask.addEventListener("click",(e)=>{ if(e.target===transModalMask) closeTransportModal(); });
 
@@ -2722,13 +2950,13 @@ document.getElementById("transSave").addEventListener("click", async ()=>{
       await db.collection(COLLECTION).add(data);
     }
     closeTransportModal();
-  }catch(e){ console.error("save transport failed", e); alert("儲存失敗，請檢查網路連線"); }
+  }catch(e){ console.error("save transport failed", e); travelToast(failMsg("儲存", e)); }
 });
 
 async function deleteItem(id){
-  if(!confirm("確定要刪除嗎？")) return;
+  if(!await askConfirm("確定要刪除嗎", "刪除後無法復原。", "刪除")) return;
   try{ await db.collection(COLLECTION).doc(id).delete(); }
-  catch(e){ console.error("delete failed", e); alert("刪除失敗，請檢查網路連線"); }
+  catch(e){ console.error("delete failed", e); travelToast(failMsg("刪除", e)); }
 }
 
 async function deleteSpotWithAdjacentTransport(spot){
@@ -2740,7 +2968,7 @@ async function deleteSpotWithAdjacentTransport(spot){
   const msg = toDelete.length>1
     ? "確定要刪除嗎？這個地點前後連接的交通段也會一併刪除。"
     : "確定要刪除嗎？";
-  if(!confirm(msg)) return;
+  if(!await askConfirm("刪除地點", msg, "刪除")) return;
   try{
     const batch = db.batch();
     toDelete.forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
@@ -2750,10 +2978,10 @@ async function deleteSpotWithAdjacentTransport(spot){
       const newFirst = remaining[0];
       const hasFlightAnchor = (spot.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
       if(newFirst && newFirst.type==="spot" && !hasFlightAnchor){
-        setTimeout(()=>{ alert(`提醒：「${newFirst.name}」現在變成 ${spot.day} 的第一個地點，記得幫它補上時間，後面的行程才能正確計算。`); }, 300);
+        setTimeout(()=>{ travelToast(`「${newFirst.name}」變成 ${spot.day} 的第一個地點，記得補上時間`, 4000); }, 300);
       }
     }
-  }catch(e){ console.error("delete spot+transport failed", e); alert("刪除失敗，請檢查網路連線"); }
+  }catch(e){ console.error("delete spot+transport failed", e); travelToast(failMsg("刪除", e)); }
 }
 
 function recalcAdjacentTaxiWalkTransports(day, batch){
@@ -2813,7 +3041,7 @@ async function moveSpot(spot, direction){
     batch.update(db.collection(COLLECTION).doc(neighbor.id), neighborUpdate);
     recalcAdjacentTaxiWalkTransports(spot.day, batch);
     await batch.commit();
-  }catch(e){ console.error("move spot failed", e); alert("移動失敗，請檢查網路連線"); }
+  }catch(e){ console.error("move spot failed", e); travelToast(failMsg("移動", e)); }
 }
 
 // ================= COPY (spot) / SWAP (whole day) =================
@@ -2860,7 +3088,7 @@ document.getElementById("copyDayConfirm").addEventListener("click", async ()=>{
       await swapDayContents(currentDay, targetDay);
     }
     copyDayModalMask.classList.remove("show");
-  }catch(e){ console.error("copy/swap failed", e); alert("操作失敗，請檢查網路連線"); }
+  }catch(e){ console.error("copy/swap failed", e); travelToast(failMsg("操作", e)); }
 });
 
 document.getElementById("moveDayConfirm").addEventListener("click", async ()=>{
@@ -2869,7 +3097,7 @@ document.getElementById("moveDayConfirm").addEventListener("click", async ()=>{
   try{
     await moveSpotToDay(copyContext.spot, targetDay);
     copyDayModalMask.classList.remove("show");
-  }catch(e){ console.error("move failed", e); alert("移動失敗，請檢查網路連線"); }
+  }catch(e){ console.error("move failed", e); travelToast(failMsg("移動", e)); }
 });
 
 async function moveSpotToDay(spot, targetDay){
@@ -2880,7 +3108,7 @@ async function moveSpotToDay(spot, targetDay){
   if(idx>0 && arr[idx-1].type==="transport") toDeleteTransports.push(arr[idx-1].id);
   if(idx<arr.length-1 && arr[idx+1].type==="transport") toDeleteTransports.push(arr[idx+1].id);
   if(toDeleteTransports.length){
-    if(!confirm("這個地點前後連接的交通段會一併移除（因為換天後不再相鄰），確定要移動嗎？")) return;
+    if(!await askConfirm("換天移動", "這個地點前後連接的交通段會一併移除，因為換天後不再相鄰。", "移動")) return;
   }
   const order = computeOrder(targetDay);
   const batch = db.batch();
@@ -2923,7 +3151,7 @@ function renderHolding(){
   if(!activeTripId) return;
   const arr = items.filter(i=>i.tripId===activeTripId && i.type==="holding").sort((a,b)=>b.order-a.order);
   if(arr.length===0){
-    wrap.innerHTML = `<p style="font-size:12.5px; color:var(--sub); text-align:center; padding:10px 0;">還沒有任何記錄</p>`;
+    wrap.innerHTML = `<div class="empty"><span class="emoji">📝</span>還沒有任何記錄<br>點右下角 ＋ 開始新增</div>`;
     return;
   }
   arr.forEach(h=>{
@@ -3020,7 +3248,7 @@ document.getElementById("holdSave").addEventListener("click", async ()=>{
     document.getElementById("hName").value=""; document.getElementById("hNote").value="";
     hSelectedLatLng = null;
     document.getElementById("hName").focus();
-  }catch(e){ console.error(e); alert("儲存失敗"); }
+  }catch(e){ console.error(e); travelToast(failMsg("儲存", e)); }
 });
 
 const assignModalMask = document.getElementById("assignModalMask");
@@ -3042,7 +3270,7 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
   try{
     await db.collection(COLLECTION).doc(assigningHoldId).update({ type:"spot", day, order, category, time:"", expense:{amount:0,category:"",payer:"",currency:primaryCurrencyForTrip()} });
     assignModalMask.classList.remove("show");
-  }catch(e){ console.error(e); alert("排入失敗"); }
+  }catch(e){ console.error(e); travelToast(failMsg("排入", e)); }
 });
 
 // ================= EXPENSE =================
@@ -3222,7 +3450,7 @@ async function saveFlightSettings(){
   };
   try{
     await db.collection(COLLECTION).doc("flight_"+activeTripId).set(data, { merge:true });
-  }catch(e){ console.error("save flight failed", e); alert("儲存失敗，請檢查網路連線"); }
+  }catch(e){ console.error("save flight failed", e); travelToast(failMsg("儲存", e)); }
 }
 
 function renderFlightForm(){
@@ -3405,7 +3633,7 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
       await db.collection(COLLECTION).add(data);
     }
     packModalMask.classList.remove("show");
-  }catch(e){ console.error("save packing failed", e); alert("儲存失敗，請檢查網路連線"); }
+  }catch(e){ console.error("save packing failed", e); travelToast(failMsg("儲存", e)); }
 });
 
 async function togglePackChecked(item){
@@ -3498,8 +3726,8 @@ async function importBasicPackingList(){
     items.filter(i=>i.tripId===activeTripId && i.type==="packing").map(i=>i.name)
   );
   const toAdd = fullList.filter(it=>!existingNames.has(it.name));
-  if(toAdd.length===0){ alert("清單裡的項目都已經加過了，沒有新的可以匯入。"); return; }
-  if(!confirm("要匯入基本必備清單嗎？會加入 "+toAdd.length+" 個新項目（含依出發月份的季節建議，已存在的同名項目會跳過）。")) return;
+  if(toAdd.length===0){ travelToast("清單裡的項目都已經加過了"); return; }
+  if(!await askConfirm("帶入基本必備清單", "會加入 "+toAdd.length+" 個新項目，含依出發月份的季節建議。\n已存在的同名項目會跳過。", "帶入")) return;
   try{
     const batch = db.batch();
     toAdd.forEach((it, idx)=>{
@@ -3510,11 +3738,11 @@ async function importBasicPackingList(){
       });
     });
     await batch.commit();
-  }catch(e){ console.error("import basic packing list failed", e); alert("匯入失敗，請檢查網路連線"); }
+  }catch(e){ console.error("import basic packing list failed", e); travelToast(failMsg("帶入", e)); }
 }
 
 const SOUVENIR_CAT = "伴手禮";
-let packingViewMode = "checklist"; // "checklist" | "souvenir"
+let packingViewMode = "checklist"; // "checklist" | "souvenir"（免費版進採買分頁時自動切到伴手禮）
 let packingCategoryFilter = null;
 let _lastLongPressCard = null;
 
@@ -3566,23 +3794,28 @@ function movePackItem(item, direction){
     .update(db.collection(COLLECTION).doc(item.id), { order: neighborOrder })
     .update(db.collection(COLLECTION).doc(neighbor.id), { order: itemOrder })
     .commit()
-    .catch(e=>{ console.error("move pack item failed", e); alert("移動失敗，請檢查網路連線"); });
+    .catch(e=>{ console.error("move pack item failed", e); travelToast(failMsg("移動", e)); });
 }
 
 function renderPacking(){
   const wrap = document.getElementById("packingView");
   wrap.innerHTML = "";
   if(!getActiveTrip()){ wrap.appendChild(noTripCTA()); return; }
+  // 免費版沒有行前準備，直接開在伴手禮，不要一進來就撞牆
+  if(!canUseAdvanced() && packingViewMode==="checklist") packingViewMode = "souvenir";
 
   const toggle = document.createElement("div");
   toggle.className = "exp-currency-toggle";
   toggle.style.marginBottom = "12px";
   toggle.innerHTML = `
-    <button data-v="checklist" class="${packingViewMode==="checklist"?"active":""}">📋 行前準備</button>
+    <button data-v="checklist" class="${packingViewMode==="checklist"?"active":""}">${canUseAdvanced()?"":"🔒 "}📋 行前準備</button>
     <button data-v="souvenir" class="${packingViewMode==="souvenir"?"active":""}">🎁 伴手禮</button>
   `;
   toggle.querySelectorAll("button").forEach(btn=>{
-    btn.addEventListener("click", ()=>{ packingViewMode = btn.dataset.v; renderPacking(); });
+    btn.addEventListener("click", ()=>{
+      if(btn.dataset.v==="checklist" && needAdvanced("行前準備清單")) return;
+      packingViewMode = btn.dataset.v; renderPacking();
+    });
   });
   wrap.appendChild(toggle);
 
@@ -3593,7 +3826,7 @@ function renderPacking(){
 
   if(packingViewMode==="checklist"){
     const importBtn = document.createElement("button");
-    importBtn.textContent = "📋 匯入基本必備清單";
+    importBtn.textContent = "📋 帶入基本必備清單";
     importBtn.style.cssText = "width:100%; padding:12px; border:1px dashed var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:var(--radius-md); font-size:13.5px; font-weight:600; margin-bottom:14px;";
     importBtn.addEventListener("click", importBasicPackingList);
     wrap.appendChild(importBtn);
@@ -3607,7 +3840,7 @@ function renderPacking(){
     empty.className = "empty";
     empty.innerHTML = packingViewMode==="souvenir"
       ? `<span class="emoji">🎁</span>還沒有伴手禮清單<br>點右下角 ＋ 開始新增`
-      : `<span class="emoji">🧳</span>還沒有行前準備項目<br>點右下角 ＋ 開始新增，或匯入基本清單`;
+      : `<span class="emoji">🧳</span>還沒有行前準備項目<br>點右下角 ＋ 開始新增，或帶入基本清單`;
     wrap.appendChild(empty);
     return;
   }
@@ -3716,7 +3949,10 @@ function renderTripListBody(){
   });
 }
 
-document.getElementById("tripAddBtn").addEventListener("click", ()=>{ openTripModal(null); });
+document.getElementById("tripAddBtn").addEventListener("click", ()=>{
+  if(!canCreateTrip()){ showTripQuotaSheet(); return; }
+  openTripModal(null);
+});
 
 function timeOfDayLabel(timeStr){
   if(!timeStr) return "未定時間";
@@ -3885,7 +4121,7 @@ document.getElementById("shareTripBtn").addEventListener("click", async ()=>{
   } else {
     try{
       await navigator.clipboard.writeText(text);
-      alert("已複製到剪貼簿，可以貼到想分享的地方");
+      travelToast("已複製到剪貼簿");
     }catch(e){
       console.error("clipboard write failed", e);
       alert("無法自動複製，請手動選取以下內容：\n\n"+text);
@@ -3893,8 +4129,9 @@ document.getElementById("shareTripBtn").addEventListener("click", async ()=>{
   }
 });
 document.getElementById("exportWordBtn").addEventListener("click", ()=>{
+  if(needAdvanced("列印／存 PDF")) return;
   try{ downloadItineraryAsWord(); }
-  catch(e){ console.error("export word failed", e); alert("匯出失敗，請再試一次"); }
+  catch(e){ console.error("export word failed", e); travelToast(failMsg("匯出", e)); }
 });
 
 function openTripModal(trip){
@@ -3904,7 +4141,7 @@ function openTripModal(trip){
   document.getElementById("trStart").value = trip ? (trip.startDate||"") : "";
   document.getElementById("trEnd").value = trip ? (trip.endDate||"") : "";
   document.getElementById("trNotes").value = trip ? (trip.notes||"") : "";
-  const region = trip ? (trip.region||"china") : "china";
+  const region = trip ? (trip.region||"japan") : "japan";
   document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.toggle("active", c.dataset.v===region));
   trMembersTemp = trip && trip.members ? [...trip.members] : [];
   renderMemberChips();
@@ -3941,7 +4178,7 @@ tripModalMask.addEventListener("click",(e)=>{ if(e.target===tripModalMask && !fi
 document.getElementById("trSave").addEventListener("click", async ()=>{
   const name = document.getElementById("trName").value.trim();
   if(!name){ document.getElementById("trName").focus(); return; }
-  const selectedRegion = document.querySelector("#trRegionChips .chip.active")?.dataset.v || "china";
+  const selectedRegion = document.querySelector("#trRegionChips .chip.active")?.dataset.v || "japan";
   const data = {
     name, startDate: document.getElementById("trStart").value, endDate: document.getElementById("trEnd").value,
     members: trMembersTemp, region: selectedRegion, notes: document.getElementById("trNotes").value.trim()
@@ -3950,21 +4187,34 @@ document.getElementById("trSave").addEventListener("click", async ()=>{
     if(editingTripId){
       await db.collection(TRIPS_COLLECTION).doc(editingTripId).update(data);
     } else {
+      // 先蓋 tier 再開試用 —— 順序反過來的話，第一趟會被標成 trial，
+      // 14 天後使用者唯一在乎的那趟就凍結了。
+      data.tier = currentTier();
+      // 第一個行程建立時才開始算 14 天試用
+      const startedNow = await startTrialIfNeeded();
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       const ref = await db.collection(TRIPS_COLLECTION).add(data);
       activeTripId = ref.id;
       localStorage.setItem("chinaTravelActiveTrip", activeTripId);
+      await bumpTripsCreated();
+      if(startedNow){
+        setTimeout(function(){
+          alert("🎉 開始 "+TRAVEL_TRIAL_DAYS+" 天全功能試用\n\n到 "+myExpiry+" 為止，\n交通段、花費彙總、行前準備清單、列印 PDF 都能用。");
+        }, 400);
+      }
     }
     // hideFirstTripScreen() runs automatically via the trips listener once
     // the new trip doc arrives; only close manually when not in that flow.
     if(!firstTripFlow){ tripModalMask.classList.remove("show"); }
-  }catch(e){ console.error("save trip failed", e); alert("儲存失敗，請檢查網路連線"); }
+  }catch(e){ console.error("save trip failed", e); travelToast(failMsg("儲存", e)); }
 });
 
 async function deleteTrip(id){
-  if(trips.length<=1){ alert("至少要保留一個行程，無法刪除。"); return; }
+  if(trips.length<=1){ travelToast("至少要保留一個行程，無法刪除"); return; }
   const t = trips.find(x=>x.id===id);
-  if(!confirm("確定要刪除「"+(t?t.name:"")+"」嗎？裡面的行程/花費資料也會一併刪除，此動作無法復原。")) return;
+  var quotaNote = (!isAdminUser && !isPaidPlan(myPlan) && myPlan!=="trial")
+    ? "" : "";
+  if(!await askConfirm("刪除「"+(t?t.name:"")+"」", "裡面的行程、花費資料也會一併刪除，此動作無法復原。"+quotaNote, "刪除")) return;
   try{
     const snap = await db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).where("tripId","==",id).get();
     const batch = db.batch();
@@ -3977,7 +4227,7 @@ async function deleteTrip(id){
       localStorage.removeItem("chinaTravelActiveTrip");
     }
     renderTripListBody();
-  }catch(e){ console.error("delete trip failed", e); alert("刪除失敗，請檢查網路連線"); }
+  }catch(e){ console.error("delete trip failed", e); travelToast(failMsg("刪除", e)); }
 }
 
 // ===== PWA：註冊 Service Worker（離線快取＋偵測新版）=====
@@ -4010,16 +4260,50 @@ if('serviceWorker' in navigator){
   });
 }
 
-// ===== 小提示（返回鍵用）=====
-function travelToast(msg){
+// ===== 確認視窗（Promise 版，取代原生 confirm）=====
+function askConfirm(title, msg, okText){
+  return new Promise(function(resolve){
+    var old=document.getElementById("akSheet"); if(old) old.remove();
+    var d=document.createElement("div");
+    d.id="akSheet"; d.className="ro-sheet";
+    d.innerHTML='<div class="ro-card">'
+      +'<div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:10px">'+title+'</div>'
+      +'<div style="font-size:13.5px;color:var(--sub);line-height:1.8;white-space:pre-line">'+msg+'</div>'
+      +'<div style="display:flex;gap:10px;margin-top:20px">'
+      +'<button id="akNo" style="flex:1;min-height:46px;border:none;background:var(--bg);color:var(--ink);border-radius:14px;font-size:15px;font-weight:700">取消</button>'
+      +'<button id="akYes" style="flex:1;min-height:46px;border:none;background:var(--danger);color:#fff;border-radius:14px;font-size:15px;font-weight:700">'+(okText||"確定")+'</button>'
+      +'</div></div>';
+    document.body.appendChild(d);
+  if(window.payCardBind) payCardBind();
+    function done(v){ d.remove(); resolve(v); }
+    d.querySelector("#akNo").onclick=function(){ done(false); };
+    d.querySelector("#akYes").onclick=function(){ done(true); };
+    d.addEventListener("click", function(e){ if(e.target===d) done(false); });
+  });
+}
+
+// ===== 失敗訊息：真的斷線才叫人檢查網路，其他原因不要誤導 =====
+function failMsg(what, err){
+  var code = String((err && (err.code || err.message)) || "");
+  if((typeof navigator!=="undefined" && navigator.onLine===false)
+     || /unavailable|network|timeout|deadline|offline/i.test(code)){
+    return what + "失敗，請檢查網路連線";
+  }
+  if(/permission|denied|unauthenticated/i.test(code)) return what + "失敗，請重新登入再試一次";
+  return what + "失敗，請稍後再試";
+}
+
+// ===== 小提示 =====
+function travelToast(msg, ms){
   var el=document.getElementById('_tToast');
   if(!el){
     el=document.createElement('div'); el.id='_tToast';
-    el.style.cssText='position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:rgba(45,50,56,.92);color:#fff;font-size:13.5px;padding:9px 16px;border-radius:999px;z-index:9999;pointer-events:none;transition:opacity .2s;';
+    el.style.cssText='position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(45,50,56,.94);color:#fff;font-size:13.5px;line-height:1.5;padding:11px 18px;border-radius:999px;z-index:9999;pointer-events:none;transition:opacity .2s;';
     document.body.appendChild(el);
   }
   el.textContent=msg; el.style.opacity='1';
-  clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  el.style.maxWidth='84%'; el.style.textAlign='center'; el.style.lineHeight='1.5';
+  clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity='0'; }, ms||1800);
 }
 
 // 旅遊：返回鍵一層一層往回的順序
@@ -4060,6 +4344,715 @@ function appHandleBack(){
   });
 })();
 
+/* ==================== 訂閱管理（跨 App 共用模組）====================
+   四個 App 共用同一份程式碼，只有 SUBS_APPS 這張表要一致。
+   權限由 Firebase 規則擋（只認 mp65p@hotmail.com），前端只是介面。
+   ==================================================================== */
+(function(){
+  var SUBS_APPS = [
+    { id:'cal',  icon:'📅', name:'行事曆',   path:'subscribers/' },
+    { id:'cook', icon:'🍳', name:'食在料理', path:'jiachangzhu_subscribers/' },
+    { id:'trv',  icon:'✈️', name:'旅遊計畫', path:'travel_subscribers/' },
+    { id:'crm',  icon:'👥', name:'客戶管理', path:'crm_subscribers/' }
+  ];
+  var PLAN_TXT = { trial:'試用', full:'完整版', basic:'完整版', family:'完整版', free:'免費版' };
+  function devLimit(p){ return (p==='full'||p==='basic'||p==='family'||p==='trial') ? 3 : 1; }
+
+  var S = { data:{}, tab:'all', q:'', loading:false, sel:null, selApp:null,
+            addPlan:'full', addMonths:12, addApp:'crm' };
+
+  /* ---------- 小工具 ---------- */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  // 必須跟 Firebase 規則一致：email.toLowerCase().replace('.','_')
+  function eKey(e){ return String(e||'').toLowerCase().replace(/[.#$\[\]]/g,'_'); }
+  function isMail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
+  function ymd(ts){ var d=new Date(ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function slash(s){ return String(s||'').replace(/-/g,'/'); }
+  function addMonths(ts, m){ var d=new Date(ts); var day=d.getDate();
+    d.setMonth(d.getMonth()+m);
+    if(d.getDate()<day) d.setDate(0);   // 1/31 +1月 → 2/28，不要跳到 3/3
+    return d.getTime(); }
+  function toast(msg){
+    var t=document.getElementById('subsToast');
+    if(!t){ t=document.createElement('div'); t.id='subsToast';
+      t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:rgba(32,38,44,.94);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;z-index:10005;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86vw;text-align:center;';
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(t._tm); t._tm=setTimeout(function(){ t.style.opacity='0'; }, 2000);
+  }
+  function fail(act, err){
+    if(!navigator.onLine) return act+'失敗，請確認網路後再試';
+    var c=(err&&(err.code||err.message))||'';
+    if(/permission|denied|auth/i.test(c)) return act+'失敗，請重新登入後再試';
+    return act+'失敗，請稍後再試';
+  }
+  function confirmBox(msg, onOk){
+    if(window.showConfirm) return window.showConfirm(msg, onOk);
+    if(window.askConfirm){ var r=window.askConfirm(msg); if(r&&r.then){ r.then(function(ok){ if(ok) onOk(); }); return; } }
+    if(confirm(msg)) onOk();
+  }
+
+  /* ---------- 狀態判讀 ---------- */
+  function stat(sub){
+    if(!sub) return null;
+    var now=Date.now();
+    var exp = sub.expiry ? Date.parse(sub.expiry+'T23:59:59') : 0;
+    var expired = !!(exp && now>exp);
+    var days = exp ? Math.ceil((exp-now)/86400000) : null;
+    return { plan: expired?'free':(sub.plan||'free'), rawPlan:sub.plan||'free',
+             expiry:sub.expiry||'', expired:expired, days:days,
+             disabled: sub.status==='disabled', raw:sub };
+  }
+  function statHtml(st){
+    if(!st) return '<span class="subs-stat subs-none">－</span>';
+    if(st.disabled) return '<span class="subs-stat subs-gray">已停用</span>';
+    var name = PLAN_TXT[st.rawPlan]||st.rawPlan;
+    if(st.expired) return '<span class="subs-stat subs-bad">已過期 · 過期 '+Math.abs(st.days)+' 天</span>';
+    if(st.days==null) return '<span class="subs-stat subs-gray">'+name+'</span>';
+    if(st.days<=7)  return '<span class="subs-stat subs-bad">'+name+' · 剩 '+st.days+' 天</span>';
+    if(st.days<=30) return '<span class="subs-stat subs-warn">'+name+' · 剩 '+st.days+' 天</span>';
+    return '<span class="subs-stat subs-ok">'+name+' · '+slash(st.expiry)+'</span>';
+  }
+
+  /* ---------- 讀取 ---------- */
+  async function load(){
+    S.loading=true; render();
+    var out={};
+    for(var i=0;i<SUBS_APPS.length;i++){
+      var a=SUBS_APPS[i];
+      try{ var snap=await firebase.database().ref(a.path).once('value'); out[a.id]=snap.val()||{}; }
+      catch(e){ out[a.id]=null; }
+    }
+    S.data=out; S.loading=false; render();
+  }
+  function rows(){
+    var map={};
+    SUBS_APPS.forEach(function(a){
+      var d=S.data[a.id]; if(!d) return;
+      Object.keys(d).forEach(function(k){
+        if(!map[k]) map[k]={ key:k, email:'', apps:{} };
+        var s=d[k]||{};
+        if(!map[k].email) map[k].email = s.email || k;
+        map[k].apps[a.id]=s;
+      });
+    });
+    var arr=Object.keys(map).map(function(k){ return map[k]; });
+    // 篩選
+    var q=S.q.trim().toLowerCase();
+    if(q) arr=arr.filter(function(r){ return (r.email+' '+r.key).toLowerCase().indexOf(q)>=0; });
+    if(S.tab==='soon'){
+      arr=arr.filter(function(r){
+        return SUBS_APPS.some(function(a){
+          var st=stat(r.apps[a.id]);
+          return st && !st.disabled && st.days!=null && st.days<=30 && st.days>-30;
+        });
+      });
+      arr.sort(function(x,y){ return minDays(x)-minDays(y); });
+    } else if(S.tab!=='all'){
+      arr=arr.filter(function(r){ return !!r.apps[S.tab]; });
+      arr.sort(function(x,y){ return String(x.email).localeCompare(String(y.email)); });
+    } else {
+      arr.sort(function(x,y){ return String(x.email).localeCompare(String(y.email)); });
+    }
+    return arr;
+  }
+  function minDays(r){
+    var m=99999;
+    SUBS_APPS.forEach(function(a){ var st=stat(r.apps[a.id]);
+      if(st && st.days!=null && st.days<m) m=st.days; });
+    return m;
+  }
+
+  /* ---------- 畫面 ---------- */
+  function render(){
+    var body=document.getElementById('subsBody'); if(!body) return;
+    var cnt=document.getElementById('subsCount');
+    document.querySelectorAll('.subs-tab').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-tab')===S.tab); });
+
+    if(S.loading){ body.innerHTML='<div class="subs-empty">載入中…</div>'; if(cnt) cnt.textContent=''; return; }
+
+    var bad=SUBS_APPS.filter(function(a){ return S.data[a.id]===null; });
+    var warn = bad.length ? '<div class="subs-empty" style="padding:14px;color:#c0392b;font-size:13px">'+
+      esc(bad.map(function(a){return a.name;}).join('、'))+' 讀取失敗，請確認網路或 Firebase 規則</div>' : '';
+
+    var arr=rows();
+    if(cnt) cnt.textContent='共 '+arr.length+' 位';
+    if(!arr.length){
+      body.innerHTML = warn + '<div class="subs-empty">📭<br>'+
+        (S.q ? '找不到「'+esc(S.q)+'」' : S.tab==='soon' ? '沒有快到期的客戶' : '還沒有客戶')+
+        '<br><span style="font-size:13px">'+(S.q?'換個關鍵字試試':'有人付款後，按下面的「新增客戶」')+'</span></div>';
+      return;
+    }
+    var only = (S.tab==='all'||S.tab==='soon') ? null : S.tab;
+    body.innerHTML = warn + arr.map(function(r){
+      var lines = SUBS_APPS.filter(function(a){ return !only || a.id===only; }).map(function(a){
+        var st=stat(r.apps[a.id]);
+        return '<div class="subs-line" data-k="'+esc(r.key)+'" data-a="'+a.id+'">'+
+               '<span class="subs-ico">'+a.icon+'</span>'+
+               '<span class="subs-app">'+a.name+'</span>'+
+               statHtml(st)+
+               '<span class="subs-arrow">›</span></div>';
+      }).join('');
+      return '<div class="subs-card"><div class="subs-email">'+esc(r.email)+'</div>'+
+             '<div class="subs-key">'+esc(r.key)+'</div>'+lines+'</div>';
+    }).join('');
+
+    body.querySelectorAll('.subs-line').forEach(function(el){
+      el.onclick=function(){ openManage(el.getAttribute('data-k'), el.getAttribute('data-a')); };
+    });
+  }
+
+  /* ---------- 新增 ---------- */
+  function openAdd(){
+    S.addPlan='full'; S.addMonths=12; S.addApp = (S.tab!=='all'&&S.tab!=='soon') ? S.tab : 'crm';
+    sheet(addHtml());
+    wireAdd();
+  }
+  function addHtml(){
+    return '<div class="subs-sh-title">新增客戶</div>'+
+      '<div class="subs-sh-sub">有人付款後用這個開通</div>'+
+      '<div class="subs-label">哪個 App</div>'+
+      '<div class="subs-chips" id="ax">'+SUBS_APPS.map(function(a){
+        return '<button type="button" class="subs-chip'+(a.id===S.addApp?' on':'')+'" data-v="'+a.id+'">'+a.icon+' '+a.name+'</button>';
+      }).join('')+'</div>'+
+      '<div class="subs-label">客戶 Email</div>'+
+      '<input type="email" class="subs-input" id="aEmail" placeholder="linda@gmail.com" autocomplete="off" inputmode="email">'+
+      '<div class="subs-label">方案</div>'+
+      '<div class="subs-chips" id="ap">'+
+        '<button type="button" class="subs-chip on" data-v="full">完整版</button>'+
+        '<button type="button" class="subs-chip" data-v="trial">試用</button>'+
+        '<button type="button" class="subs-chip" data-v="free">免費版</button>'+
+      '</div>'+
+      '<div class="subs-label">期間</div>'+
+      '<div class="subs-chips" id="am">'+
+        '<button type="button" class="subs-chip on" data-v="12">一年</button>'+
+        '<button type="button" class="subs-chip" data-v="24">兩年</button>'+
+        '<button type="button" class="subs-chip" data-v="1">一個月</button>'+
+      '</div>'+
+      '<div class="subs-calc" id="aCalc"></div>'+
+      '<button type="button" class="subs-primary" id="aGo">確定新增</button>'+
+      '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">取消</button>';
+  }
+  function wireAdd(){
+    var em=document.getElementById('aEmail');
+    function chips(id, set){
+      var box=document.getElementById(id); if(!box) return;
+      box.querySelectorAll('.subs-chip').forEach(function(b){
+        b.onclick=function(){
+          box.querySelectorAll('.subs-chip').forEach(function(x){ x.classList.remove('on'); });
+          b.classList.add('on'); set(b.getAttribute('data-v')); calc();
+        };
+      });
+    }
+    chips('ax', function(v){ S.addApp=v; });
+    chips('ap', function(v){ S.addPlan=v; });
+    chips('am', function(v){ S.addMonths=Number(v); });
+    if(em) em.addEventListener('input', calc);
+    calc();
+    document.getElementById('aGo').onclick=doAdd;
+
+    function calc(){
+      var c=document.getElementById('aCalc'); if(!c) return;
+      var v=(em&&em.value||'').trim().toLowerCase();
+      var mp=document.getElementById('am');
+      if(mp) mp.style.display = (S.addPlan==='free') ? 'none' : 'flex';
+      var expTxt = (S.addPlan==='free') ? '不到期' : slash(ymd(addMonths(Date.now(), S.addMonths)));
+      c.innerHTML = '資料位置　<b>'+(v?esc(eKey(v)):'—')+'</b><br>到期日　　<b>'+expTxt+'</b>';
+    }
+  }
+  async function doAdd(){
+    var em=document.getElementById('aEmail'), btn=document.getElementById('aGo');
+    var v=(em&&em.value||'').trim().toLowerCase();
+    if(!isMail(v)){ toast('Email 格式不對，請檢查'); if(em) em.focus(); return; }
+    var app=SUBS_APPS.filter(function(a){ return a.id===S.addApp; })[0];
+    var key=eKey(v), now=Date.now();
+    var free = S.addPlan==='free';
+    var rec={ email:v, plan:S.addPlan, expiry: free?'':ymd(addMonths(now,S.addMonths)),
+              status:'active', deviceLimit:devLimit(S.addPlan), createdAt:now, lastSeen:now };
+    btn.disabled=true; btn.textContent='處理中…';
+    try{
+      var ref=firebase.database().ref(app.path+key);
+      var snap=await ref.once('value');
+      if(snap.val()){ // 已存在 → 只改方案與到期，不動 devices / clientsCreated
+        await ref.update({ plan:rec.plan, expiry:rec.expiry, status:'active', deviceLimit:rec.deviceLimit });
+        toast('已更新　'+app.name+'　'+(PLAN_TXT[S.addPlan]||S.addPlan));
+      } else {
+        rec.devices={}; if(app.id==='crm') rec.clientsCreated=0;
+        await ref.set(rec);
+        toast('已新增　'+app.name+'　'+(PLAN_TXT[S.addPlan]||S.addPlan));
+      }
+      closeSheet(); await load();
+    }catch(e){ toast(fail('新增', e)); btn.disabled=false; btn.textContent='確定新增'; }
+  }
+
+  /* ---------- 管理單一客戶 ---------- */
+  function openManage(key, appId){
+    S.sel=key; S.selApp=appId;
+    var app=SUBS_APPS.filter(function(a){ return a.id===appId; })[0];
+    var sub=(S.data[appId]||{})[key];
+    var st=stat(sub);
+    var email=(sub&&sub.email)||key;
+
+    if(!sub){
+      sheet('<div class="subs-sh-title">'+esc(email)+'</div>'+
+        '<div class="subs-sh-sub">'+app.icon+' '+app.name+'　尚未開通</div>'+
+        '<button type="button" class="subs-primary" id="mNew">開通完整版一年</button>'+
+        '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">關閉</button>');
+      document.getElementById('mNew').onclick=function(){
+        S.addApp=appId; S.addPlan='full'; S.addMonths=12;
+        sheet(addHtml()); wireAdd();
+        var e=document.getElementById('aEmail'); if(e){ e.value=email; e.dispatchEvent(new Event('input')); }
+      };
+      return;
+    }
+    var used=Object.keys(sub.devices||{}).length;
+    sheet(
+      '<div class="subs-sh-title">'+esc(email)+'</div>'+
+      '<div class="subs-sh-sub">'+app.icon+' '+app.name+'　'+
+        (st.expiry ? (PLAN_TXT[st.rawPlan]||st.rawPlan)+' · '+slash(st.expiry) : (PLAN_TXT[st.rawPlan]||st.rawPlan))+
+        '</div>'+
+      '<button type="button" class="subs-primary" id="mRenew">續約一年</button>'+
+      '<div class="subs-label">改方案</div>'+
+      '<div class="subs-chips" id="mp">'+
+        ['full','trial','free'].map(function(p){
+          return '<button type="button" class="subs-chip'+(st.rawPlan===p?' on':'')+'" data-v="'+p+'">'+PLAN_TXT[p]+'</button>';
+        }).join('')+
+      '</div>'+
+      '<div class="subs-label">延長</div>'+
+      '<div class="subs-chips" id="me">'+
+        '<button type="button" class="subs-chip" data-v="1">＋1 月</button>'+
+        '<button type="button" class="subs-chip" data-v="12">＋1 年</button>'+
+        '<button type="button" class="subs-chip" data-v="ask">自訂…</button>'+
+      '</div>'+
+      '<div class="subs-row2"><span>裝置</span><span class="v">'+used+' / '+(sub.deviceLimit||devLimit(st.rawPlan))+'</span>'+
+        '<button type="button" class="subs-mini" id="mDev">清除</button></div>'+
+      '<div class="subs-row2"><span>狀態</span><span class="v">'+(st.disabled?'已停用':'啟用中')+'</span>'+
+        '<button type="button" class="subs-mini" id="mTog">'+(st.disabled?'恢復':'停用')+'</button></div>'+
+      '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">關閉</button>'+
+      '<button type="button" class="subs-danger" id="mDel">刪除此 App 的訂閱</button>'
+    );
+
+    var path=app.path+key;
+    document.getElementById('mRenew').onclick=function(){ extend(path, 12); };
+    document.getElementById('me').querySelectorAll('.subs-chip').forEach(function(b){
+      b.onclick=function(){
+        var v=b.getAttribute('data-v');
+        if(v==='ask'){ var m=prompt('延長幾個月？','12'); if(m===null) return;
+          m=parseInt(m,10); if(!m||m<1){ toast('請輸入 1 以上的數字'); return; } extend(path, m); }
+        else extend(path, Number(v));
+      };
+    });
+    document.getElementById('mp').querySelectorAll('.subs-chip').forEach(function(b){
+      b.onclick=function(){ changePlan(path, b.getAttribute('data-v')); };
+    });
+    document.getElementById('mDev').onclick=function(){
+      confirmBox('清除這位客戶的裝置紀錄？\n他需要重新登入。', async function(){
+        try{ await firebase.database().ref(path+'/devices').remove(); toast('已清除裝置'); closeSheet(); await load(); }
+        catch(e){ toast(fail('清除', e)); }
+      });
+    };
+    document.getElementById('mTog').onclick=async function(){
+      var next = st.disabled ? 'active' : 'disabled';
+      try{ await firebase.database().ref(path+'/status').set(next);
+        toast(next==='disabled'?'已停用':'已恢復'); closeSheet(); await load(); }
+      catch(e){ toast(fail('更新', e)); }
+    };
+    document.getElementById('mDel').onclick=function(){
+      confirmBox('確定刪除「'+email+'」在'+app.name+'的訂閱嗎？\n此動作無法復原。', async function(){
+        try{ await firebase.database().ref(path).remove(); toast('已刪除'); closeSheet(); await load(); }
+        catch(e){ toast(fail('刪除', e)); }
+      });
+    };
+  }
+
+  // 續約：從「原到期日」往後加，已過期才從今天算，剩餘天數不會被吃掉
+  async function extend(path, months){
+    try{
+      var snap=await firebase.database().ref(path+'/expiry').once('value');
+      var cur=snap.val(), now=Date.now();
+      var base = cur ? Math.max(Date.parse(cur+'T23:59:59'), now) : now;
+      var next = ymd(addMonths(base, months));
+      await firebase.database().ref(path).update({ expiry:next, status:'active' });
+      toast('已延長至 '+slash(next));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('續約', e)); }
+  }
+  async function changePlan(path, plan){
+    try{
+      var up={ plan:plan, deviceLimit:devLimit(plan) };
+      if(plan==='free') up.expiry='';
+      await firebase.database().ref(path).update(up);
+      toast('已改成 '+(PLAN_TXT[plan]||plan));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('修改', e)); }
+  }
+
+  /* ---------- 容器 ---------- */
+  function sheet(html){
+    var w=document.getElementById('subsSheet');
+    w.querySelector('.subs-sheet').innerHTML=html;
+    w.classList.add('on');
+  }
+  function closeSheet(){ var w=document.getElementById('subsSheet'); if(w) w.classList.remove('on'); }
+
+  function mount(){
+    if(document.getElementById('subsPage')) return;
+    var tabs='<button type="button" class="subs-tab on" data-tab="all">全部</button>'+
+      '<button type="button" class="subs-tab" data-tab="soon">⚠️ 快到期</button>'+
+      SUBS_APPS.map(function(a){ return '<button type="button" class="subs-tab" data-tab="'+a.id+'">'+a.icon+' '+a.name+'</button>'; }).join('');
+    var d=document.createElement('div');
+    d.innerHTML=
+      '<div id="subsPage">'+
+        '<div class="subs-head"><button type="button" class="subs-back" onclick="subsAdmin.close()">‹ 返回</button>'+
+          '<span class="subs-title">訂閱管理</span><span class="subs-count" id="subsCount"></span></div>'+
+        '<div class="subs-tools">'+
+          '<input type="search" class="subs-search" id="subsQ" placeholder="搜尋 Email" autocomplete="off">'+
+          '<div class="subs-tabs">'+tabs+'</div>'+
+        '</div>'+
+        '<div class="subs-body" id="subsBody"></div>'+
+        '<button type="button" class="subs-fab" onclick="subsAdmin.add()">＋ 新增客戶</button>'+
+      '</div>'+
+      '<div id="subsSheet" onclick="if(event.target===this)subsAdmin.closeSheet()"><div class="subs-sheet"></div></div>';
+    while(d.firstChild) document.body.appendChild(d.firstChild);
+    document.getElementById('subsQ').addEventListener('input', function(e){ S.q=e.target.value; render(); });
+    document.querySelectorAll('.subs-tab').forEach(function(b){
+      b.onclick=function(){ S.tab=b.getAttribute('data-tab'); render(); };
+    });
+  }
+
+  window.subsAdmin={
+    open: function(){ mount(); document.getElementById('subsPage').classList.add('on'); load(); },
+    close: function(){ closeSheet(); var p=document.getElementById('subsPage'); if(p) p.classList.remove('on'); },
+    add: openAdd,
+    closeSheet: closeSheet,
+    _s: S
+  };
+})();
+
+/* ==================== 付款說明卡（四個 App 共用）====================
+   藍新「快速收款連結」拿到後，把該 App 的 url 填進 PAY_LINKS 即可，
+   其餘都不用動。留空時會顯示「請聯繫客服」。
+   ==================================================================== */
+(function(){
+  var PAY_LINKS = {
+    cal:  '',   // 行事曆   $999／年
+    cook: '',   // 食在料理 $799／年
+    trv:  '',   // 旅遊計畫 $999／年
+    crm:  ''    // 客戶管理 $6,000／年（早鳥）
+  };
+  var LINE_URL = 'https://lin.ee/DwhMLJm';
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function tip(msg){
+    var t=document.getElementById('payTip');
+    if(!t){ t=document.createElement('div'); t.id='payTip';
+      t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:rgba(32,38,44,.94);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;z-index:10050;opacity:0;transition:opacity .2s;pointer-events:none;';
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(t._tm); t._tm=setTimeout(function(){ t.style.opacity='0'; },1800);
+  }
+
+  /* opts: { app:'crm', email:'...', price:6000, per:500, accent:'#4A7A9B', note:'早鳥價' } */
+  window.payCardHtml = function(opts){
+    var o=opts||{}, ac=o.accent||'#E8735C';
+    var mail=o.email||'';
+    var per = o.per ? '<div style="color:#6B7280;font-size:13px;margin-top:4px">平均每月約 $'+o.per+'</div>' : '';
+    var badge = o.note ? '<span style="background:'+ac+';color:#fff;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;margin-left:8px;vertical-align:middle">'+esc(o.note)+'</span>' : '';
+    return '<div id="payCard" data-app="'+esc(o.app||'')+'" data-ac="'+ac+'" style="border:2px solid '+ac+';border-radius:16px;padding:18px;margin-top:18px;background:#fff">'+
+      '<div style="font-size:15px;font-weight:800;color:#2E2E33">完整版'+badge+'</div>'+
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">'+
+        '<span style="font-size:34px;font-weight:900;color:'+ac+';letter-spacing:-.5px">$'+Number(o.price||0).toLocaleString()+'</span>'+
+        '<span style="color:#8A8A93;font-size:14px">/年</span></div>'+ per +
+      '<div style="background:#F6F7F9;border-radius:12px;padding:13px;margin-top:15px">'+
+        '<div style="font-size:12px;color:#7b8794;margin-bottom:6px">你的帳號</div>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div id="payMail" style="flex:1;font-size:14px;font-weight:700;color:#2E2E33;word-break:break-all">'+esc(mail||'（請先登入）')+'</div>'+
+          (mail?'<button type="button" id="payCopy" style="flex:none;border:1px solid #dfe3e8;background:#fff;color:#5a6a78;border-radius:8px;padding:7px 12px;font-size:12px;font-family:inherit;min-height:36px">複製</button>':'')+
+        '</div>'+
+        '<div style="font-size:12.5px;color:#B45309;line-height:1.65;margin-top:10px">⚠️ 付款時「電子郵件」欄請填上面這個信箱，我們才知道要幫誰開通。</div>'+
+      '</div>'+
+      '<label for="payAgree" style="display:flex;gap:9px;align-items:flex-start;margin-top:15px;font-size:12.5px;line-height:1.65;color:#39423C;cursor:pointer">'+
+        '<input type="checkbox" id="payAgree" style="flex:none;width:18px;height:18px;margin-top:1px;accent-color:'+ac+'">'+
+        '<span>我了解本服務提供免費試用，並同意付款開通後不適用七日猶豫期、恕不退費。'+
+          '<a href="javascript:void(0)" id="payTerms" style="color:'+ac+';text-decoration:underline">付款與退款說明</a></span>'+
+      '</label>'+
+      '<button type="button" id="payGo" disabled style="width:100%;border:none;background:#C8CFD6;color:#fff;border-radius:12px;padding:15px;font-size:16px;font-weight:800;margin-top:12px;min-height:50px;font-family:inherit;cursor:not-allowed">前往付款</button>'+
+      '<div style="text-align:center;color:#8A8A93;font-size:12px;margin-top:10px;line-height:1.7">付款後 1 個工作天內完成開通<br>有問題可隨時聯繫客服</div>'+
+    '</div>';
+  };
+
+  // 插入 payCardHtml 之後呼叫，綁定按鈕
+  window.payCardBind = function(){
+    var card=document.getElementById('payCard'); if(!card) return;
+    var app=card.getAttribute('data-app');
+    var mail=(document.getElementById('payMail')||{}).textContent||'';
+    var cp=document.getElementById('payCopy');
+    if(cp) cp.onclick=function(){
+      var done=function(){ tip('已複製　'+mail); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(mail).then(done, fallback);
+      } else fallback();
+      function fallback(){
+        var ta=document.createElement('textarea'); ta.value=mail;
+        ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta);
+        ta.select(); try{ document.execCommand('copy'); done(); }catch(e){ tip('複製失敗，請手動選取'); }
+        document.body.removeChild(ta);
+      }
+    };
+    var chk=document.getElementById('payAgree');
+    var go=document.getElementById('payGo');
+    var tl=document.getElementById('payTerms');
+    if(tl) tl.onclick=function(){ if(window.legalDocs) legalDocs.open('pay'); };
+    // 沒勾選就不能付款 —— 這個勾選是「事先同意放棄猶豫期」的證明，不是裝飾
+    var accent = card.getAttribute('data-ac') || '#14564A';
+    if(chk && go) chk.onchange=function(){
+      go.disabled = !chk.checked;
+      go.style.background = chk.checked ? accent : '#C8CFD6';
+      go.style.cursor = chk.checked ? 'pointer' : 'not-allowed';
+    };
+    if(go) go.onclick=function(){
+      if(go.disabled) return;
+      var url=PAY_LINKS[app];
+      if(url){ window.open(url,'_blank','noopener'); return; }
+      tip('付款連結準備中，先幫你開客服');
+      setTimeout(function(){ window.open(LINE_URL,'_blank','noopener'); }, 700);
+    };
+  };
+})();
+
 </script>
+<script>window.LEGAL_APP='trv';</script>
+<script>
+/* ==================== 法律文件（四個 App 共用）====================
+   三份文件：服務條款、隱私權政策、付款與退款說明。
+   客戶管理另加第四份：客戶資料處理說明。
+   只要改 LEGAL_CFG 一個物件，其餘文字自動帶入。
+   ==================================================================== */
+(function(){
+  var APP = (window.LEGAL_APP || 'cal');           // cal / cook / trv / crm
+  var UPDATED = '2026/09/30';
+  var MAIL = 'beyunself@hotmail.com';
+  var LINE_NAME = '智在生活';
+  var LINE_URL = 'https://line.me/R/ti/p/@373pfdee';
+
+  var CFG = {
+    cal:  { name:'生活管家', trial:21, price:'999',
+            what:'行程、待辦、記事、目標追蹤、採購清單與庫存管理' },
+    cook: { name:'食在料理', trial:14, price:'999',
+            what:'食譜查詢、依食材找菜、今日料理規劃、烹調步驟、採購清單與食材庫存' },
+    trv:  { name:'旅遊計畫', trial:14, price:'999',
+            what:'逐日行程安排、交通段銜接、花費彙總與匯率換算、行前準備清單與列印匯出' },
+    crm:  { name:'客戶管理', trial:30, price:'7,200',
+            what:'客戶管理、合約、預約、收款紀錄、營運儀表板與服務追蹤' }
+  };
+  var C = CFG[APP] || CFG.cal;
+
+  function h(title, body){ return { t:title, b:body }; }
+  function p(){ return Array.prototype.slice.call(arguments)
+    .map(function(s){ return '<p>'+s+'</p>'; }).join(''); }
+  function sec(n, t, body){ return '<h4>'+n+'. '+t+'</h4>'+body; }
+
+  var CONTACT = p('Email：'+MAIL, '官方 LINE：'+LINE_NAME);
+
+  var TERMS =
+    sec(1,'我們提供什麼', p(
+      '智在生活提供以下網頁應用程式：生活管家、食在料理、旅遊計畫、客戶管理。各產品獨立計費，可單獨或組合使用。',
+      '你現在使用的是「'+C.name+'」，提供'+C.what+'功能。',
+      '這些是持續開發中的產品，功能會隨版本調整與增加。')) +
+    sec(2,'你的帳號', p(
+      '用 Email 收登入連結即可使用，不需要設密碼。請保管好你的信箱 —— 能收到信的人就能登入你的帳號。',
+      '付費後同一個帳號最多 3 台裝置，免費版 1 台。共用裝置請記得登出。',
+      '未滿 18 歲請由家長或監護人同意後使用。')) +
+    sec(3,'怎麼使用都可以，除了這幾件事', p(
+      '你可以自由使用所有功能，把資料用在任何你需要的地方。請不要：') +
+      '<ul><li>複製或散布本服務的程式碼</li><li>用程式大量擷取服務內的資料</li>' +
+      '<li>反向工程、拆解或破解</li><li>轉售、出租或分享帳號給他人營利</li>' +
+      '<li>未經同意重製或公開發布服務內容</li></ul>' +
+      p('正常使用不會踩到這些線。')) +
+    sec(4,'誰擁有什麼', p(
+      '你的資料是你的。你隨時可以匯出或要求刪除。',
+      '本服務的程式碼、介面設計、文字、圖片、資料結構與「智在生活」品牌名稱，屬於我們所有。')) +
+    sec(5,'服務可能會變', p(
+      '我們會因維護或升級暫停服務，會盡量事先告知。',
+      '如果要停止營運，我們會提前至少 30 天公告，並提供資料匯出方式。',
+      '建議你定期用「匯出備份」自己留一份。')) +
+    sec(6,'我們的責任範圍', p(
+      '我們盡力讓服務穩定，但無法保證完全不出錯。',
+      '若造成損失，賠償以你當年度已付的費用為上限；但如果是我們故意或重大疏失造成的，不在此限。')) +
+    sec(7,'條款有變動', p(
+      '修改會在服務內公告。公告後你繼續使用，視為同意。')) +
+    sec(8,'聯絡我們', CONTACT);
+
+  var PRIVACY =
+    sec(1,'我們蒐集什麼',
+      '<ul><li>你的登入 Email —— 用來辨識帳號、寄登入連結</li>' +
+      '<li>你自己輸入的內容 —— 你在 App 裡建立的各項資料</li>' +
+      '<li>裝置識別碼 —— 用來計算你登入了幾台裝置</li></ul>' +
+      p('我們不蒐集你的通訊錄、位置、照片或其他裝置資訊。我們沒有使用廣告或行為追蹤工具。')) +
+    sec(2,'資料放在哪', p(
+      '儲存於 Google Firebase（Google 提供的雲端資料庫服務）。',
+      '每個帳號的資料以你的 Email 隔離，其他使用者讀不到。')) +
+    sec(3,'誰看得到', p('除了你自己，只有我們在下列情況會存取：') +
+      '<ul><li>你回報問題，需要協助排除故障</li><li>系統異常需要修復</li></ul>' +
+      p('除此之外不會查看，不會用於行銷，不會提供給任何第三人。')) +
+    sec(4,'我們用到的第三方服務',
+      '<ul><li>Google Firebase —— 帳號登入與資料儲存</li>' +
+      '<li>藍新金流 —— 付款處理（我們不會取得你的信用卡號）</li></ul>' +
+      p('這些服務有各自的隱私政策。')) +
+    sec(5,'資料保存多久', p(
+      '帳號存在期間持續保存。',
+      '你可以隨時要求刪除帳號，我們會在 7 天內刪除全部資料。刪除後無法復原，請先自行匯出。')) +
+    sec(6,'你的權利', p(
+      '你可以查詢、更正、匯出或刪除你的資料。大部分在 App 內就能做到，其餘請透過 LINE 或 Email 聯繫。')) +
+    sec(7,'Cookie', p(
+      '我們只使用讓你保持登入狀態的必要儲存，沒有用於追蹤或廣告。')) +
+    sec(8,'聯絡我們', CONTACT);
+
+  var PAY =
+    sec(1,'價格',
+      '<table class="lg-t"><tbody>' +
+      '<tr><td>生活管家</td><td>$999／年</td></tr>' +
+      '<tr><td>食在料理</td><td>$999／年</td></tr>' +
+      '<tr><td>旅遊計畫</td><td>$999／年</td></tr>' +
+      '<tr><td>三個組合</td><td>$1,999／年</td></tr>' +
+      '<tr><td>客戶管理</td><td>$7,200／年（前 15 位早鳥 $6,000，續約同價）</td></tr>' +
+      '</tbody></table>' + p('全部為新台幣，年繳。')) +
+    sec(2,'先試用再決定', p('每個產品都有免費試用，期間功能全部開放：') +
+      '<table class="lg-t"><tbody>' +
+      '<tr><td>生活管家</td><td>21 天</td></tr>' +
+      '<tr><td>食在料理</td><td>14 天</td></tr>' +
+      '<tr><td>旅遊計畫</td><td>14 天</td></tr>' +
+      '<tr><td>客戶管理</td><td>30 天</td></tr>' +
+      '</tbody></table>' +
+      p('試用結束會轉成免費版，功能較少但不會到期，你建立的資料都還在。')) +
+    sec(3,'怎麼付款', p(
+      '藍新金流線上刷卡。',
+      '付款時請填寫你登入用的那個 Email —— 這是我們判斷要幫誰開通的唯一依據，填錯會無法開通。')) +
+    sec(4,'多久開通', p(
+      '收到款項後 1 個工作天內完成。開通後重開一次 App 就是完整版。',
+      '超過時間還沒開通，請透過 LINE 或 Email 聯繫。')) +
+    sec(5,'使用期間', p(
+      '從開通日起算一年。',
+      '提前續約會從原到期日往後延長，剩下的天數不會被吃掉。')) +
+    sec(6,'關於退款', p(
+      '<b>我們不提供退款，所以請務必先試用。</b>',
+      '法律上的說明：依「通訊交易解除權合理例外情事適用準則」第 2 條第 5 款，線上數位服務經你事先同意後提供，不適用七日猶豫期。你在付款前會看到一個勾選框，勾選即表示你了解並同意這一點。',
+      '如果因為系統重大問題導致你完全無法使用，而我們在合理時間內修不好，可以個別討論處理方式。')) +
+    sec(7,'聯絡我們', CONTACT);
+
+  var CLIENTDATA =
+    p('你用這套系統管理你自己的客戶資料，以下說明我們各自的責任。') +
+    sec(1,'誰負什麼責任', p(
+      '個人資料保護法上，你是「蒐集者」，我們是「受託處理者」。簡單說：資料是你的，你決定怎麼用；我們只負責幫你安全地存放與處理。')) +
+    sec(2,'你要做的', p(
+      '向你的客戶蒐集資料時，請依個人資料保護法盡告知義務（告訴他們你為什麼要這些資料、會怎麼用）。這一步在你這邊，我們無法代勞。')) +
+    sec(3,'請不要存這些', p(
+      '與服務無關的個人資料，以及下列特種個人資料：') +
+      '<ul><li>病歷、醫療、基因</li><li>性生活、健康檢查</li><li>犯罪前科</li></ul>' +
+      p('這類資料的保護要求更高，本系統不適合存放。例如客戶備註欄請避免寫健康狀況。')) +
+    sec(4,'我們做到的',
+      '<ul><li>你的資料以登入 Email 隔離，其他使用者讀不到</li>' +
+      '<li>僅在協助你排除問題時存取</li>' +
+      '<li>不作行銷、不提供第三人</li></ul>') +
+    sec(5,'萬一外洩', p(
+      '我們知悉後會盡快通知你，並說明已掌握的範圍與影響，讓你能依法進行後續處理。')) +
+    sec(6,'刪除', p(
+      '你可隨時要求刪除帳號與全部客戶資料，7 天內完成。')) +
+    sec(7,'聯絡我們', CONTACT);
+
+  var DOCS = [
+    h('服務條款', TERMS),
+    h('隱私權政策', PRIVACY),
+    h('付款與退款', PAY)
+  ];
+  if(APP === 'crm') DOCS.push(h('客戶資料處理', CLIENTDATA));
+
+  var cur = 0;
+
+  function css(){
+    if(document.getElementById('lgCss')) return;
+    var s=document.createElement('style'); s.id='lgCss';
+    s.textContent =
+      '#lgWrap{position:fixed;inset:0;background:rgba(20,24,22,.5);z-index:10040;display:none;align-items:flex-end;}'+
+      '#lgWrap.on{display:flex;}'+
+      '.lg-box{background:#fff;color:#1F2724;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:16px 16px 0 0;overflow:hidden;}'+
+      '.lg-head{padding:16px 18px 0;border-bottom:1px solid #E6E9E4;flex:none;}'+
+      '.lg-title{font-size:16px;font-weight:700;margin-bottom:2px;}'+
+      '.lg-upd{font-size:11.5px;color:#8A928C;margin-bottom:10px;}'+
+      '.lg-tabs{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;}'+
+      '.lg-tab{flex:none;background:none;border:none;border-bottom:2px solid transparent;color:#6B736D;'+
+        'font-size:13.5px;font-family:inherit;padding:9px 10px;min-height:42px;cursor:pointer;white-space:nowrap;}'+
+      '.lg-tab.on{color:#14564A;border-bottom-color:#14564A;font-weight:700;}'+
+      '.lg-body{overflow-y:auto;padding:16px 18px 24px;-webkit-overflow-scrolling:touch;'+
+        'font-size:14px;line-height:1.85;color:#39423C;}'+
+      '.lg-body h4{font-size:14.5px;color:#1F2724;margin:18px 0 6px;font-weight:700;}'+
+      '.lg-body h4:first-child{margin-top:2px;}'+
+      '.lg-body p{margin:0 0 8px;}'+
+      '.lg-body ul{margin:4px 0 10px;padding-left:20px;}'+
+      '.lg-body li{margin-bottom:3px;}'+
+      '.lg-t{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:13.5px;}'+
+      '.lg-t td{padding:6px 0;border-bottom:1px solid #EDF0EC;}'+
+      '.lg-t td:last-child{text-align:right;color:#14564A;font-weight:600;white-space:nowrap;padding-left:12px;}'+
+      '.lg-foot{flex:none;padding:12px 18px calc(16px + env(safe-area-inset-bottom));border-top:1px solid #E6E9E4;}'+
+      '.lg-close{width:100%;background:#F2F4F1;color:#39423C;border:1px solid #DDE2DA;border-radius:10px;'+
+        'padding:13px;font-size:15px;font-family:inherit;min-height:48px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+
+  function mount(){
+    css();
+    if(document.getElementById('lgWrap')) return;
+    var w=document.createElement('div'); w.id='lgWrap';
+    w.innerHTML =
+      '<div class="lg-box">'+
+        '<div class="lg-head">'+
+          '<div class="lg-title">智在生活 · '+C.name+'</div>'+
+          '<div class="lg-upd">最後更新 '+UPDATED+'</div>'+
+          '<div class="lg-tabs" id="lgTabs"></div>'+
+        '</div>'+
+        '<div class="lg-body" id="lgBody"></div>'+
+        '<div class="lg-foot"><button type="button" class="lg-close" id="lgClose">關閉</button></div>'+
+      '</div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function(e){ if(e.target===w) close(); });
+    document.getElementById('lgClose').addEventListener('click', close);
+    var tabs=document.getElementById('lgTabs');
+    DOCS.forEach(function(d,i){
+      var b=document.createElement('button');
+      b.type='button'; b.className='lg-tab'; b.textContent=d.t;
+      b.addEventListener('click', function(){ show(i); });
+      tabs.appendChild(b);
+    });
+  }
+  function show(i){
+    cur=i;
+    var tabs=document.querySelectorAll('.lg-tab');
+    for(var k=0;k<tabs.length;k++) tabs[k].classList.toggle('on', k===i);
+    var body=document.getElementById('lgBody');
+    body.innerHTML = DOCS[i].b;
+    body.scrollTop = 0;
+  }
+  function open(which){
+    mount();
+    var i = 0;
+    if(typeof which === 'number') i = which;
+    else if(which === 'privacy') i = 1;
+    else if(which === 'pay') i = 2;
+    else if(which === 'clientdata') i = 3;
+    if(i >= DOCS.length) i = 0;
+    show(i);
+    document.getElementById('lgWrap').classList.add('on');
+  }
+  function close(){ var w=document.getElementById('lgWrap'); if(w) w.classList.remove('on'); }
+
+  window.legalDocs = { open:open, close:close, appName:C.name };
+})();
+</script>
+
 </body>
 </html>
