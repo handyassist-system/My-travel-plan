@@ -305,6 +305,7 @@
   .nav-btn{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none; color:var(--sub); font-size:10px; padding:6px 0;}
   .nav-btn .ic{font-size:20px;}
   .nav-btn.active{color:var(--accent);}
+  #mapBtn.hdr-on{background:var(--accent); border-radius:8px;}
 
   /* ---------- Modal ---------- */
   .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:flex-end; z-index:100;}
@@ -433,17 +434,72 @@
   border-radius:18px !important; padding:15px !important; overflow:visible !important;
   box-shadow:0 2px 10px rgba(46,46,51,.06) !important; margin-bottom:14px !important;
 }
-.set-row{
-  width:100% !important; display:flex !important; align-items:center !important; gap:10px !important;
-  padding:12px !important; border-radius:12px !important;
-  border:1px solid #E7E2DA !important; border-bottom:1px solid #E7E2DA !important;
-  background:#FBF8F3 !important; color:#2E2E33 !important;
-  font-size:14px !important; font-weight:600 !important; font-family:inherit !important;
-  text-align:left !important; min-height:48px !important; cursor:pointer;
-  margin-bottom:8px !important;
+/* ===== 底部導覽：四個 App 同一套規格（高度 58px、圖示 21px、字 11.5px、反白加底色）===== */
+#bottomNav{
+  position:fixed; left:0; right:0; bottom:0; box-sizing:border-box;
+  max-width:520px; margin:0 auto; z-index:40; display:flex; align-items:stretch;
+  background:var(--card); border-top:1px solid var(--line);
+  padding:5px 8px calc(5px + env(safe-area-inset-bottom));
 }
-.set-row:last-child{ margin-bottom:0 !important; }
-.set-row:active{ background:#F1ECE3 !important; }
+#bottomNav .nav-btn{
+  flex:1 1 0; min-width:0; box-sizing:border-box;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  padding:6px 2px; min-height:48px;
+  background:none; border:none; border-radius:12px;
+  color:var(--sub); font-family:inherit; font-size:11.5px; font-weight:600;
+  line-height:1.25; white-space:nowrap; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+#bottomNav .nav-btn .ic{ font-size:21px; line-height:1; }
+#bottomNav .nav-btn.active{ color:#E8734A; background:#FCE4D6; font-weight:700; }
+#bottomNav .nav-btn:active{ opacity:.65; }
+
+/* ===== 空狀態：四個 App 同一套尺寸（圖示 40px、標題 14px、副標 12.5px）===== */
+.empty{
+  text-align:center; padding:44px 20px; font-size:14px; font-weight:600; line-height:1.6;
+}
+.empty .emoji{
+  display:block; font-size:40px; line-height:1; margin:0 0 10px; opacity:.85; font-weight:400;
+}
+.empty .esub{
+  display:block; font-size:12.5px; font-weight:400; margin-top:6px; opacity:.85;
+}
+
+/* ===== 設定列表：四個 App 同一套規格（列高 52、圖示 18、名稱 15、狀態值 13）=====
+   三個 App 的 class 名稱不同（.set-row／.settings-row，內層 .ic/.tx/.ar 與
+   .set-ico/.set-name/.set-val/.set-arrow），這裡一次涵蓋，不動既有標籤。 */
+.set-row, .settings-row{
+  display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box;
+  min-height:52px; padding:14px; margin:0;
+  background:none; border:none; border-bottom:1px solid var(--line); border-radius:0;
+  font-family:inherit; font-size:15px; font-weight:500; color:var(--ink);
+  text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.set-row:last-child, .settings-row:last-child{ border-bottom:none; }
+.set-row:active, .settings-row:active{ background:var(--bg); }
+.set-row .ic, .set-row .set-ico, .settings-row .settings-row-icon{
+  flex:0 0 auto; width:24px; text-align:center; font-size:18px; line-height:1;
+}
+.set-row .tx, .set-row .set-name, .settings-row .settings-row-label{
+  flex:0 0 auto; white-space:nowrap;
+}
+.set-row .set-val{
+  flex:1 1 auto; min-width:0; text-align:right; font-size:13px; font-weight:400;
+  color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.set-row .ar, .set-row .set-arrow{
+  flex:0 0 auto; margin-left:auto; font-size:19px; line-height:1; color:var(--sub);
+}
+.set-gap{ height:14px; background:none; border:none; }
+
+  /* 危險動作（登出）不給箭頭：它不是「進入某頁」，而是當下就執行 */
+  .set-row.danger .ar, .set-row.danger .set-arrow{ display:none; }
+  .set-row.danger, .settings-row.danger{ color:var(--danger); font-weight:700; }
+  /* 管理員項目不另外加底色，跟其他 App 一致 */
+  .settings-row.admin{ background:none; border-color:inherit; }
+  /* 食在料理原本沒有箭頭，用 CSS 補上，標籤不用改 */
+  .settings-row:not(.danger)::after{
+    content:"›"; margin-left:auto; font-size:19px; line-height:1; color:var(--sub); flex:0 0 auto;
+  }
 </style>
 </head>
 <body>
@@ -479,7 +535,10 @@
     <header>
       <div style="display:flex; align-items:center; justify-content:space-between; position:relative;">
         <h1 id="pageTitle">📅 行程 <span id="appVerTag" style="font-size:10px;color:var(--sub);font-weight:400;white-space:nowrap">v1.0</span></h1>
-        <button id="settingsBtn" title="設定" style="background:none; border:none; font-size:20px; padding:4px 8px;">⚙️</button>
+        <div style="display:flex;align-items:center;gap:2px;flex:none">
+          <button id="mapBtn" title="地圖" style="background:none; border:none; font-size:20px; padding:4px 8px; border-radius:8px;">🗺️</button>
+          <button id="settingsBtn" title="設定" style="background:none; border:none; font-size:20px; padding:4px 8px;">⚙️</button>
+        </div>
       </div>
       <div class="header-trip-row">
         <button id="tripSelBtn" class="trip-sel">目前：<span id="tripSelName">—</span> ▾</button>
@@ -623,8 +682,7 @@
     <button class="nav-btn" data-tab="flight"><span class="ic">✈️</span>航班</button>
     <button class="nav-btn" data-tab="expense"><span class="ic">💰</span>花費</button>
     <button class="nav-btn" data-tab="packing"><span class="ic">🛍️</span>採買</button>
-    <button class="nav-btn" data-tab="map"><span class="ic">🗺️</span>地圖</button>
-  </div>
+    </div>
 </div>
 
 <!-- Spot Modal -->
@@ -1459,17 +1517,29 @@ async function adminLogin(){
 })();
 
 async function enterApp(){
-  loginScreen.style.display = "none";
-  mainScreen.style.display = "block";
-  fab.style.alignItems = "center";
-  fab.style.justifyContent = "center";
-  fab.style.display = "none";
-  bottomNav.style.display = "none";
-  applyPlanLocks();
-  await migrateOwnerIfNeeded();
-  startListening();
-  startTripsListening();
-  // 不在這裡載地圖 —— 等使用者真的開地圖分頁或新增地點時才載
+  // 整段包起來：任何一步出錯都要把登入畫面放回來並說明原因，
+  // 不能讓使用者只看到一片空白又沒有任何線索。
+  try{ appLoading.show("載入中…", "#E8734A"); }catch(e){}
+  try{
+    loginScreen.style.display = "none";
+    mainScreen.style.display = "block";
+    fab.style.alignItems = "center";
+    fab.style.justifyContent = "center";
+    fab.style.display = "none";
+    bottomNav.style.display = "none";
+    applyPlanLocks();
+    await migrateOwnerIfNeeded();
+    startListening();
+    startTripsListening();
+    // 不在這裡載地圖 —— 等使用者真的開地圖分頁或新增地點時才載
+  }catch(err){
+    try{ mainScreen.style.display="none"; loginScreen.style.display="flex"; }catch(e){}
+    var _m=document.getElementById("loginError");
+    if(_m) _m.textContent="進入失敗："+((err&&err.message)?err.message:"未知錯誤");
+    try{ console.error("enterApp 失敗", err); }catch(e){}
+  }finally{
+    try{ appLoading.hide(); }catch(e){}
+  }
 }
 
 async function autoLogin(){
@@ -1767,11 +1837,14 @@ bottomNav.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     if(btn.dataset.tab === "expense" && needAdvanced("花費彙總")) return;
     currentTab = btn.dataset.tab;
-    bottomNav.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
     renderAll();
   });
 });
+// 地圖搬到頂部：它是「看位置」不是「填資料」，底部留給每天要做的四件事
+(function(){
+  var mb=document.getElementById("mapBtn");
+  if(mb) mb.addEventListener("click", function(){ currentTab="map"; renderAll(); });
+})();
 
 function renderAll(){
   document.getElementById("itineraryView").style.display = currentTab==="itinerary" ? "block":"none";
@@ -1793,7 +1866,19 @@ function renderAll(){
   document.getElementById("memoFab").style.justifyContent = "center";
 
   const titles = { itinerary:"📅 行程", expense:"💰 花費彙整", flight:"✈️ 航班", packing:"🛍️ 採買清單", map:"🗺️ 地圖" };
-  document.getElementById("pageTitle").textContent = titles[currentTab];
+  // 只改標題文字，不要用 textContent —— 版本號是這個 h1 的子元素，整個覆蓋會把它清掉
+  var _t=document.getElementById("pageTitle");
+  if(_t){
+    var _first=_t.firstChild;
+    if(_first && _first.nodeType===3) _first.nodeValue = titles[currentTab] + " ";
+    else _t.insertBefore(document.createTextNode(titles[currentTab] + " "), _t.firstChild);
+  }
+  // 反白集中在這裡：從底部或從頂部地圖進來，結果都一致
+  bottomNav.querySelectorAll(".nav-btn").forEach(function(b){
+    b.classList.toggle("active", b.dataset.tab===currentTab);
+  });
+  var _mb=document.getElementById("mapBtn");
+  if(_mb) _mb.classList.toggle("hdr-on", currentTab==="map");
 
   if(currentTab==="itinerary") renderItinerary();
   if(currentTab==="expense") renderExpense();
@@ -1842,7 +1927,7 @@ function renderMap(){
     canvas.innerHTML = "";
     const msg = document.createElement("div");
     msg.className = "empty";
-    msg.innerHTML = `<span class="emoji">🗺️</span>地圖載入中或未連線<br>請確認 Google 服務正常後重新整理`;
+    msg.innerHTML = `<span class="emoji">🗺️</span>地圖載入中或未連線<span class="esub">請確認 Google 服務正常後重新整理</span>`;
     canvas.appendChild(msg);
     return;
   }
@@ -1859,8 +1944,8 @@ function renderMap(){
     const msg = document.createElement("div");
     msg.className = "empty";
     msg.innerHTML = mapDayFilter==="all"
-      ? `<span class="emoji">📍</span>還沒有帶座標的地點<br>透過搜尋建議新增的地點才會顯示在地圖上`
-      : `<span class="emoji">📍</span>「${mapDayFilter}」還沒有帶座標的地點<br>透過搜尋建議新增的地點才會顯示在地圖上`;
+      ? `<span class="emoji">📍</span>還沒有帶座標的地點<span class="esub">透過搜尋建議新增的地點才會顯示在地圖上</span>`
+      : `<span class="emoji">📍</span>「${mapDayFilter}」還沒有帶座標的地點<span class="esub">透過搜尋建議新增的地點才會顯示在地圖上</span>`;
     canvas.appendChild(msg);
     return;
   }
@@ -1891,7 +1976,7 @@ function renderMap(){
 function noTripCTA(){
   const div = document.createElement("div");
   div.className = "empty";
-  div.innerHTML = `<span class="emoji">🧳</span>還沒有建立行程<br>先建立一個行程才能開始安排`;
+  div.innerHTML = `<span class="emoji">🧳</span>還沒有建立行程<span class="esub">先建立一個行程才能開始安排</span>`;
   const btn = document.createElement("button");
   btn.className = "btn btn-primary";
   btn.style.marginTop = "14px";
@@ -2047,7 +2132,7 @@ function renderDayList(){
   if(arr.length===0){
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.innerHTML = `<span class="emoji">🗺️</span>「${currentDay}」還沒有安排行程<br>點右下角 ＋ 開始新增`;
+    empty.innerHTML = `<span class="emoji">🗺️</span>「${currentDay}」還沒有安排行程<span class="esub">點右下角 ＋ 開始新增</span>`;
     list.appendChild(empty);
     if(currentDay === days[days.length-1]){
       const c = buildReturnFlightCard();
@@ -3169,7 +3254,7 @@ function renderHolding(){
   if(!activeTripId) return;
   const arr = items.filter(i=>i.tripId===activeTripId && i.type==="holding").sort((a,b)=>b.order-a.order);
   if(arr.length===0){
-    wrap.innerHTML = `<div class="empty"><span class="emoji">📝</span>還沒有任何記錄<br>點右下角 ＋ 開始新增</div>`;
+    wrap.innerHTML = `<div class="empty"><span class="emoji">📝</span>還沒有任何記錄<span class="esub">點右下角 ＋ 開始新增</span></div>`;
     return;
   }
   arr.forEach(h=>{
@@ -3364,7 +3449,7 @@ function renderExpense(){
   const listWrap = document.getElementById("expList");
   listWrap.innerHTML = "";
   if(all.length===0){
-    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<br>在行程地點裡填入金額即可自動彙總</div>`;
+    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<span class="esub">在行程地點裡填入金額即可自動彙總</span></div>`;
     return;
   }
   const sorted = [...all].sort((a,b)=>{
@@ -3857,8 +3942,8 @@ function renderPacking(){
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.innerHTML = packingViewMode==="souvenir"
-      ? `<span class="emoji">🎁</span>還沒有伴手禮清單<br>點右下角 ＋ 開始新增`
-      : `<span class="emoji">🧳</span>還沒有行前準備項目<br>點右下角 ＋ 開始新增，或帶入基本清單`;
+      ? `<span class="emoji">🎁</span>還沒有伴手禮清單<span class="esub">點右下角 ＋ 開始新增</span>`
+      : `<span class="emoji">🧳</span>還沒有行前準備項目<span class="esub">點右下角 ＋ 開始新增，或帶入基本清單</span>`;
     wrap.appendChild(empty);
     return;
   }
@@ -4309,19 +4394,15 @@ function travelToast(msg, ms){
 
 // 旅遊：返回鍵一層一層往回的順序
 function appHandleBack(){
-  var sheet=document.getElementById('termsSheet') || document.getElementById('roSheet');
-  if(sheet){ sheet.remove(); return true; }                                   // 條款／升級提示
+  if(window.closeTopSharedOverlay && closeTopSharedOverlay()) return true;    // 條款／升級／備份／訂閱等共用彈窗
   var masks=document.querySelectorAll('.modal-mask.show');
   if(masks.length){ masks[masks.length-1].classList.remove('show'); return true; }   // 最上層彈窗
   if(typeof settingsOpen==='function' && settingsOpen()){ closeSettings(); return true; }  // 設定頁
   var main=document.getElementById('mainScreen');
   if(!main || main.style.display==='none') return false;                      // 還在登入頁 → 離開
-  if(currentTab!=='itinerary'){                                               // 其他分頁 → 回行程
+  if(currentTab!=='itinerary'){                                               // 其他分頁（含地圖）→ 回行程
     currentTab='itinerary';
-    bottomNav.querySelectorAll('.nav-btn').forEach(function(b){
-      b.classList.toggle('active', b.dataset.tab==='itinerary');
-    });
-    renderAll();
+    renderAll();   // 反白統一由 renderAll 負責，底部與頂部地圖都會跟著更新
     return true;
   }
   return false;                                                               // 行程首頁 → 提示再按一次
@@ -5374,6 +5455,77 @@ async function travelImportBackup(file){
   }
 
   window.expiryNotice = { check: check, close: close, _daysLeft: daysLeft };
+})();
+
+/* ==================== 返回鍵：先關最上層彈窗（四個 App 共用）====================
+   共用模組的彈窗都是後來才加的，各 App 原本的返回鍵不認得它們，
+   按下去會「穿過」彈窗去關底下的設定頁或分頁。這裡依 z-index 由高到低
+   檢查，有開著的就關掉並回報 true，讓呼叫端知道這次返回已經處理掉了。
+   ==================================================================== */
+(function(){
+  var LAYERS = [
+    { id:'cfWrap',    z:10090, close:function(){ var b=document.getElementById('cfNo'); if(b) b.click(); } },
+    { id:'exWrap',    z:10080, close:function(){ if(window.expiryNotice) expiryNotice.close(); } },
+    { id:'bkWrap',    z:10070, close:function(w){ w.classList.remove('on'); } },
+    { id:'pvWrap',    z:10061, close:function(w){ w.classList.remove('on'); } },
+    { id:'lgWrap',    z:10040, close:function(){ if(window.legalDocs) legalDocs.close(); } },
+    { id:'upWrap',    z:10030, close:function(){ if(window.upgradeSheet) upgradeSheet.close(); } },
+    { id:'subsSheet', z:10002, close:function(w){ w.classList.remove('on'); } }
+  ];
+  window.closeTopSharedOverlay = function(){
+    for(var i=0;i<LAYERS.length;i++){
+      var w = document.getElementById(LAYERS[i].id);
+      if(w && w.classList.contains('on')){
+        try{ LAYERS[i].close(w); }catch(e){ try{ w.classList.remove('on'); }catch(e2){} }
+        return true;
+      }
+    }
+    return false;
+  };
+})();
+
+/* ==================== 載入指示（四個 App 共用）====================
+   網路慢的時候畫面不能完全靜止，否則使用者會重複點按鈕或以為當掉。
+   appLoading.show("訊息") / appLoading.hide()；重複呼叫 show 只會換訊息。
+   ==================================================================== */
+(function(){
+  function css(){
+    if(document.getElementById('ldCss')) return;
+    var s=document.createElement('style'); s.id='ldCss';
+    s.textContent =
+      '#ldWrap{position:fixed;inset:0;z-index:10095;display:none;flex-direction:column;'+
+        'align-items:center;justify-content:center;gap:14px;background:rgba(252,252,250,.94);'+
+        '-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}'+
+      '#ldWrap.on{display:flex;}'+
+      '#ldWrap .ld-sp{width:34px;height:34px;border-radius:50%;'+
+        'border:3px solid rgba(90,100,95,.18);border-top-color:var(--ld-ac,#5B6F79);'+
+        'animation:ldSpin .8s linear infinite;}'+
+      '#ldWrap .ld-tx{font-size:14px;color:#5B6F79;font-family:inherit;letter-spacing:.02em;}'+
+      '@keyframes ldSpin{to{transform:rotate(360deg)}}'+
+      '@media (prefers-reduced-motion:reduce){#ldWrap .ld-sp{animation-duration:2.4s}}';
+    document.head.appendChild(s);
+  }
+  css();   // 立刻注入：CRM 有一顆寫在 HTML 裡的載入遮罩也要用到 .ld-sp
+  function el(){
+    var w=document.getElementById('ldWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='ldWrap';
+      w.setAttribute('role','status'); w.setAttribute('aria-live','polite');
+      w.innerHTML='<div class="ld-sp"></div><div class="ld-tx" id="ldTx">載入中…</div>';
+      document.body.appendChild(w);
+    }
+    return w;
+  }
+  window.appLoading = {
+    show: function(msg, accent){
+      var w=el();
+      if(accent) w.style.setProperty('--ld-ac', accent);
+      var t=document.getElementById('ldTx'); if(t) t.textContent = msg || '載入中…';
+      w.classList.add('on');
+    },
+    hide: function(){ var w=document.getElementById('ldWrap'); if(w) w.classList.remove('on'); },
+    visible: function(){ var w=document.getElementById('ldWrap'); return !!(w && w.classList.contains('on')); }
+  };
 })();
 
 /* ==================== 確認對話框（四個 App 共用）====================
