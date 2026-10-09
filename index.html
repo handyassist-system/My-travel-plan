@@ -581,8 +581,12 @@ header .icon-pill-btn{ background:rgba(255,255,255,.78) !important; color:#26262
         <div class="amt" id="expTotal">¥0</div>
         <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:11px;">🔄更新即時匯率</button></div>
       </div>
+      <div style="padding:0 20px 12px;">
+        <button type="button" id="expAddBtn" style="width:100%; padding:11px; border:1px dashed var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:var(--radius-md); font-size:14px; font-weight:600;">＋ 新增花費（行李箱、換匯等非景點花費）</button>
+      </div>
       <div class="exp-cats" id="expCats"></div>
       <div class="exp-cats" id="expByMember" style="margin-top:0;"></div>
+      <div id="expSettle" style="margin:0 20px 14px;"></div>
       <div class="exp-list" id="expList"></div>
     </div>
 
@@ -847,6 +851,41 @@ header .icon-pill-btn{ background:rgba(255,255,255,.78) !important; color:#26262
         <button class="btn btn-ghost" id="holdCancel">關閉</button>
         <button class="btn btn-primary" id="holdSave">＋ 新增一筆</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增／編輯「行程外」花費 -->
+<div class="modal-mask" id="expModalMask">
+  <div class="modal">
+    <button class="close-x" id="expModalClose">✕</button>
+    <h2 id="expModalTitle">新增花費</h2>
+    <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">記錄不在景點裡的花費，例如事前買行李箱、兌換外幣</p>
+    <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行李箱、兌換人民幣"></div>
+    <div class="row2">
+      <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label>類別</label>
+        <select id="eCategory">
+          <option value="行前準備">🧳 行前準備</option>
+          <option value="兌換">💱 兌換</option>
+          <option value="購物">🛍️ 購物</option>
+          <option value="餐飲">🍜 餐飲</option>
+          <option value="交通">🚆 交通</option>
+          <option value="門票">🎫 門票</option>
+          <option value="住宿">🏨 住宿</option>
+          <option value="其他">📌 其他</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
+    <div class="field" id="ePayerWrap" style="display:none;"><label>付款人</label><select id="eExpPayer"></select></div>
+    <div class="field" id="eShareWrap" style="display:none;"><label>分攤的人（點選可取消，預設全選）</label><div class="chip-row" id="eShareChips"></div></div>
+    <div class="field"><label>日期（選填）</label><input id="eDate" type="date"></div>
+    <div class="field"><label>備註（選填）</label><textarea id="eNote" placeholder="補充說明"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="eDelete" style="display:none; color:#d9534f;">刪除</button>
+      <button class="btn btn-ghost" id="eCancel">取消</button>
+      <button class="btn btn-primary" id="eSave">儲存</button>
     </div>
   </div>
 </div>
@@ -1162,7 +1201,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-12";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-13";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3399,6 +3438,7 @@ function renderExpense(){
     document.getElementById("expTotal").textContent = "¥0";
     document.getElementById("expCats").innerHTML = "";
     document.getElementById("expByMember").innerHTML = "";
+    document.getElementById("expSettle").innerHTML = "";
     listWrap.innerHTML = "";
     listWrap.appendChild(noTripCTA());
     return;
@@ -3426,7 +3466,7 @@ function renderExpense(){
   });
   const sym = currencySymbol(expDisplayCurrency);
 
-  const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport") && i.expense && i.expense.amount);
+  const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense") && i.expense && i.expense.amount);
   if(flightSettings && flightSettings.expense){
     all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary } });
   }
@@ -3460,10 +3500,12 @@ function renderExpense(){
     });
   }
 
+  renderExpenseSettlement(all, converted, sym, rate, primary, trip);
+
   const listWrap = document.getElementById("expList");
   listWrap.innerHTML = "";
   if(all.length===0){
-    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<span class="esub">在行程地點裡填入金額即可自動彙總</span></div>`;
+    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<span class="esub">在行程地點裡填入金額，或按上方「新增花費」</span></div>`;
     return;
   }
   const sorted = [...all].sort((a,b)=>{
@@ -3475,7 +3517,10 @@ function renderExpense(){
     row.className = "exp-item";
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
-    row.innerHTML = `<div><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(i.day)} · ${escapeHtml(i.expense.category||"")}</div></div><div class="r">${origSym}${i.expense.amount.toLocaleString()}</div>`;
+    const dayTxt = i.type==="expense" ? (i.date || "行程外") : i.day;
+    const payTxt = (i.type==="expense" && i.expense.payer) ? (" · " + i.expense.payer + "付") : "";
+    row.innerHTML = `<div><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)} · ${escapeHtml(i.expense.category||"")}${escapeHtml(payTxt)}</div></div><div class="r">${origSym}${i.expense.amount.toLocaleString()}</div>`;
+    if(i.type==="expense"){ row.style.cursor="pointer"; row.addEventListener("click", ()=>openExpenseModal(i)); }
     listWrap.appendChild(row);
   });
 }
@@ -3506,6 +3551,150 @@ document.getElementById("rateFetchBtn").addEventListener("click", async ()=>{
     btn.textContent = "查詢失敗";
   }
   setTimeout(()=>{ btn.textContent = originalText; }, 2000);
+});
+
+// ================= 行程外花費 + 結算 =================
+// 結算規則：每筆花費由「付款人」先墊，分攤給「分攤的人」（沒指定＝全部成員）平分。
+// 沒填付款人、或付款人不在成員名單內的花費，無法結算，不納入並提示筆數。
+function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
+  const box = document.getElementById("expSettle");
+  if(!box) return;
+  const members = (trip && trip.members) ? trip.members : [];
+  if(members.length===0){ box.innerHTML = ""; return; }
+  if(members.length<2){
+    box.innerHTML = `<div class="exp-cat-pill" style="font-size:12px;color:var(--sub);">💸 結算：行程成員至少要 2 人（可在行程設定新增成員）</div>`;
+    return;
+  }
+  const paid = {}, owed = {};
+  members.forEach(m=>{ paid[m]=0; owed[m]=0; });
+  let skipped = 0;
+  all.forEach(i=>{
+    const payer = i.expense.payer;
+    if(!payer || !paid.hasOwnProperty(payer)){ skipped++; return; }
+    const amt = converted(i);
+    let who = Array.isArray(i.expense.sharedBy) ? i.expense.sharedBy.filter(m=>owed.hasOwnProperty(m)) : [];
+    if(who.length===0) who = members;
+    paid[payer] += amt;
+    const share = amt / who.length;
+    who.forEach(m=>{ owed[m] += share; });
+  });
+  const bal = members.map(m=>({ m, paid:paid[m], owed:owed[m], b:paid[m]-owed[m] }));
+  const cred = bal.filter(x=>x.b>0.5).map(x=>({m:x.m,b:x.b})).sort((a,b)=>b.b-a.b);
+  const debt = bal.filter(x=>x.b<-0.5).map(x=>({m:x.m,b:-x.b})).sort((a,b)=>b.b-a.b);
+  const transfers = [];
+  let ci=0, di=0;
+  while(ci<cred.length && di<debt.length){
+    const t = Math.min(cred[ci].b, debt[di].b);
+    if(t>=0.5) transfers.push({ from:debt[di].m, to:cred[ci].m, amt:t });
+    cred[ci].b -= t; debt[di].b -= t;
+    if(cred[ci].b<0.5) ci++;
+    if(debt[di].b<0.5) di++;
+  }
+  const fmt = n => sym + Math.round(Math.abs(n)).toLocaleString();
+  let html = `<div class="exp-cat-pill" style="padding:12px 14px;">`;
+  html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;">💸 結算（平分）</div>`;
+  bal.forEach(x=>{
+    const d = Math.round(x.b);
+    const dTxt = d>0 ? `<span style="color:var(--green);font-weight:700;">應收 ${fmt(x.b)}</span>` : (d<0 ? `<span style="color:#d9534f;font-weight:700;">應付 ${fmt(x.b)}</span>` : `<span style="color:var(--sub);">打平</span>`);
+    html += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:5px 0;border-top:1px solid var(--line);">`
+          + `<div>👤 ${escapeHtml(x.m)}<div style="font-size:11px;color:var(--sub);">已付 ${fmt(x.paid)} · 應分攤 ${fmt(x.owed)}</div></div><div style="text-align:right;">${dTxt}</div></div>`;
+  });
+  if(transfers.length){
+    html += `<div style="font-size:12.5px;font-weight:700;margin:10px 0 4px;">誰要付給誰</div>`;
+    transfers.forEach(t=>{
+      html += `<div style="font-size:13px;padding:3px 0;">${escapeHtml(t.from)} → ${escapeHtml(t.to)}　<b>${fmt(t.amt)}</b></div>`;
+    });
+  } else {
+    html += `<div style="font-size:12.5px;color:var(--sub);margin-top:8px;">目前沒有需要互相結清的金額</div>`;
+  }
+  const rateNote = `以 ${sym} 計算；匯率 1${currencySymbol(primary)} = ${rate} NT$（存在這支手機，換裝置可能不同）`;
+  html += `<div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(rateNote)}`;
+  if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
+  html += `</div></div>`;
+  box.innerHTML = html;
+}
+
+let editingExpenseId = null;
+const expModalMask = document.getElementById("expModalMask");
+const eCurrencyChips = document.getElementById("eCurrencyChips");
+function renderShareChips(selected){
+  const trip = getActiveTrip();
+  const members = (trip && trip.members) ? trip.members : [];
+  const wrap = document.getElementById("eShareWrap");
+  const chips = document.getElementById("eShareChips");
+  chips.innerHTML = "";
+  if(members.length<2){ wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  const sel = (Array.isArray(selected) && selected.length) ? selected : members;
+  members.forEach(m=>{
+    const c = document.createElement("div");
+    c.className = "chip" + (sel.includes(m) ? " active" : "");
+    c.dataset.m = m;
+    c.textContent = m;
+    c.addEventListener("click", ()=>c.classList.toggle("active"));
+    chips.appendChild(c);
+  });
+}
+function openExpenseModal(it){
+  if(!getActiveTrip()) return;
+  editingExpenseId = it ? it.id : null;
+  const e = (it && it.expense) ? it.expense : {};
+  document.getElementById("expModalTitle").textContent = it ? "編輯花費" : "新增花費";
+  document.getElementById("eName").value = it ? (it.name||"") : "";
+  document.getElementById("eAmount").value = e.amount || "";
+  document.getElementById("eCategory").value = e.category || "行前準備";
+  setCurrencyChip(eCurrencyChips, it ? e.currency : "TWD");   // 新增時預設新台幣（事前花費多半用台幣付）
+  populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), e.payer || "");
+  renderShareChips(e.sharedBy);
+  document.getElementById("eDate").value = it ? (it.date||"") : "";
+  document.getElementById("eNote").value = it ? (it.note||"") : "";
+  document.getElementById("eDelete").style.display = it ? "" : "none";
+  expModalMask.classList.add("show");
+}
+function closeExpenseModal(){ expModalMask.classList.remove("show"); editingExpenseId = null; }
+document.getElementById("expAddBtn").addEventListener("click", ()=>openExpenseModal(null));
+document.getElementById("expModalClose").addEventListener("click", closeExpenseModal);
+document.getElementById("eCancel").addEventListener("click", closeExpenseModal);
+expModalMask.addEventListener("click",(ev)=>{ if(ev.target===expModalMask) closeExpenseModal(); });
+document.getElementById("eSave").addEventListener("click", async ()=>{
+  const name = document.getElementById("eName").value.trim();
+  const amount = Number(document.getElementById("eAmount").value);
+  if(!name){ document.getElementById("eName").focus(); return; }
+  if(!(amount>0)){ document.getElementById("eAmount").focus(); travelToast("請輸入金額"); return; }
+  const trip = getActiveTrip(); if(!trip) return;
+  const members = trip.members || [];
+  let sharedBy = [];
+  if(members.length>=2){
+    const picked = [...document.querySelectorAll("#eShareChips .chip.active")].map(c=>c.dataset.m);
+    if(picked.length===0){ travelToast("請至少選一位分攤的人"); return; }
+    sharedBy = (picked.length===members.length) ? [] : picked;   // 空陣列＝全部成員
+  }
+  const data = {
+    type:"expense", tripId: activeTripId, name,
+    date: document.getElementById("eDate").value || "",
+    note: document.getElementById("eNote").value.trim(),
+    expense: { amount, category: document.getElementById("eCategory").value,
+               payer: document.getElementById("eExpPayer").value || "",
+               currency: getCurrencyChip(eCurrencyChips), sharedBy }
+  };
+  try{
+    if(editingExpenseId){
+      await db.collection(COLLECTION).doc(editingExpenseId).update(data);
+    } else {
+      data.order = Date.now();
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection(COLLECTION).add(data);
+    }
+    closeExpenseModal();
+  }catch(err){ console.error("save expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("儲存", err)); }
+});
+document.getElementById("eDelete").addEventListener("click", async ()=>{
+  if(!editingExpenseId) return;
+  if(!await askConfirm("刪除這筆花費", "刪除後無法復原。", "刪除")) return;
+  try{
+    await db.collection(COLLECTION).doc(editingExpenseId).delete();
+    closeExpenseModal();
+  }catch(err){ console.error("delete expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
 });
 
 // ================= FLIGHT =================
