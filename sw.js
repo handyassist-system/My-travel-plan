@@ -1,5 +1,5 @@
 /* 旅遊計畫 Service Worker — 網路優先，離線才用快取 */
-var CACHE = 'travel-cache-v1';
+var CACHE = 'travel-cache-v2';
 var CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function(e){
@@ -7,7 +7,8 @@ self.addEventListener('install', function(e){
 });
 self.addEventListener('activate', function(e){
   e.waitUntil(caches.keys().then(function(keys){
-    return Promise.all(keys.map(function(k){ return k===CACHE ? null : caches.delete(k); }));
+    // 只清自己這個 App 的舊快取（同網站的其他 App 也有快取，不能一起刪）
+    return Promise.all(keys.map(function(k){ return (k.indexOf('travel-cache-')===0 && k!==CACHE) ? caches.delete(k) : null; }));
   }).then(function(){ return self.clients.claim(); }));
 });
 self.addEventListener('message', function(e){ if(e.data==='SKIP_WAITING') self.skipWaiting(); });
