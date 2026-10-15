@@ -381,6 +381,10 @@
     body *{visibility:hidden;}
     #printArea, #printArea *{visibility:visible;}
     #printArea{display:block; position:absolute; top:0; left:0; width:100%; padding:20px;}
+    body > *:not(#app), #app > *:not(#printArea){display:none !important;}   /* 隱藏的畫面不佔版面，避免多出空白頁 */
+    #printArea .pdf-table thead{display:table-header-group;}
+    #printArea .pdf-table tr{break-inside:avoid; page-break-inside:avoid;}
+    #printArea .pdf-day{break-after:avoid; page-break-after:avoid;}
   }
 /* ==================== 訂閱管理（跨 App）==================== */
 #subsPage{position:fixed;inset:0;background:#f5f6f8;z-index:10000;display:none;flex-direction:column;}
@@ -1266,7 +1270,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-49";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-53";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1867,6 +1871,8 @@ function startListening(){
   unsubscribe = db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).onSnapshot((snap)=>{
     items = [];
     snap.forEach(doc=>{ items.push({ ...doc.data(), id: doc.id }); });
+    // 景點類別固定 6 類；舊資料留下的自訂類別（例如「店家」）一律當「其他」
+    items.forEach(i=>{ if((i.type==="spot" || i.type==="holding") && i.category && !SPOT_BASE_CATS.includes(i.category)) i.category = "其他"; });
     items.sort((a,b)=>(a.order||0)-(b.order||0));
     recomputeDays();
     renderAll();
@@ -2573,14 +2579,7 @@ let pendingCustomSpotCat = null;
 let pendingCustomHoldCat = null;   // 備忘錄剛輸入、還沒存檔的自訂類別
 
 function getAllSpotCategories(){
-  const custom = [...new Set(
-    items.filter(i=>i.tripId===activeTripId && (i.type==="spot" || i.type==="holding") && i.category && !SPOT_BASE_CATS.includes(i.category))
-         .map(i=>i.category)
-  )];
-  [pendingCustomSpotCat, pendingCustomHoldCat].forEach(function(c){
-    if(c && !custom.includes(c) && !SPOT_BASE_CATS.includes(c)) custom.push(c);
-  });
-  return [...SPOT_BASE_CATS, ...custom];
+  return [...SPOT_BASE_CATS];   // 類別固定，不再開放自訂
 }
 const fCategoryChips = document.getElementById("fCategoryChips");
 function renderSpotCatChips(){
@@ -3681,10 +3680,11 @@ function renderHolding(){
   // 分類按鈕：一眼看到每一類有幾個
   const bar = document.createElement("div");
   bar.className = "chip-row";
-  bar.style.marginBottom = "12px";
+  bar.style.cssText = "margin-bottom:12px;flex-wrap:nowrap;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;";
   [["全部", arr.length]].concat(cats.map(c=>[c, arr.filter(h=>catOf(h)===c).length])).forEach(function(x){
     const chip = document.createElement("div");
     chip.className = "chip" + (x[0]===holdFilter ? " active" : "");
+    chip.style.cssText = "padding:8px 10px;flex:0 0 auto;white-space:nowrap;";
     chip.textContent = (x[0]==="全部" ? "" : (CATEGORY_ICON[x[0]]||"📌")+" ") + x[0] + " " + x[1];
     chip.addEventListener("click", ()=>{ holdFilter = x[0]; renderHolding(); });
     bar.appendChild(chip);
@@ -4890,7 +4890,7 @@ function buildShareHtml(){
 
   days.forEach(day=>{
     const dateLabel = computeDateForDay(day);
-    html += `<div style="background:${seal}; color:#fff; padding:9px 14px; border-radius:8px; font-weight:bold; margin:18px 0 8px;">${esc(day)}${dateLabel ? "（"+esc(dateLabel)+"）" : ""}</div>`;
+    html += `<div class="pdf-day" style="background:${seal}; color:#fff; padding:9px 14px; border-radius:8px; font-weight:bold; margin:18px 0 8px;">${esc(day)}${dateLabel ? "（"+esc(dateLabel)+"）" : ""}</div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
     if(arr.length===0){ html += "<p>（尚未安排）</p>"; return; }
@@ -4912,26 +4912,25 @@ function buildShareHtml(){
       }
     });
 
-    html += `<table style="width:100%; border-collapse:collapse; margin-bottom:6px;">
-      <tr style="background:#EFF2F3;">
-        <th style="text-align:left; padding:7px 8px; font-size:12px; width:60px; border-bottom:2px solid ${seal};">時間</th>
-        <th style="text-align:left; padding:7px 8px; font-size:12px; width:26%; border-bottom:2px solid ${seal};">地點</th>
-        <th style="text-align:left; padding:7px 8px; font-size:12px; border-bottom:2px solid ${seal};">備註</th>
-      </tr>`;
+    const th = (t, w)=>`<th style="text-align:left; padding:7px 6px; font-size:12px; ${w ? "width:"+w+"; " : ""}border-bottom:2px solid ${seal};">${t}</th>`;
+    html += `<table class="pdf-table" style="width:100%; border-collapse:collapse; margin-bottom:6px; table-layout:fixed;">
+      <thead><tr style="background:#EFF2F3;">${th("時間","56px")}${th("地點","17%")}${th("交通","13%")}${th("地址","27%")}${th("備註","")}</tr></thead><tbody>`;
     rows.forEach((row, idx)=>{
-      const noteLines = [];
-      if(row.transport) noteLines.push(row.transport);
-      if(row.stayInfo) noteLines.push(row.stayInfo);
-      if(row.note) noteLines.push("📍"+row.note);
-      if(row.memo) noteLines.push("📝"+row.memo);
-      const noteHtml = noteLines.map(l=>esc(l)).join("<br>");
+      const memoLines = [];
+      if(row.stayInfo) memoLines.push(...row.stayInfo.split("，"));   // 「停留…」「…離開」各一行
+      if(row.memo) memoLines.push(row.memo);
+      const memoHtml = memoLines.map(l=>esc(l)).join("<br>");
       const bg = idx%2===0 ? "#FFFFFF" : "#FAFBFB";
+      const td = "padding:7px 6px; vertical-align:top; border-bottom:1px solid #EEE; word-break:break-all;";
       html += `<tr style="background:${bg};">
-        <td style="padding:8px; font-size:13px; vertical-align:top; border-bottom:1px solid #EEE;"><b>${esc(row.time || "未定")}</b></td>
-        <td style="padding:8px; font-size:13px; vertical-align:top; border-bottom:1px solid #EEE;">${esc(row.name)}</td>
-        <td style="padding:8px; font-size:12px; color:#555; vertical-align:top; border-bottom:1px solid #EEE;">${noteHtml}${row.photo ? `<br><img src="${row.photo}" style="width:120px; border-radius:6px; margin-top:4px;">` : ""}</td>
+        <td style="${td} font-size:13px; white-space:nowrap; word-break:normal;"><b>${esc(row.time || "未定")}</b></td>
+        <td style="${td} font-size:13px;">${esc(row.name)}</td>
+        <td style="${td} font-size:12px; color:#555;">${esc(row.transport || "").replace(" 約","<br>約")}</td>
+        <td style="${td} font-size:12px; color:#777;">${esc(row.note || "").replace(/\s+(邮政编码|郵政編碼|郵遞區號)/,"<br>$1")}</td>
+        <td style="${td} font-size:12px; color:#555;">${memoHtml}${row.photo ? `<br><img src="${row.photo}" style="width:90px; border-radius:6px; margin-top:4px;">` : ""}</td>
       </tr>`;
     });
+    html += `</tbody>`;
     html += `</table>`;
   });
 
