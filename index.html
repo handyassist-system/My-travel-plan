@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>旅遊計畫</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1B84DB">
+<meta name="theme-color" content="#246A8F">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -38,17 +38,17 @@
 </script>
 <style>
   :root{
-    --paper:#F4F9FE;   /* 淺藍白底色（取自圖示天空） */
-    --bg:#EAF3FC;      /* 淺色填充：提示框、次要區塊 */
+    --paper:#F6F9FC;   /* 淺藍白底色（取自圖示天空） */
+    --bg:#E8F2F7;      /* 淺色填充：提示框、次要區塊 */
     --card:#FFFFFF;
     --ink:#0B2A4D;
     --sub:#5F7792;
-    --line:#D6E5F3;
-    --seal:#1B84DB;
+    --line:#D5E3EB;
+    --seal:#2C86AD;
     --danger:#C0392B;   /* 刪除／登出，四支一致 */
-    --accent:#1B84DB;
-    --seal-soft:#E1F0FD;
-    --accent-soft:#E1F0FD;
+    --accent:#2C86AD;
+    --seal-soft:#E2F0F6;
+    --accent-soft:#E2F0F6;
     --orange:#FB8D34;
     --gold:#E0A83E;
     --jade:#3FA796;
@@ -58,7 +58,7 @@
     --radius-md:14px;
     --radius-sm:10px;
   /* ── 智在生活共用命名（四個 App 都用這組名字，值各自不同）── */
-  --primary:#1B84DB; --surface:#FFFFFF;
+  --primary:#2C86AD; --surface:#FFFFFF;
     --serif:"Noto Serif TC",serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -71,7 +71,7 @@
 
   /* ---------- Login ---------- */
   #bootSplash{position:fixed; inset:0; z-index:9000; background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
-  #bootSplash .boot-spin{width:34px; height:34px; border-radius:50%; border:3px solid #CFE3F6; border-top-color:#1B84DB; animation:bootSpin .8s linear infinite;}
+  #bootSplash .boot-spin{width:34px; height:34px; border-radius:50%; border:3px solid #CDE2EB; border-top-color:#2C86AD; animation:bootSpin .8s linear infinite;}
   #bootSplash .boot-tx{font-size:13px; color:var(--sub);}
   @keyframes bootSpin{to{transform:rotate(360deg);}}
   #loginScreen{
@@ -202,7 +202,7 @@
     font-weight:700; position:relative;
   }
   .tab.active{background-color:var(--seal); color:#fff; border-color:var(--seal);
-    box-shadow:0 4px 10px rgba(27,132,219,0.3);
+    box-shadow:0 4px 10px rgba(44,134,173,0.3);
   }
   .tab.add-day{color:var(--seal); border:1.5px dashed var(--seal); background:transparent; font-family:inherit; font-weight:600;}
 
@@ -304,7 +304,7 @@
   }
   .pocket-bar{
     width:calc(100% - 40px); margin:12px 20px 0; display:flex; align-items:center; gap:8px;
-    background:var(--card); border:1px dashed #8CC4F2; border-radius:14px; padding:9px 14px;
+    background:var(--card); border:1px dashed #8DBDD3; border-radius:14px; padding:9px 14px;
     font-family:inherit; font-size:13px; color:var(--ink); cursor:pointer; min-height:42px; text-align:left;
   }
   .pocket-bar .pk-tx{ font-weight:600; flex:1 1 auto; }
@@ -354,7 +354,13 @@
   .field textarea{resize:vertical; min-height:56px;}
   .field input:disabled{background:var(--seal-soft); color:var(--seal); font-weight:700; opacity:1; border-color:var(--seal-soft);}
   .row2{display:flex; gap:10px;}
+  .airport-stop{display:flex; align-items:center; gap:12px; background:var(--card); border:1px dashed var(--seal); border-radius:var(--radius-lg); padding:12px 14px; margin:0 0 8px;}
+  .airport-stop .as-time{width:48px; flex:none; font-size:13px; color:var(--sub);}
+  .airport-stop .as-ic{font-size:22px; flex:none;}
+  .airport-stop .as-name{margin:0; font-size:15px; font-weight:700;}
+  .airport-stop .as-sub{margin:2px 0 0; font-size:12px; color:var(--sub);}
   .sec-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); padding:14px 14px 2px; margin:0 0 14px;}
+  .fs-hint{font-size:12px; color:var(--seal); background:var(--seal-soft); border-radius:10px; padding:8px 12px; margin:-4px 0 14px; line-height:1.6;}
   .sec-card .sec-h{font-size:14px; font-weight:700; color:var(--seal); margin:0 0 12px;}
   .row2 .field{flex:1;}
   .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
@@ -379,11 +385,6 @@
     background:#FBE9C6; color:#7A4A12; border:1px solid #E8C57D; border-radius:var(--radius-md);
     padding:12px 14px; font-size:12px; line-height:1.5; margin-bottom:10px;
   }
-  .deadline-reminder{
-    background:var(--seal); color:#fff; border-radius:var(--radius-md);
-    padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:10px; font-weight:600;
-  }
-  .deadline-reminder b{font-size:15px;}
   #printArea{display:none;}
   @media print{
     body *{visibility:hidden;}
@@ -394,15 +395,15 @@
 #subsPage{position:fixed;inset:0;background:#f5f6f8;z-index:10000;display:none;flex-direction:column;}
 #subsPage.on{display:flex;}
 .subs-head{background:#fff;border-bottom:1px solid #e5e7eb;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:8px;flex:none;}
-.subs-back{background:none;border:none;font-size:16px;color:#1B84DB;padding:6px 4px;min-height:44px;cursor:pointer;font-family:inherit;}
+.subs-back{background:none;border:none;font-size:16px;color:#2C86AD;padding:6px 4px;min-height:44px;cursor:pointer;font-family:inherit;}
 .subs-title{font-size:16px;font-weight:700;color:#0B2A4D;flex:1;}
 .subs-count{font-size:12px;color:#95a5a6;}
 .subs-tools{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 12px 10px;flex:none;}
-.subs-search{width:100%;font-size:16px;font-family:inherit;padding:10px 12px;border:1px solid #D6E5F3;border-radius:10px;background:#f7f8fa;}
-.subs-search:focus{outline:none;border-color:#1B84DB;background:#fff;}
+.subs-search{width:100%;font-size:16px;font-family:inherit;padding:10px 12px;border:1px solid #D5E3EB;border-radius:10px;background:#f7f8fa;}
+.subs-search:focus{outline:none;border-color:#2C86AD;background:#fff;}
 .subs-tabs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;-webkit-overflow-scrolling:touch;}
-.subs-tab{flex:none;border:1px solid #D6E5F3;background:#fff;color:#5a6a78;border-radius:999px;padding:7px 14px;font-size:13px;font-family:inherit;min-height:36px;cursor:pointer;white-space:nowrap;}
-.subs-tab.on{background:#1B84DB;border-color:#1B84DB;color:#fff;font-weight:600;}
+.subs-tab{flex:none;border:1px solid #D5E3EB;background:#fff;color:#5a6a78;border-radius:999px;padding:7px 14px;font-size:13px;font-family:inherit;min-height:36px;cursor:pointer;white-space:nowrap;}
+.subs-tab.on{background:#2C86AD;border-color:#2C86AD;color:#fff;font-weight:600;}
 .subs-body{flex:1;overflow-y:auto;padding:12px 12px 100px;-webkit-overflow-scrolling:touch;}
 .subs-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .subs-email{font-size:14px;font-weight:600;color:#0B2A4D;word-break:break-all;margin-bottom:2px;}
@@ -419,7 +420,7 @@
 .subs-bad{color:#c0392b;font-weight:600;}
 .subs-gray{color:#95a5a6;}
 .subs-empty{text-align:center;color:#95a5a6;padding:48px 20px;font-size:14px;line-height:1.8;}
-.subs-fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:#1B84DB;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:15px;font-weight:600;font-family:inherit;box-shadow:0 4px 14px rgba(74,122,155,.35);z-index:10001;cursor:pointer;min-height:48px;}
+.subs-fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:#2C86AD;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:15px;font-weight:600;font-family:inherit;box-shadow:0 4px 14px rgba(74,122,155,.35);z-index:10001;cursor:pointer;min-height:48px;}
 /* 第二層表單 */
 #subsSheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10002;display:none;align-items:flex-end;}
 #subsSheet.on{display:flex;}
@@ -427,21 +428,21 @@
 .subs-sh-title{font-size:16px;font-weight:700;color:#0B2A4D;margin-bottom:2px;word-break:break-all;}
 .subs-sh-sub{font-size:13px;color:#5F7792;margin-bottom:16px;}
 .subs-label{font-size:12px;color:#5F7792;margin:14px 0 6px;}
-.subs-input{width:100%;font-size:16px;font-family:inherit;padding:11px 12px;border:1px solid #D6E5F3;border-radius:10px;}
-.subs-input:focus{outline:none;border-color:#1B84DB;box-shadow:0 0 0 3px rgba(74,122,155,.12);}
+.subs-input{width:100%;font-size:16px;font-family:inherit;padding:11px 12px;border:1px solid #D5E3EB;border-radius:10px;}
+.subs-input:focus{outline:none;border-color:#2C86AD;box-shadow:0 0 0 3px rgba(74,122,155,.12);}
 .subs-chips{display:flex;gap:8px;flex-wrap:wrap;}
-.subs-chip{border:1px solid #D6E5F3;background:#fff;color:#5a6a78;border-radius:10px;padding:9px 14px;font-size:13px;font-family:inherit;min-height:42px;cursor:pointer;}
-.subs-chip.on{background:#1B84DB;border-color:#1B84DB;color:#fff;font-weight:600;}
+.subs-chip{border:1px solid #D5E3EB;background:#fff;color:#5a6a78;border-radius:10px;padding:9px 14px;font-size:13px;font-family:inherit;min-height:42px;cursor:pointer;}
+.subs-chip.on{background:#2C86AD;border-color:#2C86AD;color:#fff;font-weight:600;}
 .subs-calc{background:#f3f6f8;border-radius:10px;padding:10px 12px;font-size:13px;color:#0B2A4D;margin-top:14px;}
-.subs-calc b{color:#1B84DB;}
-.subs-primary{width:100%;background:#1B84DB;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;font-family:inherit;margin-top:18px;min-height:50px;cursor:pointer;}
+.subs-calc b{color:#2C86AD;}
+.subs-primary{width:100%;background:#2C86AD;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;font-family:inherit;margin-top:18px;min-height:50px;cursor:pointer;}
 .subs-primary:disabled{background:#c8cfd6;}
-.subs-ghost{width:100%;background:#fff;color:#5F7792;border:1px solid #D6E5F3;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;margin-top:10px;min-height:46px;cursor:pointer;}
+.subs-ghost{width:100%;background:#fff;color:#5F7792;border:1px solid #D5E3EB;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;margin-top:10px;min-height:46px;cursor:pointer;}
 .subs-danger{width:100%;background:#fff;color:#c0392b;border:1px solid #f0c8c2;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;margin-top:10px;min-height:46px;cursor:pointer;}
 .subs-row2{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #f0f2f4;font-size:14px;color:#0B2A4D;}
 .subs-row2 span:first-child{color:#5F7792;font-size:13px;width:52px;flex:none;}
 .subs-row2 .v{flex:1;}
-.subs-mini{border:1px solid #D6E5F3;background:#fff;color:#5a6a78;border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;min-height:34px;cursor:pointer;}
+.subs-mini{border:1px solid #D5E3EB;background:#fff;color:#5a6a78;border-radius:8px;padding:6px 12px;font-size:12px;font-family:inherit;min-height:34px;cursor:pointer;}
 
 
 /* ===== 設定頁統一樣式（與生活管家一致）=====
@@ -470,7 +471,7 @@
   line-height:1.25; white-space:nowrap; cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
 #bottomNav .nav-btn .ic{ font-size:20px; line-height:1; }
-#bottomNav .nav-btn.active{ color:#1B84DB; background:#E1F0FD; font-weight:700; }
+#bottomNav .nav-btn.active{ color:#2C86AD; background:#E2F0F6; font-weight:700; }
 #bottomNav .nav-btn:active{ opacity:.65; }
 
 /* ===== 空狀態：四個 App 同一套尺寸（圖示 40px、標題 14px、副標 12.5px）===== */
@@ -523,7 +524,7 @@
 
 /* ===== 標題色塊：天空藍（取自 App 圖示）===== */
 header{
-  background:#1B84DB !important; padding:12px 16px 0 !important;
+  background:#246A8F !important; padding:12px 16px 0 !important; border-radius:0 !important;
 }
 header h1{ color:#fff !important; }
 header #appVerTag{ color:rgba(255,255,255,.8) !important; }
@@ -534,15 +535,16 @@ header #mapBtn, header #settingsBtn{
 .header-trip-row{ margin:10px -16px 0 !important; gap:0 !important; display:block !important; }
 #tripSelBtn::before{ content:none !important; }
 #tripSelBtn{
-  width:100%; display:flex; align-items:center; gap:6px; background:#E1F0FD; border:none;
-  border-bottom:1px solid #C3DCF2; padding:8px 16px; font-family:inherit; font-size:13px;
-  color:#1B84DB; text-align:left; cursor:pointer; min-height:44px;
+  border-radius:0 !important; box-shadow:none !important;
+  width:100%; display:flex; align-items:center; gap:6px; background:#E2F0F6; border:none;
+  border-bottom:1px solid #C9DDE8; padding:8px 16px; font-family:inherit; font-size:13px;
+  color:#2C86AD; text-align:left; cursor:pointer; min-height:44px;
 }
 .trip-cur-lb{ color:var(--sub); flex:0 0 auto; }
 .trip-cur-nm{ font-weight:600; color:var(--ink); flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.trip-cur-ar{ flex:0 0 auto; background:#fff; border:1px solid #B5D3EE; border-radius:999px; padding:5px 12px; color:#1B84DB; font-weight:600; font-size:12px; }
+.trip-cur-ar{ flex:0 0 auto; background:#fff; border:1px solid #B9D0DE; border-radius:999px; padding:5px 12px; color:#2C86AD; font-weight:600; font-size:12px; }
 /* 換天文字按鈕 */
-#swapDayShortcut.icon-pill-btn{ width:auto; height:auto; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; background:#fff; color:#1B84DB; border:1px solid #B5D3EE; }
+#swapDayShortcut.icon-pill-btn{ width:auto; height:auto; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; background:#fff; color:#2C86AD; border:1px solid #B9D0DE; }
 </style>
 </head>
 <body>
@@ -633,6 +635,11 @@ header #mapBtn, header #settingsBtn{
         <div class="field"><label>起飛時間</label><input id="fsOutDepartTime" type="time"></div>
         <div class="field"><label>抵達時間</label><input id="fsOutArriveTime" type="time"></div>
       </div>
+      <div class="row2">
+        <div class="field"><label>從家到機場（分鐘）</label><input id="fsOutHomeToAirport" type="number" inputmode="numeric" placeholder="60"></div>
+        <div class="field"><label>報到需提前（分鐘）</label><input id="fsOutCheckin" type="number" inputmode="numeric" placeholder="120"></div>
+      </div>
+      <p class="fs-hint" id="fsOutHint"></p>
 
       </div>
 
@@ -649,15 +656,13 @@ header #mapBtn, header #settingsBtn{
         <div class="field"><label>起飛時間</label><input id="fsRetDepartTime" type="time"></div>
         <div class="field"><label>抵達時間</label><input id="fsRetArriveTime" type="time"></div>
       </div>
-
-      </div>
-
-      <div class="sec-card"><div class="sec-h">⏱ 緩衝時間</div>
       <div class="row2">
-        <div class="field"><label>從家到機場（分鐘）</label><input id="fsHomeToAirport" type="number" placeholder="60"></div>
-        <div class="field"><label>報到需提前（分鐘）</label><input id="fsCheckinBuffer" type="number" placeholder="120"></div>
+        <div class="field"><label>從飯店到機場（分鐘）</label><input id="fsRetHomeToAirport" type="number" inputmode="numeric" placeholder="60"></div>
+        <div class="field"><label>報到需提前（分鐘）</label><input id="fsRetCheckin" type="number" inputmode="numeric" placeholder="120"></div>
       </div>
-</div>
+      <p class="fs-hint" id="fsRetHint"></p>
+
+      </div>
 
       <div class="sec-card"><div class="sec-h">🎫 機票花費（選填）</div>
       <div class="field"><label>金額</label><input id="fsExpense" type="number" placeholder="0"></div>
@@ -1056,7 +1061,7 @@ if(typeof firebase === "undefined"){
     '<div style="padding:60px 30px;text-align:center;font-family:sans-serif;">' +
     '<h2 style="margin-bottom:10px;">載入失敗</h2>' +
     '<p style="color:#666; line-height:1.6;">部分必要資源沒有載入成功（可能是網路不穩），導致頁面無法運作。</p>' +
-    '<button onclick="location.reload()" style="margin-top:20px; padding:14px 28px; font-size:15px; border:none; border-radius:10px; background:#1B84DB; color:#fff;">重新整理</button>' +
+    '<button onclick="location.reload()" style="margin-top:20px; padding:14px 28px; font-size:15px; border:none; border-radius:10px; background:#2C86AD; color:#fff;">重新整理</button>' +
     '</div>';
   throw new Error("Firebase SDK failed to load - aborting script");
 }
@@ -1260,7 +1265,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-24";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-26";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1580,7 +1585,7 @@ async function proceedLogin(email, manual){
     myPlan=res.plan; myExpiry=res.expiry||""; myTripsCreated=Number(res.tripsCreated||0);
     setTimeout(function(){
       expiryNotice.check({ app:"trv", appName:"旅遊計畫", plan:myPlan, expiry:myExpiry,
-        isAdmin:isAdminUser, accent:"#1B84DB",
+        isAdmin:isAdminUser, accent:"#2C86AD",
         trialToday:'明日起轉為免費版，行程只能查看前 3 天。<br><b>資料完整保留，升級後立刻恢復。</b>',
         trialSoon:'到期後行程只能查看前 3 天，第 4 天起需升級。<br><b>資料完整保留，升級後立刻恢復。</b>',
         onUpgrade:function(){ showAdvancedSheet("完整版"); } });
@@ -1689,7 +1694,7 @@ async function adminLogin(){
 async function enterApp(){
   // 整段包起來：任何一步出錯都要把登入畫面放回來並說明原因，
   // 不能讓使用者只看到一片空白又沒有任何線索。
-  try{ appLoading.show("載入中…", "#1B84DB"); }catch(e){}
+  try{ appLoading.show("載入中…", "#2C86AD"); }catch(e){}
   hideBootSplash();
   try{
     loginScreen.style.display = "none";
@@ -2062,7 +2067,7 @@ function renderAll(){
   renderHolding();
 }
 
-const DAY_COLORS = ["#1B84DB","#FB8D34","#3FA796","#9B5DE5","#EF476F","#E0A83E","#118AB2","#B5838D"];
+const DAY_COLORS = ["#2C86AD","#FB8D34","#3FA796","#9B5DE5","#EF476F","#E0A83E","#118AB2","#B5838D"];
 function colorForDay(day){
   const idx = days.indexOf(day);
   return DAY_COLORS[idx>=0 ? idx % DAY_COLORS.length : 0];
@@ -2264,8 +2269,8 @@ function buildFlightWarning(derived){
   if(arr.length===0) return null;
 
   if(currentDay === days[days.length-1] && s.retDepartTime){
-    const buffer = (s.checkinBuffer||0) + (s.homeToAirport||0);
-    const deadline = addMinutesToTime(s.retDepartTime, -buffer);
+    const _lg = flightLegFromSettings("ret");
+    const deadline = _lg ? _lg.leave : addMinutesToTime(s.retDepartTime, -(FLIGHT_DEFAULT_CHECKIN+FLIGHT_DEFAULT_TRAVEL));
     const deadlineMin = timeToMinutes(deadline);
     const lastItem = arr[arr.length-1];
     const d = derived[lastItem.id];
@@ -2290,7 +2295,7 @@ function buildLockedDayCard(){
     + `<span class="esub">這個行程第 ${FREE_MAX_DAYS+1} 天起共 ${lockedDays} 天、${spotCount} 個景點，資料都還在。<br>升級完整版後立刻恢復，不用重新輸入。</span>`;
   const btn = document.createElement("button");
   btn.type = "button"; btn.textContent = "看方案";
-  btn.style.cssText = "margin-top:14px;padding:12px 28px;border:none;border-radius:12px;background:#1B84DB;color:#fff;font-size:15px;font-weight:700;font-family:inherit;";
+  btn.style.cssText = "margin-top:14px;padding:12px 28px;border:none;border-radius:12px;background:#2C86AD;color:#fff;font-size:15px;font-weight:700;font-family:inherit;";
   btn.addEventListener("click", ()=>showAdvancedSheet("完整行程"));
   box.appendChild(btn);
   return box;
@@ -2305,15 +2310,14 @@ function renderDayList(){
 
   if(currentDay === days[0]){
     const c = buildOutboundFlightCard();
-    if(c) list.appendChild(c);
+    if(c){
+      list.appendChild(c);
+      const ap = buildAirportStopCard("arrive");
+      if(ap) list.appendChild(ap);
+    }
     if(s.outArriveTime && arr.length>0 && arr[0].type==="spot"){
       list.appendChild(buildAirportTransportGhost(arr[0], s.outArriveTime, "before"));
     }
-  }
-
-  if(currentDay === days[days.length-1]){
-    const reminder = buildReturnDeadlineReminder();
-    if(reminder) list.appendChild(reminder);
   }
 
   const warn = buildFlightWarning(derived);
@@ -2325,6 +2329,8 @@ function renderDayList(){
     empty.innerHTML = `<span class="emoji">🗺️</span>「${dayLabel(currentDay)}」還沒有安排行程<span class="esub">點右下角「＋」新增</span>`;
     list.appendChild(empty);
     if(currentDay === days[days.length-1]){
+      const ap = buildAirportStopCard("depart");
+      if(ap) list.appendChild(ap);
       const c = buildReturnFlightCard();
       if(c) list.appendChild(c);
     }
@@ -2343,9 +2349,14 @@ function renderDayList(){
     }
   }
 
-  // 最後一天的最後一站就是機場，交通就是飛機，不提供「送機交通」
-
+  // 最後一天：最後一個地點 → 機場站 → 回程航班
   if(currentDay === days[days.length-1]){
+    const lastItem = arr[arr.length-1];
+    if(s.retDepartTime && lastItem && lastItem.type==="spot"){
+      list.appendChild(buildAirportTransportGhost(lastItem, derived[lastItem.id].leave, "after"));
+    }
+    const ap = buildAirportStopCard("depart");
+    if(ap) list.appendChild(ap);
     const c = buildReturnFlightCard();
     if(c) list.appendChild(c);
   }
@@ -2354,7 +2365,7 @@ function renderDayList(){
 function buildAirportTransportGhost(spot, refTime, position){
   const wrap = document.createElement("div");
   wrap.className = "add-transport-ghost";
-  wrap.innerHTML = position==="before" ? `<button>＋ 接機交通</button>` : `<button>＋ 送機交通</button>`;
+  wrap.innerHTML = `<button>＋ 交通</button>`;
   wrap.querySelector("button").addEventListener("click", ()=>{
     const order = position==="before" ? (spot.order - 1000) : (spot.order + 1000);
     pendingTransport = { day: currentDay, order, id: null };
@@ -3823,6 +3834,10 @@ function renderExpense(){
       if(i.type==="expense"){ openExpenseModal(i); return; }
       // 景點／交通的花費：直接開啟該項目的編輯畫面
       if(!canEdit()){ showUpgradeNeeded(); return; }
+      if(i.type==="flight"){   // 機票花費：到航班分頁修改
+        const fb = document.querySelector('#bottomNav .nav-btn[data-tab="flight"]'); if(fb) fb.click();
+        return;
+      }
       if(!days.includes(i.day)) return;
       currentDay = i.day;
       if(i.type==="transport"){
@@ -4040,9 +4055,10 @@ function initFlightFormOnce(){
 
   const ids = ["fsOutAirline","fsOutFlightNo","fsOutFrom","fsOutTo",
     "fsOutDepartTime","fsOutArriveTime","fsRetAirline","fsRetFlightNo","fsRetFrom","fsRetTo",
-    "fsRetDepartTime","fsRetArriveTime","fsHomeToAirport","fsCheckinBuffer","fsExpense","fsExpPayer"];
+    "fsRetDepartTime","fsRetArriveTime","fsOutHomeToAirport","fsOutCheckin","fsRetHomeToAirport","fsRetCheckin","fsExpense","fsExpPayer"];
   ids.forEach(id=>{
     document.getElementById(id).addEventListener("change", scheduleSaveFlight);
+    document.getElementById(id).addEventListener("input", updateFlightHints);
   });
 }
 
@@ -4059,8 +4075,10 @@ async function saveFlightSettings(){
     outDepartTime: g("fsOutDepartTime"), outArriveTime: g("fsOutArriveTime"),
     retAirline: g("fsRetAirline"), retFlightNo: g("fsRetFlightNo"), retFrom: g("fsRetFrom"), retTo: g("fsRetTo"),
     retDepartTime: g("fsRetDepartTime"), retArriveTime: g("fsRetArriveTime"),
-    homeToAirport: g("fsHomeToAirport") ? Number(g("fsHomeToAirport")) : 0,
-    checkinBuffer: g("fsCheckinBuffer") ? Number(g("fsCheckinBuffer")) : 0,
+    outHomeToAirport: g("fsOutHomeToAirport") ? Number(g("fsOutHomeToAirport")) : 0,
+    outCheckinBuffer: g("fsOutCheckin") ? Number(g("fsOutCheckin")) : 0,
+    retHomeToAirport: g("fsRetHomeToAirport") ? Number(g("fsRetHomeToAirport")) : 0,
+    retCheckinBuffer: g("fsRetCheckin") ? Number(g("fsRetCheckin")) : 0,
     expense: g("fsExpense") ? Number(g("fsExpense")) : 0,
     expenseCurrency: getCurrencyChip(fsCurrencyChips),
     expensePayer: g("fsExpPayer") || ""
@@ -4090,12 +4108,70 @@ function renderFlightForm(){
   setv("fsRetAirline", s.retAirline || "中華 CI"); setv("fsRetFlightNo", s.retFlightNo);
   setv("fsRetFrom", s.retFrom || (isJapan ? "NRT" : "PVG")); setv("fsRetTo", s.retTo || "TPE");
   setv("fsRetDepartTime", s.retDepartTime); setv("fsRetArriveTime", s.retArriveTime);
-  setv("fsHomeToAirport", s.homeToAirport); setv("fsCheckinBuffer", s.checkinBuffer);
+  // 舊資料只有一組「家到機場／報到提前」，去程回程都先沿用
+  setv("fsOutHomeToAirport", s.outHomeToAirport || s.homeToAirport); setv("fsOutCheckin", s.outCheckinBuffer || s.checkinBuffer);
+  setv("fsRetHomeToAirport", s.retHomeToAirport || s.homeToAirport); setv("fsRetCheckin", s.retCheckinBuffer || s.checkinBuffer);
+  updateFlightHints();
   setv("fsExpense", s.expense);
   setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
   populatePayerSelect(document.getElementById("fsExpPayer"), document.getElementById("fsPayerWrap"), s.expensePayer);
 }
 
+// ---------- 航班倒推時間：到機場、出門 ----------
+// 沒填「到機場路程」「報到提前」時用預設值，才不會讓人卡住；有填就用填的。
+const FLIGHT_DEFAULT_TRAVEL = 60, FLIGHT_DEFAULT_CHECKIN = 120;
+function timeBefore(t, mins){
+  const m = timeToMinutes(t); if(m==null) return null;
+  const raw = m - mins, w = ((raw%1440)+1440)%1440;
+  return { t: String(Math.floor(w/60)).padStart(2,"0")+":"+String(w%60).padStart(2,"0"), prev: raw<0 };
+}
+function flightLeg(depart, travel, checkin){
+  if(!depart) return null;
+  const tv = Number(travel)>0 ? Number(travel) : FLIGHT_DEFAULT_TRAVEL;
+  const ck = Number(checkin)>0 ? Number(checkin) : FLIGHT_DEFAULT_CHECKIN;
+  const arrive = timeBefore(depart, ck), leave = timeBefore(depart, ck+tv);
+  if(!arrive || !leave) return null;
+  return { arrive:arrive.t, arrivePrev:arrive.prev, leave:leave.t, leavePrev:leave.prev,
+           usedDefault: !(Number(travel)>0) || !(Number(checkin)>0) };
+}
+function flightLegText(leg, from){
+  const pv = p => p ? "前一天 " : "";
+  return "建議 " + pv(leg.arrivePrev) + leg.arrive + " 前抵達機場報到，" + pv(leg.leavePrev) + leg.leave + " 前從" + from + "出發" + (leg.usedDefault ? "（依預設值估算，可自行調整）" : "");
+}
+function flightLegFromSettings(dir){
+  const s = flightSettings || {};
+  const travel = Number(s[dir+"HomeToAirport"])>0 ? s[dir+"HomeToAirport"] : s.homeToAirport;
+  const check = Number(s[dir+"CheckinBuffer"])>0 ? s[dir+"CheckinBuffer"] : s.checkinBuffer;
+  return flightLeg(s[dir+"DepartTime"], travel, check);
+}
+function updateFlightHints(){
+  const v = id => (document.getElementById(id)||{}).value || "";
+  [["Out","家"],["Ret","飯店"]].forEach(function(x){
+    const el = document.getElementById("fs"+x[0]+"Hint"); if(!el) return;
+    const leg = flightLeg(v("fs"+x[0]+"DepartTime"), v("fs"+x[0]+"HomeToAirport"), v("fs"+x[0]+"Checkin"));
+    el.textContent = leg ? flightLegText(leg, x[1]) : "填入起飛時間後，會自動算出建議的出門時間";
+  });
+}
+// 機場站：由航班資料自動產生（只顯示，要改請到航班頁）
+function buildAirportStopCard(kind){
+  const s = flightSettings || {};
+  const trip = getActiveTrip(); const isJapan = trip && trip.region==="japan";
+  const apN = c => (AIRPORTS[c]||c||"");
+  const div = document.createElement("div"); div.className = "airport-stop";
+  let time, ic, name, sub;
+  if(kind==="arrive"){
+    if(!s.outFlightNo && !s.outFrom) return null;
+    time = s.outArriveTime || "--:--"; ic = "🛬"; name = apN(s.outTo || (isJapan ? "NRT" : "PVG")) + "機場";
+    sub = "抵達機場（入境、領行李後出發）";
+  } else {
+    if(!s.retFlightNo && !s.retFrom) return null;
+    const leg = flightLegFromSettings("ret");
+    time = leg ? leg.arrive : "--:--"; ic = "🛫"; name = apN(s.retFrom || (isJapan ? "NRT" : "PVG")) + "機場";
+    sub = s.retDepartTime ? ("請在此時間前抵達報到，" + s.retDepartTime + " 起飛") : "回程機場";
+  }
+  div.innerHTML = `<div class="as-time">${escapeHtml(time)}</div><div class="as-ic">${ic}</div><div class="as-body"><p class="as-name">${escapeHtml(name)}</p><p class="as-sub">${escapeHtml(sub)}</p></div>`;
+  return div;
+}
 function buildOutboundFlightCard(){
   const s = flightSettings || {};
   if(!s.outFlightNo && !s.outFrom) return null;
@@ -4105,41 +4181,22 @@ function buildOutboundFlightCard(){
   card.innerHTML = `
     <p class="fc-title">🛫 去程航班</p>
     <p class="fc-line">${escapeHtml(s.outAirline||"")} ${escapeHtml(s.outFlightNo||"")}　${apN(s.outFrom)} ${s.outDepartTime||"--:--"} → ${apN(s.outTo)} ${s.outArriveTime||"--:--"}</p>
-    ${s.homeToAirport ? `<p class="fc-sub">建議提前約 ${fmtMin(s.homeToAirport)}從家出發到機場</p>` : ""}
+    ${(function(){ const lg = flightLegFromSettings("out"); return lg ? `<p class="fc-sub">${escapeHtml(flightLegText(lg,"家"))}</p>` : ""; })()}
   `;
   return card;
 }
-function buildReturnDeadlineReminder(){
-  const s = flightSettings || {};
-  if(!s.retDepartTime || !s.checkinBuffer) return null;
-  const [h,m] = s.retDepartTime.split(":").map(Number);
-  const buffer = (s.checkinBuffer||0) + (s.homeToAirport||0);
-  const total = h*60+m-buffer;
-  const dh = Math.floor(((total%1440)+1440)%1440/60), dm = (((total%1440)+1440)%1440)%60;
-  const div = document.createElement("div");
-  div.className = "deadline-reminder";
-  div.innerHTML = `⏰ 建議 <b>${String(dh).padStart(2,"0")}:${String(dm).padStart(2,"0")}</b> 前抵達機場報到（回程 ${s.retDepartTime} 起飛）`;
-  return div;
-}
-
 function buildReturnFlightCard(){
   const s = flightSettings || {};
   if(!s.retFlightNo && !s.retFrom) return null;
   const card = document.createElement("div");
   card.className = "flight-card";
   const apN = c => (AIRPORTS[c]||c||"");
-  let sub = "";
-  if(s.retDepartTime && s.checkinBuffer){
-    const [h,m] = s.retDepartTime.split(":").map(Number);
-    const buffer = (s.checkinBuffer||0) + (s.homeToAirport||0);
-    const total = h*60+m-buffer;
-    const dh = Math.floor(((total%1440)+1440)%1440/60), dm = (((total%1440)+1440)%1440)%60;
-    sub = `建議 ${String(dh).padStart(2,"0")}:${String(dm).padStart(2,"0")} 前抵達機場報到`;
-  }
+  const _lg = flightLegFromSettings("ret");
+  const sub = _lg ? flightLegText(_lg, "飯店") : "";
   card.innerHTML = `
     <p class="fc-title">🛬 回程航班</p>
     <p class="fc-line">${escapeHtml(s.retAirline||"")} ${escapeHtml(s.retFlightNo||"")}　${apN(s.retFrom)} ${s.retDepartTime||"--:--"} → ${apN(s.retTo)} ${s.retArriveTime||"--:--"}</p>
-    ${sub ? `<p class="fc-sub">${sub}</p>` : ""}
+    ${sub ? `<p class="fc-sub">${escapeHtml(sub)}</p>` : ""}
   `;
   return card;
 }
@@ -4652,7 +4709,7 @@ function buildShareHtml(){
   const trip = getActiveTrip();
   const s = flightSettings || {};
   const esc = escapeHtml;
-  const seal = "#1B84DB";
+  const seal = "#2C86AD";
   let html = `<h1 style="font-size:22px; margin-bottom:2px;">${esc(trip ? trip.name : "行程")}</h1>`;
 
   if(trip && trip.startDate && trip.endDate){
@@ -4858,9 +4915,8 @@ document.getElementById("trSave").addEventListener("click", async ()=>{
 async function deleteTrip(id){
   if(trips.length<=1){ travelToast("至少要保留一個行程，無法刪除"); return; }
   const t = trips.find(x=>x.id===id);
-  var quotaNote = (!isAdminUser && !isPaidPlan(myPlan) && myPlan!=="trial")
-    ? "" : "";
-  if(!await askConfirm("刪除「"+(t?t.name:"")+"」", "裡面的行程、花費資料也會一併刪除，此動作無法復原。"+quotaNote, "刪除")) return;
+  if(!isAdminUser && !isPaidPlan(myPlan) && myPlan!=="trial"){ travelToast("免費版不能刪除行程，升級完整版後才可刪除"); return; }
+  if(!await askConfirm("刪除「"+(t?t.name:"")+"」", "裡面的行程、花費資料也會一併刪除，此動作無法復原。", "刪除")) return;
   try{
     const snap = await db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).where("tripId","==",id).get();
     const batch = db.batch();
@@ -4908,7 +4964,7 @@ if('serviceWorker' in navigator){
 
 // ===== 確認視窗（Promise 版，取代原生 confirm）=====
 function askConfirm(title, msg, okText){
-  return confirmDialog({ title:title, message:msg, okText:okText||"確定", accent:"#1B84DB" });
+  return confirmDialog({ title:title, message:msg, okText:okText||"確定", accent:"#2C86AD" });
 }
 
 // ===== 失敗訊息：真的斷線才叫人檢查網路，其他原因不要誤導 =====
@@ -6451,7 +6507,7 @@ appInstall.init({ appName:'旅遊計畫' });
 
 /* 升級頁設定：旅遊計畫 */
 upgradeSheet.init({
-  app:'trv', name:'旅遊計畫', accent:'#1B84DB', price:990, per:83, trial:14,
+  app:'trv', name:'旅遊計畫', accent:'#2C86AD', price:990, per:83, trial:14,
   trialNote:'免費試用 14 天，期間功能全部開放，可建立 2 個行程',
   lineUrl:LINE_SUPPORT_URL,
   rows:[
