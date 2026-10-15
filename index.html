@@ -755,6 +755,7 @@ header #mapBtn, header #settingsBtn{
   <div class="modal">
     <button class="close-x" id="spotClose">✕</button>
     <h2 id="spotModalTitle">新增地點</h2>
+    <div class="sec-card"><div class="sec-h">📍 地點</div>
     <div class="field"><label>名稱（可搜尋自動帶入）</label><input id="fName" type="text" placeholder="輸入地點名稱..."></div>
     <p id="fCatSuggestHint" style="font-size:11px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
     <p id="placesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
@@ -768,10 +769,28 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>地址（用來在地圖上定位）</label><textarea id="fNote" placeholder="例：東京都台東區淺草2-3-1"></textarea></div>
     <button type="button" id="fGeocodeBtn" style="width:100%; padding:10px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:12px; margin-bottom:6px;">📍 找不到地點？用地址定位</button>
     <p id="fGeocodeStatus" style="font-size:12px; margin:-2px 0 12px; display:none;"></p>
+    </div>
+    <div class="sec-card"><div class="sec-h">⏱ 時間</div>
     <div class="field" id="fPosWrap" style="display:none; margin-top:14px;"><label>放在哪裡</label><select id="fPosition"></select></div>
     <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點從飯店出發（選填）</label><input id="fDepartTime" type="time"></div>
     <div class="field"><label>停留時間（分鐘）</label><input id="fStayMinutes" type="number" placeholder="例：90"></div>
-    <button type="button" id="fMoreToggle" style="width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（備註、照片）</button>
+    </div>
+    <button type="button" id="fMoreToggle" style="display:none; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（備註、照片）</button>
+        <div style="display:none;">
+    <div class="field"><label>抵達時間</label><input id="fTime" type="time"></div>
+    <p id="fTimeHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
+    </div>
+    <button type="button" id="fExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
+    <div class="sec-card"><div class="sec-h" data-for="fExpFields"><span>💰 花費（選填）</span></div>
+    <div id="fExpFields" style="display:none;">
+      <div class="field"><label>金額</label><input id="fExpAmount" type="number" placeholder="0"></div>
+      <div class="field"><label>幣別</label>
+        <div class="chip-row" id="fCurrencyChips"></div>
+      </div>
+      <div class="field" id="fPayerWrap" style="display:none;"><label>付款人</label><select id="fExpPayer"></select></div>
+    </div>
+    </div>
+    <div class="sec-card"><div class="sec-h" data-for="fMoreFields"><span>📝 備註與照片</span></div>
     <div id="fMoreFields" style="display:none;">
     <div class="field"><label>備註（只是記事）</label><textarea id="fMemo" placeholder="例：要先訂位、營業時間、注意事項"></textarea></div>
     <div class="field"><label>照片（例如菜單、地圖截圖）</label>
@@ -784,31 +803,6 @@ header #mapBtn, header #settingsBtn{
       <p id="fPhotoStatus" style="font-size:11px; color:var(--sub); margin:4px 0 0; display:none;"></p>
     </div>
     </div>
-    <div style="display:none;">
-    <div class="field"><label>抵達時間</label><input id="fTime" type="time"></div>
-    <p id="fTimeHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
-    </div>
-    <button type="button" id="fExpToggle" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
-    <div id="fExpFields" style="display:none;">
-      <div class="row2">
-        <div class="field"><label>花費金額（選填）</label><input id="fExpAmount" type="number" placeholder="0"></div>
-        <div class="field"><label>花費類別</label>
-          <select id="fExpCategory">
-<option value="行前準備">🧳 行前準備</option>
-            <option value="兌換">💱 兌換</option>
-            <option value="購物">🛍️ 購物</option>
-            <option value="餐飲">🍜 餐飲</option>
-            <option value="交通">🚆 交通</option>
-            <option value="門票">🎫 門票</option>
-            <option value="住宿">🏨 住宿</option>
-            <option value="其他">📌 其他</option>
-          </select>
-        </div>
-      </div>
-      <div class="field"><label>幣別</label>
-        <div class="chip-row" id="fCurrencyChips"></div>
-      </div>
-      <div class="field" id="fPayerWrap" style="display:none;"><label>付款人</label><select id="fExpPayer"></select></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="spotCancel">取消</button>
@@ -822,6 +816,7 @@ header #mapBtn, header #settingsBtn{
   <div class="modal">
     <button class="close-x" id="transClose">✕</button>
     <h2>交通方式</h2>
+    <div class="sec-card"><div class="sec-h">🚆 交通方式</div>
     <div class="field"><label>方式</label>
       <div class="chip-row" id="transChips">
         <div class="chip" data-v="jr" id="jrChip" style="display:none;">🚃 JR</div>
@@ -840,7 +835,8 @@ header #mapBtn, header #settingsBtn{
       <input id="tJrCustomInput" type="text" placeholder="輸入車站名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
       <button id="tJrCustomConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
     </div>
-    <p id="tEstimateHint" style="font-size:11px; color:var(--sub); margin:-8px 0 12px;">時間依直線距離估算，僅供參考，可自行修改</p>
+    <p id="tEstimateHint" style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">時間依直線距離估算，僅供參考，可自行修改</p>
+    </div>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
     <div class="row2">
       <div class="field" id="tDepartFollowWrap">
@@ -859,15 +855,17 @@ header #mapBtn, header #settingsBtn{
     </div>
     <p id="tNoTimeHint" style="font-size:12px; color:var(--sub); margin:-4px 0 12px; display:none;">上一個地點尚未設定時間，無法自動計算</p>
     </div>
-    <button type="button" id="tExpToggle" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
+    <button type="button" id="tExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
+    <div class="sec-card"><div class="sec-h" data-for="tExpFields"><span>💰 花費（選填）</span></div>
     <div id="tExpFields" style="display:none;">
       <div class="row2">
-        <div class="field"><label>花費（選填）</label><input id="tExpAmount" type="number" placeholder="0"></div>
+        <div class="field"><label>金額</label><input id="tExpAmount" type="number" placeholder="0"></div>
         <div class="field"><label>幣別</label>
           <div class="chip-row" id="tCurrencyChips"></div>
         </div>
       </div>
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
+    </div>
     </div>
     <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這段交通</button>
     <div class="modal-actions">
@@ -921,7 +919,8 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>類別</label>
         <select id="eCategory">
-          <option value="行前準備">🧳 行前準備</option>
+          <option value="行前辦理">🧾 行前辦理</option>
+          <option value="行前採買">🧳 行前採買</option>
           <option value="兌換">💱 兌換</option>
           <option value="購物">🛍️ 購物</option>
           <option value="餐飲">🍜 餐飲</option>
@@ -1275,7 +1274,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-57";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-64";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2630,7 +2629,8 @@ document.getElementById("fPhotoInput").addEventListener("change", async (e)=>{
 const fName = document.getElementById("fName");
 const fNote = document.getElementById("fNote");
 const fExpAmount = document.getElementById("fExpAmount");
-const fExpCategory = document.getElementById("fExpCategory");
+// 花費類別依地點類型自動帶入，不讓使用者另外選
+const SPOT_EXPENSE_CAT = { "景點":"門票", "餐廳":"餐飲", "小吃":"餐飲", "飯店":"住宿", "購物":"購物", "其他":"其他" };
 const fExpPayer = document.getElementById("fExpPayer");
 const fPayerWrap = document.getElementById("fPayerWrap");
 fName.addEventListener("input", ()=>{ fSelectedLatLng = null; });
@@ -2832,16 +2832,15 @@ function openSpotModal(spot){
   setSpotPhotoPreview(spot ? (spot.photo||"") : "");
   document.getElementById("fPhotoStatus").style.display = "none";
   fExpAmount.value = spot && spot.expense ? (spot.expense.amount||"") : "";
-  fExpCategory.value = spot && spot.expense ? (spot.expense.category||"餐飲") : "餐飲";
   setCurrencyChip(fCurrencyChips, spot && spot.expense ? spot.expense.currency : primaryCurrencyForTrip());
   populatePayerSelect(fExpPayer, fPayerWrap, spot && spot.expense ? spot.expense.payer : "");
   const hasExpense = !!(spot && spot.expense && spot.expense.amount);
-  document.getElementById("fExpFields").style.display = hasExpense ? "block" : "none";
-  document.getElementById("fExpToggle").style.display = hasExpense ? "none" : "block";
+  document.getElementById("fExpFields").style.display = "block";
+  document.getElementById("fExpToggle").style.display = "none";
   // 更多選項：已有備註或照片時自動展開，避免讓人以為資料不見了
   const hasMore = !!(spot && (spot.memo || spot.photo));
-  document.getElementById("fMoreFields").style.display = hasMore ? "block" : "none";
-  document.getElementById("fMoreToggle").style.display = hasMore ? "none" : "block";
+  document.getElementById("fMoreFields").style.display = "block";
+  document.getElementById("fMoreToggle").style.display = "none";
   populateSpotPositionSelect(spot);
   spotModalMask.classList.add("show");
   checkPlacesStatus();
@@ -2968,7 +2967,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
-    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: fExpCategory.value, payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips) }
+    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips) }
   };
   try{
     const editing = editingSpotId ? items.find(i=>i.id===editingSpotId) : null;
@@ -3272,8 +3271,8 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   setCurrencyChip(tCurrencyChips, it && it.expense ? it.expense.currency : primaryCurrencyForTrip());
   populatePayerSelect(tExpPayer, tPayerWrap, it && it.expense ? it.expense.payer : "");
   const hasExpense = !!(it && it.expense && it.expense.amount);
-  document.getElementById("tExpFields").style.display = hasExpense ? "block" : "none";
-  document.getElementById("tExpToggle").style.display = hasExpense ? "none" : "block";
+  document.getElementById("tExpFields").style.display = "block";
+  document.getElementById("tExpToggle").style.display = "none";
 
   let isLeading = isLeadingOverride || false;
   if(it){
@@ -4034,7 +4033,12 @@ function openExpenseModal(it){
   document.getElementById("expModalTitle").textContent = it ? "編輯花費" : "新增花費";
   document.getElementById("eName").value = it ? (it.name||"") : "";
   document.getElementById("eAmount").value = e.amount || "";
-  document.getElementById("eCategory").value = e.category || "行前準備";
+  const eCatSel = document.getElementById("eCategory");
+  eCatSel.querySelectorAll("option[data-legacy]").forEach(o=>o.remove());
+  if(e.category && ![...eCatSel.options].some(o=>o.value===e.category)){   // 舊資料（例如「行前準備」）：暫時補一個選項，避免編輯時變空白
+    const lo = document.createElement("option"); lo.value = e.category; lo.textContent = "📌 " + e.category; lo.dataset.legacy = "1"; eCatSel.appendChild(lo);
+  }
+  eCatSel.value = e.category || "行前採買";
   setCurrencyChip(eCurrencyChips, it ? e.currency : "TWD");   // 新增時預設新台幣（事前花費多半用台幣付）
   populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), e.payer || "");
   renderShareChips(e.sharedBy);
@@ -4339,10 +4343,10 @@ const packModalMask = document.getElementById("packModalMask");
 const packCatChips = document.getElementById("packCatChips");
 const packName = document.getElementById("packName");
 const packNote = document.getElementById("packNote");
-const PACKING_BASE_CATS = ["證件","金錢","電子","藥品","盥洗衣物","行李","其他"];   // 行前準備分頁的固定類別
+const PACKING_BASE_CATS = ["出發前要辦","證件","金錢","電子","藥品","盥洗衣物","行李","其他"];   // 行前準備分頁的固定類別
 const packCatOf = i => { const c = i.category || "其他"; return c==="藥妝" ? "藥品" : c; };   // 舊的「藥妝」併進「藥品」
 const SOUVENIR_CATS = ["伴手禮","紀念品","其他購物"];     // 伴手禮分頁只有這三類（紀念品＝磁鐵、明信片；其他購物＝彩妝、衣服、玩偶）
-const PACKING_CATEGORY_PRIORITY = ["證件","金錢","電子","藥品","盥洗衣物","行李"];
+const PACKING_CATEGORY_PRIORITY = ["出發前要辦","證件","金錢","電子","藥品","盥洗衣物","行李"];
 function sortPackingCategories(cats){
   return [...cats].sort((a,b)=>{
     if(a==="其他") return 1;
@@ -4354,7 +4358,7 @@ function sortPackingCategories(cats){
     return pa - pb;
   });
 }
-const PACKING_ICONS = { "藥妝":"💊", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "行李":"🧳", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "盥洗衣物":"🧴" };
+const PACKING_ICONS = { "出發前要辦":"✅", "藥妝":"💊", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "行李":"🧳", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "盥洗衣物":"🧴" };
 let selectedPackCat = "其他";
 let editingPackId = null;
 
@@ -4392,7 +4396,7 @@ function renderPackCatChips(){
     document.getElementById("packCustomCatInput").value = "";
     document.getElementById("packCustomCatInput").focus();
   });
-  if(!inSouvenir) packCatChips.appendChild(addChip);   // 伴手禮分頁只有固定兩類，不能自訂（自訂的類別會出現在行前準備）
+  // 類別固定，不提供自訂（舊資料已存的自訂類別仍照常顯示）
 }
 document.getElementById("packCustomCatConfirm").addEventListener("click", ()=>{
   const name = document.getElementById("packCustomCatInput").value.trim();
@@ -4439,6 +4443,9 @@ async function togglePackChecked(item){
 }
 
 const BASIC_PACKING_LIST_CHINA = [
+  { category:"出發前要辦", name:"換匯", note:"" },
+  { category:"出發前要辦", name:"訂好機票與住宿", note:"" },
+  { category:"出發前要辦", name:"辦好網路（SIM卡/eSIM）", note:"" },
   { category:"證件", name:"護照", note:"效期需6個月以上" },
   { category:"證件", name:"台胞證", note:"" },
   { category:"證件", name:"機票/訂房證明", note:"電子或紙本備份" },
@@ -4462,6 +4469,9 @@ const BASIC_PACKING_LIST_CHINA = [
   { category:"其他", name:"保溫瓶", note:"大陸公共場所常有熱水機" },
 ];
 const BASIC_PACKING_LIST_JAPAN = [
+  { category:"出發前要辦", name:"換匯", note:"" },
+  { category:"出發前要辦", name:"訂好機票與住宿", note:"" },
+  { category:"出發前要辦", name:"辦好網路（SIM卡/eSIM）", note:"" },
   { category:"證件", name:"護照", note:"確認效期涵蓋整趟行程" },
   { category:"證件", name:"機票/訂房證明", note:"電子或紙本備份" },
   { category:"證件", name:"旅遊保險證明", note:"" },
