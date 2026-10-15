@@ -253,7 +253,7 @@
   }
   .transport-chip .exp{color:var(--green); font-weight:600; margin-left:4px;}
   .transport-chip.est{border-style:dashed;}
-  .transport-chip .est-tag{margin-left:6px; font-size:12px; padding:1px 6px; border-radius:999px; background:var(--bg); color:var(--sub); font-weight:600;}
+  .transport-chip .est-tag{flex:0 0 auto; white-space:nowrap; margin-left:6px; font-size:12px; padding:1px 6px; border-radius:999px; background:var(--bg); color:var(--sub); font-weight:600;}
   .add-transport-ghost{
     padding:6px 16px 10px 52px; margin-bottom:4px;
   }
@@ -348,15 +348,15 @@
   .field textarea{resize:vertical; min-height:56px;}
   .field input:disabled{background:var(--seal-soft); color:var(--seal); font-weight:700; opacity:1; border-color:var(--seal-soft);}
   .row2{display:flex; gap:10px;}
-  .airport-stop{display:flex; align-items:flex-start; gap:12px; background:var(--card); border:1px dashed var(--seal); border-radius:var(--radius-lg); padding:12px 14px; margin:0 0 8px;}
-  .airport-stop .as-time{width:48px; flex:none; font-size:13px; color:var(--sub); padding-top:3px;}
+  .airport-stop{display:flex; align-items:flex-start; gap:11px; background:var(--card); border:1px dashed var(--seal); border-radius:var(--radius-lg); padding:12px 14px; margin:0 0 8px;}
+  .airport-stop .as-time{width:46px; flex:none; font-size:16px; font-weight:700; color:var(--ink); padding-top:2px; font-variant-numeric:tabular-nums;}
   .airport-stop .as-ic{font-size:22px; flex:none;}
   .airport-stop .as-body{flex:1; min-width:0;}
-  .airport-stop .as-name{margin:0; font-size:15px; font-weight:700;}
-  .airport-stop .as-sub{margin:2px 0 0; font-size:12px; color:var(--sub);}
+  .airport-stop .as-name{margin:0 0 3px; font-size:16px; font-weight:700;}
+  .airport-stop .as-sub{margin:0; font-size:13px; color:var(--sub);}
   .airport-stop .as-flight{margin:8px 0 0; padding:8px 10px; background:var(--bg); border-radius:10px; font-size:13px; line-height:1.5;}
   .airport-stop .as-flight .as-leg{display:block; font-size:12px; color:var(--sub); margin-top:2px;}
-  .airport-stop .as-addr{display:block; margin-top:6px; font-size:12px; color:var(--sub); text-decoration:none; word-break:break-all;}
+  .airport-stop .as-addr{display:block; margin-top:6px; font-size:12.5px; color:var(--sub); text-decoration:none; word-break:break-all;}
   .sec-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); padding:14px 14px 2px; margin:0 0 14px;}
   .fs-hint{font-size:12px; color:var(--seal); background:var(--seal-soft); border-radius:10px; padding:8px 12px; margin:-4px 0 14px; line-height:1.6;}
   .sec-card .sec-h{font-size:14px; font-weight:700; color:var(--seal); margin:0 0 12px;}
@@ -1270,7 +1270,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-53";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-55";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2381,8 +2381,6 @@ function renderDayList(){
     }
     return;
   }
-  const virt = arr.filter(x=>x.virtual);
-  if(virt.length>0 && canEdit()) list.appendChild(buildEstimateAllButton(virt));
   for(let idx=0; idx<arr.length; idx++){
     const it = arr[idx];
     if(it.type==="spot"){
@@ -2428,8 +2426,9 @@ function buildAirportTransportGhost(spot, refTime, position){
     return wrap;
   }
   const paint = ()=>{
-    wrap.innerHTML = `<button type="button" class="est-go">${TRANSPORT_ICON[sug.mode]} 約 ${fmtMin(sug.mins)}（${sug.google ? "Google 路線" : "估算"}）</button>`;
-    wrap.querySelector(".est-go").addEventListener("click", ()=>{ window.__suggestMode = sug.mode; window.__suggestMins = sug.mins; openModal(); });
+    wrap.className = "transport-row";
+    wrap.innerHTML = `<div class="transport-chip est">${TRANSPORT_ICON[sug.mode]||"🚇"} ${TRANSPORT_LABEL[sug.mode]||""} · 約${escapeHtml(fmtMin(sug.mins))}<span class="est-tag">${sug.google ? "Google" : "估算"}</span></div>`;
+    wrap.querySelector(".transport-chip").addEventListener("click", ()=>{ window.__suggestMode = sug.mode; window.__suggestMins = sug.mins; openModal(); });
   };
   paint();
   refineAirportLegWithGoogle(sug, spot, position, mins=>{ sug.mins = mins; sug.google = true; if(wrap.isConnected) paint(); });
@@ -2486,10 +2485,9 @@ function buildTransportChip(it, d){
   const row = document.createElement("div");
   row.className = "transport-row";
   const exp = it.expense && it.expense.amount ? `<span class="exp">${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</span>` : "";
-  const timeStr = (d.depart && d.arrive) ? `${d.depart}→${d.arrive} · ` : "";
   const stationStr = (it.manualFromStation || it.manualToStation) ? ` · ${escapeHtml(it.manualFromStation||"?")}→${escapeHtml(it.manualToStation||"?")}` : "";
   const durationStr = it.duration ? `約${escapeHtml(fmtMin(it.duration))}` : `<span style="color:var(--seal); font-weight:600;">尚未設定時間</span>`;
-  row.innerHTML = `<div class="transport-chip">${TRANSPORT_ICON[it.mode]||"🚇"} ${TRANSPORT_LABEL[it.mode]||""} · ${timeStr}${durationStr}${exp}${stationStr}</div>`;
+  row.innerHTML = `<div class="transport-chip">${TRANSPORT_ICON[it.mode]||"🚇"} ${TRANSPORT_LABEL[it.mode]||""} · ${durationStr}${exp}${stationStr}</div>`;
   row.querySelector(".transport-chip").addEventListener("click", ()=>openTransportModal(it, d.depart));
   return row;
 }
@@ -2507,34 +2505,6 @@ function suggestTransport(prevSpot, nextSpot){
   const mins = estimateDurationMinutes(mode, km);
   if(!mins) return null;
   return { mode, mins, km };
-}
-// 「點選估算交通時間」：把這一天所有「估算」的交通一次存成正式交通（只處理這一天，已存的、自己改過的不動）
-function buildEstimateAllButton(virt){
-  const wrap = document.createElement("div");
-  wrap.className = "add-transport-ghost";
-  wrap.style.paddingLeft = "16px";
-  wrap.innerHTML = `<button type="button" id="estimateAllBtn">點選估算交通時間</button>`;
-  wrap.querySelector("button").addEventListener("click", async (ev)=>{
-    const btn = ev.currentTarget;
-    if(btn.disabled) return;
-    btn.disabled = true;
-    try{
-      const batch = db.batch();
-      const cur = primaryCurrencyForTrip();
-      virt.forEach(function(v){
-        batch.set(db.collection(COLLECTION).doc(), {
-          type:"transport", tripId: activeTripId, day: v.day, order: v.order,
-          mode: v.mode, duration: v.duration,
-          manualDepartTime:"", manualFromStation:"", manualToStation:"",
-          expense:{ amount:0, category:"交通", payer:"", currency:cur },
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      });
-      await batch.commit();
-      travelToast("已估算 " + virt.length + " 段交通");
-    }catch(e){ console.error("estimate all failed", e); travelToast(failMsg("儲存", e)); btn.disabled = false; }
-  });
-  return wrap;
 }
 function buildAddTransportGhost(prevSpot, nextSpot, derived){
   const wrap = document.createElement("div");
@@ -2554,8 +2524,7 @@ function buildVirtualTransportChip(v, d){
   const prev = items.find(i=>i.id===v.prevId), next = items.find(i=>i.id===v.nextId);
   const row = document.createElement("div");
   row.className = "transport-row";
-  const timeStr = (d.depart && d.arrive) ? `${d.depart}→${d.arrive} · ` : "";
-  row.innerHTML = `<div class="transport-chip est">${TRANSPORT_ICON[v.mode]||"🚇"} ${TRANSPORT_LABEL[v.mode]||""} · ${timeStr}約${escapeHtml(fmtMin(v.duration))}<span class="est-tag">估算</span></div>`;
+  row.innerHTML = `<div class="transport-chip est">${TRANSPORT_ICON[v.mode]||"🚇"} ${TRANSPORT_LABEL[v.mode]||""} · 約${escapeHtml(fmtMin(v.duration))}<span class="est-tag">估算</span></div>`;
   row.querySelector(".transport-chip").addEventListener("click", ()=>{
     window.__suggestMode = v.mode; window.__suggestMins = v.duration;
     pendingTransport = { day: currentDay, order: v.order, id: null };
