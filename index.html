@@ -288,11 +288,16 @@
   .exp-cat-pill{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;}
   .exp-cat-pill .c-label{font-size:12px; color:var(--sub);}
   .exp-cat-pill .c-amt{font-size:18px; font-weight:700; margin-top:2px;}
-  .exp-list{padding:0 20px 30px;}
-  .exp-item{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .exp-list{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:6px 14px; margin:0 20px 30px;}
+  .exp-list:not(:empty)::before, .exp-cats:not(:empty)::before{content:attr(data-h); display:block; font-size:12px; color:var(--sub); font-weight:600;}
+  .exp-cats:not(:empty)::before{grid-column:1/-1; margin-bottom:-2px;}
+  .exp-list:not(:empty)::before{padding:8px 0 2px;}
+  .exp-list:empty{display:none;}
+  .exp-item{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:16px;}
+  .exp-item:last-child{border-bottom:none;}
   .exp-item .l{color:var(--ink);}
-  .exp-item .d{color:var(--sub); font-size:11px;}
-  .exp-item .r{color:var(--green); font-weight:700;}
+  .exp-item .d{color:var(--sub); font-size:13px;}
+  .exp-item .r{color:var(--green); font-weight:700; font-size:16px; flex:0 0 auto;}
 
   /* ---------- FAB ---------- */
   .fab-wrap{position:fixed; inset:0; pointer-events:none; max-width:520px; margin:0 auto; z-index:20;}
@@ -606,13 +611,13 @@ header #mapBtn, header #settingsBtn{
         <div class="amt" id="expTotal">¥0</div>
         <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:11px;">更新匯率</button></div>
       </div>
-      <div style="padding:0 20px 12px;">
-        <button type="button" id="expAddBtn" style="width:100%; padding:11px; border:1px dashed var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:var(--radius-md); font-size:14px; font-weight:600;">＋ 新增其他花費</button>
+      <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
+        <button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
       </div>
-      <div class="exp-cats" id="expCats"></div>
-      <div class="exp-cats" id="expByMember" style="margin-top:0;"></div>
+      <div class="exp-cats" id="expCats" data-h="分類"></div>
+      <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
       <div id="expSettle" style="margin:0 20px 14px;"></div>
-      <div class="exp-list" id="expList"></div>
+      <div class="exp-list" id="expList" data-h="明細"></div>
     </div>
 
     <div id="flightView" style="display:none; padding:14px 20px 30px;">
@@ -783,7 +788,7 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>抵達時間</label><input id="fTime" type="time"></div>
     <p id="fTimeHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
     </div>
-    <button type="button" id="fExpToggle" style="width:100%; padding:11px; border:1px dashed var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:var(--radius-md); font-size:13px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
+    <button type="button" id="fExpToggle" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
     <div id="fExpFields" style="display:none;">
       <div class="row2">
         <div class="field"><label>花費金額（選填）</label><input id="fExpAmount" type="number" placeholder="0"></div>
@@ -854,7 +859,7 @@ header #mapBtn, header #settingsBtn{
     </div>
     <p id="tNoTimeHint" style="font-size:12px; color:var(--sub); margin:-4px 0 12px; display:none;">上一個地點尚未設定時間，無法自動計算</p>
     </div>
-    <button type="button" id="tExpToggle" style="width:100%; padding:11px; border:1px dashed var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:var(--radius-md); font-size:13px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
+    <button type="button" id="tExpToggle" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
     <div id="tExpFields" style="display:none;">
       <div class="row2">
         <div class="field"><label>花費（選填）</label><input id="tExpAmount" type="number" placeholder="0"></div>
@@ -1270,7 +1275,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-55";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-57";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3888,7 +3893,7 @@ function renderExpense(){
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
     const dayTxt = i.type==="expense" ? (i.date || "行程外") : dayLabel(i.day);
-    const payTxt = (i.type==="expense" && i.expense.payer) ? (" · " + i.expense.payer + "付") : "";
+    const payTxt = (i.expense.payer) ? (" · " + i.expense.payer + "付") : "";
     row.innerHTML = `<div><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)} · ${escapeHtml(i.expense.category||"")}${escapeHtml(payTxt)}</div></div><div class="r">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</div>`;
     row.style.cursor = "pointer";
     row.addEventListener("click", ()=>{
@@ -3979,23 +3984,23 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   }
   const fmt = n => sym + Math.round(Math.abs(n)).toLocaleString();
   let html = `<div class="exp-cat-pill" style="padding:12px 14px;">`;
-  html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;">💸 結算（平分）</div>`;
+  html += `<div style="font-size:14px;font-weight:700;margin-bottom:8px;">💸 結算（平分）</div>`;
   bal.forEach(x=>{
     const d = Math.round(x.b);
     const dTxt = d>0 ? `<span style="color:var(--green);font-weight:700;">應收 ${fmt(x.b)}</span>` : (d<0 ? `<span style="color:#d9534f;font-weight:700;">應付 ${fmt(x.b)}</span>` : `<span style="color:var(--sub);">打平</span>`);
-    html += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 0;border-top:1px solid var(--line);">`
-          + `<div>👤 ${escapeHtml(x.m)}<div style="font-size:11px;color:var(--sub);">已付 ${fmt(x.paid)} · 應分攤 ${fmt(x.owed)}</div></div><div style="text-align:right;">${dTxt}</div></div>`;
+    html += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:5px 0;border-top:1px solid var(--line);">`
+          + `<div>👤 ${escapeHtml(x.m)}<div style="font-size:12px;color:var(--sub);">已付 ${fmt(x.paid)} · 應分攤 ${fmt(x.owed)}</div></div><div style="text-align:right;">${dTxt}</div></div>`;
   });
   if(transfers.length){
-    html += `<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">誰要付給誰</div>`;
+    html += `<div style="font-size:13px;font-weight:700;margin:10px 0 4px;">誰要付給誰</div>`;
     transfers.forEach(t=>{
-      html += `<div style="font-size:13px;padding:3px 0;">${escapeHtml(t.from)} → ${escapeHtml(t.to)}　<b>${fmt(t.amt)}</b></div>`;
+      html += `<div style="font-size:14px;padding:3px 0;">${escapeHtml(t.from)} → ${escapeHtml(t.to)}　<b>${fmt(t.amt)}</b></div>`;
     });
   } else {
-    html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;">目前沒有需要互相結清的金額</div>`;
+    html += `<div style="font-size:13px;color:var(--sub);margin-top:8px;">目前沒有需要互相結清的金額</div>`;
   }
   const rateNote = `以 ${sym} 計算；匯率 1${currencySymbol(primary)} = ${rate} NT$（存在這支手機，換裝置可能不同）`;
-  html += `<div style="font-size:11px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(rateNote)}`;
+  html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(rateNote)}`;
   if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
   html += `</div></div>`;
   box.innerHTML = html;
