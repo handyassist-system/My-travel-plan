@@ -16,6 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+  try{ if("scrollRestoration" in history) history.scrollRestoration = "manual"; }catch(e){}
   // 地圖改成「用到才載入」：多數人開 App 不會馬上看地圖，
   // 無條件載入等於每次開啟都算一次 Google Maps 用量，也拖慢啟動速度。
   window.__gmapsStatus = "idle";
@@ -251,16 +252,14 @@
     border-radius:999px; padding:6px 12px; font-size:12px; color:var(--sub); cursor:pointer;
   }
   .transport-chip .exp{color:var(--green); font-weight:600; margin-left:4px;}
+  .transport-chip.est{border-style:dashed;}
+  .transport-chip .est-tag{margin-left:6px; font-size:10px; padding:1px 6px; border-radius:999px; background:var(--bg); color:var(--sub); font-weight:600;}
   .add-transport-ghost{
     padding:6px 16px 10px 52px; margin-bottom:4px;
   }
   .add-transport-ghost button{
     border:1.5px dashed var(--seal); background:var(--seal-soft); color:var(--seal); font-size:12px; font-weight:600;
     border-radius:999px; padding:7px 14px;
-  }
-  .add-transport-ghost .est-edit{
-    margin-left:8px; border:none; background:none; color:var(--sub); font-size:12px; font-weight:500;
-    text-decoration:underline; padding:7px 8px; min-height:34px;
   }
 
   /* ---------- Holding list ---------- */
@@ -324,7 +323,7 @@
   #mapBtn.hdr-on{background:var(--accent); border-radius:8px;}
 
   /* ---------- Modal ---------- */
-  .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:flex-end; z-index:100;}
+  .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:flex-end; z-index:210;}   /* 比設定頁(200)高，才能從設定頁打開視窗 */
   .modal-mask.fullscreen{align-items:stretch; background:var(--bg);}
   .modal-mask.fullscreen .modal{
     width:100%; max-width:520px; margin:0 auto; border-radius:0; height:100vh; max-height:100vh;
@@ -375,7 +374,7 @@
   .btn-primary{background:var(--accent); color:#fff;}
   .btn-ghost{background:var(--bg); color:var(--ink);}
   .close-x{position:absolute; top:18px; right:18px; width:30px; height:30px; border-radius:10px; border:none; background:var(--bg); color:var(--sub); font-size:16px;}
-  .pac-container{z-index:200 !important;}
+  .pac-container{z-index:300 !important;}
 
 
   .warn-banner{
@@ -558,7 +557,7 @@ header #mapBtn, header #settingsBtn{
       <h1>旅遊計畫</h1>
       <p class="eyebrow">把計畫，變成旅程。</p>
       <input id="pwInput" type="email" inputmode="email" autocomplete="email" maxlength="60" placeholder="請輸入 Email">
-      <div class="login-tip">🎁 建立第一個行程，即開始 14 天全功能試用</div>
+      <div class="login-tip">🎁 建立第一個行程，即開始 14 天完整試用</div>
       <label class="login-consent"><input type="checkbox" id="agreeChk"> <span>我已閱讀並同意 <a id="termsLink">《服務條款與隱私政策》</a></span></label>
       <button id="loginBtn">登入</button>
       <div id="loginError"></div>
@@ -590,7 +589,7 @@ header #mapBtn, header #settingsBtn{
     </header>
 
     <div id="itineraryView">
-      <button id="memoFab" class="pocket-bar" type="button" style="display:none;"><span class="pk-ic">📍</span><span class="pk-tx">口袋名單</span><span class="pk-n" id="pocketCount">0</span><span class="pk-ar">›</span></button>
+      <button id="memoFab" class="pocket-bar" type="button" style="display:none;"><span class="pk-ic">📍</span><span class="pk-tx">備忘錄</span><span class="pk-n" id="pocketCount">0</span><span class="pk-ar">›</span></button>
       <div id="dayTabs"></div>
       <div class="day-date-row">
         <div id="dayDateLabel" class="day-date-label"></div>
@@ -668,7 +667,7 @@ header #mapBtn, header #settingsBtn{
       </div>
       <div class="field" id="fsPayerWrap" style="display:none;"><label>付款人</label><select id="fsExpPayer"></select></div>
 </div>
-      <p style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班資訊會顯示在第一天與最後一天的頂端</p>
+      <p style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡</p>
       </div>
     </div>
 
@@ -733,9 +732,9 @@ header #mapBtn, header #settingsBtn{
   </div>
 
   <div id="bottomNav" style="display:none;">
+    <button class="nav-btn" data-tab="flight"><span class="ic">✈️</span>航班</button>
     <button class="nav-btn active" data-tab="itinerary"><span class="ic">📅</span>行程</button>
     <button class="nav-btn" data-tab="expense"><span class="ic">💰</span>花費</button>
-    <button class="nav-btn" data-tab="flight"><span class="ic">✈️</span>航班</button>
     <button class="nav-btn" data-tab="packing"><span class="ic">📋</span>清單</button>
     </div>
 </div>
@@ -751,7 +750,7 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
       <div class="row2" id="fCustomCatForm" style="display:none; margin-top:8px;">
-        <input id="fCustomCatInput" type="text" placeholder="輸入類型名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
+        <input id="fCustomCatInput" type="text" placeholder="輸入類別名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
         <button id="fCustomCatConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
       </div>
     </div>
@@ -827,7 +826,7 @@ header #mapBtn, header #settingsBtn{
       <input id="tJrCustomInput" type="text" placeholder="輸入車站名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
       <button id="tJrCustomConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
     </div>
-    <p id="tEstimateHint" style="font-size:11px; color:var(--sub); margin:-8px 0 12px;">計程車/步行的預估時間會依直線距離自動估算（僅供參考），可自行修改</p>
+    <p id="tEstimateHint" style="font-size:11px; color:var(--sub); margin:-8px 0 12px;">時間依直線距離估算，僅供參考，可自行修改</p>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
     <div class="row2">
       <div class="field" id="tDepartFollowWrap">
@@ -835,7 +834,7 @@ header #mapBtn, header #settingsBtn{
         <div style="padding:12px 14px; border-radius:10px; background:var(--bg); border:1px solid var(--line); color:var(--ink); font-weight:600; font-size:15px;" id="tDepartDisplay">--:--</div>
       </div>
       <div class="field" id="tManualDepartWrap" style="display:none;">
-        <label>出發時間（當天第一段，請自行設定）</label>
+        <label>這段交通的出發時間</label>
         <input id="tManualDepartTime" type="time">
       </div>
       <div class="field"><label>預估時間（分鐘）</label><input id="tDuration" type="number" placeholder="請輸入分鐘數"><p id="tDurationAutoNote" style="font-size:11px; margin:4px 0 0; display:none;"></p></div>
@@ -868,7 +867,7 @@ header #mapBtn, header #settingsBtn{
 <div class="modal-mask" id="holdModalMask">
   <div class="modal">
     <button class="close-x" id="holdClose">✕</button>
-    <h2 id="holdTitle">口袋名單</h2>
+    <h2 id="holdTitle">備忘錄</h2>
     <div id="holdListWrap">
       <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">先記下想去、想吃的，還沒決定哪天也沒關係，之後再排進行程</p>
       <div id="holdListInModal" style="margin-bottom:16px;"></div>
@@ -878,22 +877,16 @@ header #mapBtn, header #settingsBtn{
       </div>
     </div>
     <div id="holdFormWrap" style="display:none;">
-      <div class="field"><label>類型</label>
-        <div class="chip-row" id="hTypeChips">
-          <div class="chip" data-v="spot">📍 景點</div>
-          <div class="chip" data-v="note">📝 備註</div>
-        </div>
-      </div>
       <div class="field" id="hCategoryWrap"><label>類別</label>
         <div class="chip-row" id="hCategoryChips"></div>
         <div class="row2" id="hCustomCatForm" style="display:none; margin-top:8px;">
-          <input id="hCustomCatInput" type="text" placeholder="輸入類型名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
+          <input id="hCustomCatInput" type="text" placeholder="輸入類別名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
           <button id="hCustomCatConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
         </div>
       </div>
-      <div class="field"><label>標題</label><input id="hName" type="text" placeholder="例：朋友推薦的火鍋店"></div>
+      <div class="field"><label>名稱</label><input id="hName" type="text" placeholder="例：朋友推薦的火鍋店"></div>
       <p id="hPlacesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
-      <div class="field"><label>備註（選填）</label><textarea id="hNote" placeholder="還沒查地址、待確認..."></textarea></div>
+      <div class="field"><label>備註（選填）</label><textarea id="hNote" placeholder="例：尚未確認地址、營業時間"></textarea></div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="holdFormCancel">取消</button>
         <button class="btn btn-primary" id="holdSave">新增</button>
@@ -926,7 +919,7 @@ header #mapBtn, header #settingsBtn{
     </div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
     <div class="field" id="ePayerWrap" style="display:none;"><label>付款人</label><select id="eExpPayer"></select></div>
-    <div class="field" id="eShareWrap" style="display:none;"><label>分攤的人（點選可取消，預設全選）</label><div class="chip-row" id="eShareChips"></div></div>
+    <div class="field" id="eShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="eShareChips"></div></div>
     <div class="field"><label>日期（選填）</label><input id="eDate" type="date"></div>
     <div class="field"><label>備註（選填）</label><textarea id="eNote" placeholder="補充說明"></textarea></div>
     <div class="modal-actions">
@@ -1007,7 +1000,7 @@ header #mapBtn, header #settingsBtn{
     <button type="button" class="btn btn-primary" id="shareTextBtn" style="width:100%; margin-bottom:6px;">💬 傳給朋友（文字）</button>
     <p style="font-size:12px; color:var(--sub); margin:0 0 16px; text-align:center;">用 LINE 等 App 傳送行程文字</p>
     <button type="button" class="btn btn-ghost" id="sharePdfBtn" style="width:100%; margin-bottom:6px;">🖨️ 存成 PDF</button>
-    <p style="font-size:12px; color:var(--sub); margin:0; text-align:center;">排版好的檔案，可列印或存檔（完整版功能）</p>
+    <p style="font-size:12px; color:var(--sub); margin:0; text-align:center;">可列印或存成 PDF（完整版）</p>
   </div>
 </div>
 
@@ -1262,7 +1255,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-27";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-37";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1320,8 +1313,6 @@ function canEditTrip(trip){
 }
 function canEdit(){ return canEditTrip(getActiveTrip()); }
 
-// 目前這個行程是不是唯讀（到期後的試用期行程）
-function isExpiredReadonly(){ return !canEdit(); }
 
 /* ── 方案規則（2026/10 改版）──
    試用 14 天：全功能，最多 2 個行程。
@@ -1589,7 +1580,7 @@ async function proceedLogin(email, manual){
     }, 900);
     myTrialStartedAt=Number(res.trialStartedAt||0);
     if(!res.offline){
-      if(res.newFree){ setTimeout(function(){ alert("🎉 歡迎\n\n建立第一個行程後，會開始 14 天全功能試用，\n可建立 2 個行程，地圖、地點搜尋、行李與採買清單、交通安排、花費彙總、列印 PDF 都能用。\n\n試用結束後，行程前 3 天仍可查看，第 4 天起升級才能看。"); }, 400); }
+      if(res.newFree){ setTimeout(function(){ alert("🎉 歡迎\n\n建立第一個行程後，開始 14 天完整試用，可建立 2 個行程，所有功能開放。\n\n試用結束後，行程前 3 天仍可查看，第 4 天起需升級。"); }, 400); }
       else if(res.expired){ setTimeout(function(){ alert("訂閱已到期\n\n行程、花費、航班資料都還在。\n前 3 天仍可查看，第 4 天起續訂即可恢復，也能繼續編輯。\n\n免費版可建立 1 個 3 天內的行程。"); }, 400); }
     }
   }
@@ -1696,6 +1687,7 @@ async function enterApp(){
   try{
     loginScreen.style.display = "none";
     mainScreen.style.display = "block";
+    try{ window.scrollTo(0,0); }catch(e){}   // 從登入頁帶過來的捲動位置要歸零，否則第一天會被標題列蓋住
     fab.style.alignItems = "center";
     fab.style.justifyContent = "center";
     fab.style.display = "none";
@@ -1778,11 +1770,8 @@ function closeSettings(){ settingsPage.classList.remove("show"); }
 function settingsOpen(){ return settingsPage.classList.contains("show"); }
 document.getElementById("settingsBtn").addEventListener("click", openSettings);
 document.getElementById("settingsBackBtn").addEventListener("click", closeSettings);
-settingsPage.querySelectorAll(".set-row").forEach(function(btn){
-  btn.addEventListener("click", function(){
-    if(btn.id!=="logoutBtn") setTimeout(closeSettings, 80);   // 登出會重新載入，不用關
-  });
-});
+// 設定頁的項目打開的視窗，關掉後要回到設定頁；只有直接跳到外部（LINE 客服）才關掉設定頁
+document.getElementById("supportBtn").addEventListener("click", function(){ setTimeout(closeSettings, 80); });
 
 // ---------- 分享 App / 客服 / 服務條款 ----------
 const APP_URL = "https://handyassist-system.github.io/My-travel-plan/";
@@ -2013,6 +2002,7 @@ bottomNav.querySelectorAll(".nav-btn").forEach(btn=>{
     if(btn.dataset.tab === "packing" && needAdvanced("行李與採買清單")) return;
     currentTab = btn.dataset.tab;
     renderAll();
+    try{ window.scrollTo(0,0); }catch(e){}
   });
 });
 // 地圖搬到頂部：它是「看位置」不是「填資料」，底部留給每天要做的四件事
@@ -2038,7 +2028,7 @@ function renderAll(){
   const _fabHidden = (!trip || currentTab==="expense" || currentTab==="flight" || currentTab==="map")
                      || (!_canEditNow && currentTab!=="packing");
   fab.style.display = _fabHidden ? "none":"flex";
-  document.getElementById("memoFab").style.display = (trip && _canEditNow) ? "flex" : "none";   // 口袋名單入口
+  document.getElementById("memoFab").style.display = (trip && _canEditNow) ? "flex" : "none";   // 備忘錄入口
   document.getElementById("pocketCount").textContent = String(trip ? items.filter(i=>i.tripId===activeTripId && i.type==="holding").length : 0);
 
   const titles = { itinerary:"📅 行程", expense:"💰 花費彙整", flight:"✈️ 航班", packing:"📋 行李與採買清單", map:"🗺️ 地圖" };
@@ -2208,12 +2198,32 @@ function dayItems(day){
   return items.filter(i=>i.tripId===activeTripId && i.day===day && (i.type==="spot"||i.type==="transport")).sort((a,b)=>a.order-b.order);
 }
 
+// 一天的完整順序＝已存的地點與交通，再補上「系統預估的交通」：
+// 相鄰兩個地點都有座標、中間又沒有交通時，自動帶出預估（不寫入資料；點開修改並儲存後才會真的存起來）
+function effectiveItems(day){
+  const arr = dayItems(day);
+  if(!canUseAdvanced()) return arr;
+  const out = [];
+  for(let i=0; i<arr.length; i++){
+    out.push(arr[i]);
+    const a = arr[i], b = arr[i+1];
+    if(a.type==="spot" && b && b.type==="spot"){
+      const sug = suggestTransport(a, b);
+      if(sug && sug.km >= 0.1){
+        out.push({ id:"v:"+a.id+":"+b.id, virtual:true, type:"transport", mode:sug.mode, duration:sug.mins,
+                   order:(a.order+b.order)/2, day:day, prevId:a.id, nextId:b.id });
+      }
+    }
+  }
+  return out;
+}
+
 function timeToMinutes(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
 
 // Single source of truth for the day's schedule: only the FIRST spot's stored
 // time is an anchor; every following spot/transport time is derived from it.
 function computeDerivedTimes(day){
-  const arr = dayItems(day);
+  const arr = effectiveItems(day);
   const map = {};
   const s = flightSettings || {};
   const defaultAnchorForDay = (day===days[0] && s.outArriveTime) ? addMinutesToTime(s.outArriveTime, 30) : null;
@@ -2303,7 +2313,7 @@ function renderDayList(){
   if(isDayLocked(currentDay)){ list.appendChild(buildLockedDayCard()); return; }
   const derived = computeDerivedTimes(currentDay);
   const s = flightSettings || {};
-  const arr = dayItems(currentDay);
+  const arr = effectiveItems(currentDay);
 
   if(currentDay === days[0]){
     const ap = buildAirportStopCard("arrive");
@@ -2327,6 +2337,8 @@ function renderDayList(){
     }
     return;
   }
+  const virt = arr.filter(x=>x.virtual);
+  if(virt.length>0 && canEdit()) list.appendChild(buildEstimateAllButton(virt));
   for(let idx=0; idx<arr.length; idx++){
     const it = arr[idx];
     if(it.type==="spot"){
@@ -2336,7 +2348,7 @@ function renderDayList(){
         list.appendChild(buildAddTransportGhost(it, next, derived));
       }
     } else if(it.type==="transport"){
-      list.appendChild(buildTransportChip(it, derived[it.id]));
+      list.appendChild(it.virtual ? buildVirtualTransportChip(it, derived[it.id]) : buildTransportChip(it, derived[it.id]));
     }
   }
 
@@ -2355,11 +2367,16 @@ function buildAirportTransportGhost(spot, refTime, position){
   const wrap = document.createElement("div");
   wrap.className = "add-transport-ghost";
   const order = position==="before" ? (spot.order - 1000) : (spot.order + 1000);
+  const code = airportCode(position==="before" ? "arrive" : "depart");
+  const geo = canUseAdvanced() ? airportGeo[code] : null;
+  const apPoint = geo ? { airport:true, lat:geo.lat, lng:geo.lng } : null;
   const openModal = ()=>{
     pendingTransport = { day: currentDay, order, id: null };
-    openTransportModal(null, refTime||"", null, null, position==="before");
+    if(apPoint){
+      if(position==="before") openTransportModal(null, refTime||"", apPoint, spot, true);
+      else openTransportModal(null, refTime||"", spot, apPoint, false);
+    } else openTransportModal(null, refTime||"", null, null, position==="before");
   };
-  const code = airportCode(position==="before" ? "arrive" : "depart");
   const sug = airportLegSuggest(code, spot, position);
   if(!sug){
     wrap.innerHTML = `<button>＋ 交通</button>`;
@@ -2367,19 +2384,8 @@ function buildAirportTransportGhost(spot, refTime, position){
     return wrap;
   }
   const paint = ()=>{
-    wrap.innerHTML = `<button type="button" class="est-go">${TRANSPORT_ICON[sug.mode]} 約 ${fmtMin(sug.mins)}（${sug.google ? "Google" : "預估"}）點一下加入</button><button type="button" class="est-edit">改</button>`;
-    wrap.querySelector(".est-go").addEventListener("click", async (ev)=>{
-      const btn = ev.currentTarget; if(btn.disabled) return; btn.disabled = true;
-      try{
-        await db.collection(COLLECTION).add({
-          type:"transport", tripId: activeTripId, mode: sug.mode, duration: sug.mins,
-          manualDepartTime:"", manualFromStation:"", manualToStation:"",
-          expense:{ amount:0, category:"交通", payer:"", currency: primaryCurrencyForTrip() },
-          day: currentDay, order, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }catch(e){ btn.disabled = false; if(!(e && e.message==="READ_ONLY")){ console.error("airport transport failed", e); travelToast(failMsg("儲存", e)); } }
-    });
-    wrap.querySelector(".est-edit").addEventListener("click", ()=>{ window.__suggestMode = sug.mode; openModal(); });
+    wrap.innerHTML = `<button type="button" class="est-go">${TRANSPORT_ICON[sug.mode]} 約 ${fmtMin(sug.mins)}（${sug.google ? "Google 路線" : "估算"}）</button>`;
+    wrap.querySelector(".est-go").addEventListener("click", ()=>{ window.__suggestMode = sug.mode; window.__suggestMins = sug.mins; openModal(); });
   };
   paint();
   refineAirportLegWithGoogle(sug, spot, position, mins=>{ sug.mins = mins; sug.google = true; if(wrap.isConnected) paint(); });
@@ -2457,39 +2463,60 @@ function suggestTransport(prevSpot, nextSpot){
   if(!mins) return null;
   return { mode, mins, km };
 }
+// 「點選估算交通時間」：把這一天所有「估算」的交通一次存成正式交通（只處理這一天，已存的、自己改過的不動）
+function buildEstimateAllButton(virt){
+  const wrap = document.createElement("div");
+  wrap.className = "add-transport-ghost";
+  wrap.style.paddingLeft = "16px";
+  wrap.innerHTML = `<button type="button" id="estimateAllBtn">點選估算交通時間</button>`;
+  wrap.querySelector("button").addEventListener("click", async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    try{
+      const batch = db.batch();
+      const cur = primaryCurrencyForTrip();
+      virt.forEach(function(v){
+        batch.set(db.collection(COLLECTION).doc(), {
+          type:"transport", tripId: activeTripId, day: v.day, order: v.order,
+          mode: v.mode, duration: v.duration,
+          manualDepartTime:"", manualFromStation:"", manualToStation:"",
+          expense:{ amount:0, category:"交通", payer:"", currency:cur },
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+      await batch.commit();
+      travelToast("已估算 " + virt.length + " 段交通");
+    }catch(e){ console.error("estimate all failed", e); travelToast(failMsg("儲存", e)); btn.disabled = false; }
+  });
+  return wrap;
+}
 function buildAddTransportGhost(prevSpot, nextSpot, derived){
   const wrap = document.createElement("div");
   wrap.className = "add-transport-ghost";
   const mid = (prevSpot.order + nextSpot.order) / 2;
   const prevLeave = derived[prevSpot.id] ? derived[prevSpot.id].leave : "";
-  const sug = suggestTransport(prevSpot, nextSpot);
-  if(!sug){
-    wrap.innerHTML = `<button>＋ 交通</button>`;
-    wrap.querySelector("button").addEventListener("click", ()=>{
-      pendingTransport = { day: currentDay, order: mid, id: null };
-      openTransportModal(null, prevLeave, prevSpot, nextSpot);
-    });
-    return wrap;
-  }
-  wrap.innerHTML = `<button type="button" class="est-go">${TRANSPORT_ICON[sug.mode]} ${TRANSPORT_LABEL[sug.mode]}約 ${fmtMin(sug.mins)}（預估，點一下加入）</button>`
-    + `<button type="button" class="est-edit">改</button>`;
-  wrap.querySelector(".est-go").addEventListener("click", async (ev)=>{
-    const btn = ev.currentTarget; if(btn.disabled) return; btn.disabled = true;
-    try{
-      await db.collection(COLLECTION).add({
-        type:"transport", tripId: activeTripId, mode: sug.mode, duration: sug.mins,
-        manualDepartTime:"", manualFromStation:"", manualToStation:"",
-        expense:{ amount:0, category:"交通", payer:"", currency: primaryCurrencyForTrip() },
-        day: currentDay, order: mid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }catch(e){ btn.disabled = false; if(!(e && e.message==="READ_ONLY")){ console.error("auto transport failed", e); travelToast(failMsg("儲存", e)); } }
-  });
-  wrap.querySelector(".est-edit").addEventListener("click", ()=>{
-    window.__suggestMode = sug.mode;
+  wrap.innerHTML = `<button>＋ 交通</button>`;
+  wrap.querySelector("button").addEventListener("click", ()=>{
     pendingTransport = { day: currentDay, order: mid, id: null };
     openTransportModal(null, prevLeave, prevSpot, nextSpot);
   });
   return wrap;
+}
+// 系統預估的交通：跟一般交通長一樣（虛線＋「預估」），點開可修改，儲存後才會存成正式資料
+function buildVirtualTransportChip(v, d){
+  d = d || { depart:"", arrive:"" };
+  const prev = items.find(i=>i.id===v.prevId), next = items.find(i=>i.id===v.nextId);
+  const row = document.createElement("div");
+  row.className = "transport-row";
+  const timeStr = (d.depart && d.arrive) ? `${d.depart}→${d.arrive} · ` : "";
+  row.innerHTML = `<div class="transport-chip est">${TRANSPORT_ICON[v.mode]||"🚇"} ${TRANSPORT_LABEL[v.mode]||""} · ${timeStr}約${escapeHtml(fmtMin(v.duration))}<span class="est-tag">估算</span></div>`;
+  row.querySelector(".transport-chip").addEventListener("click", ()=>{
+    window.__suggestMode = v.mode; window.__suggestMins = v.duration;
+    pendingTransport = { day: currentDay, order: v.order, id: null };
+    openTransportModal(null, d.depart, prev, next);
+  });
+  return row;
 }
 
 function escapeHtml(str){
@@ -2504,15 +2531,16 @@ const fTime = document.getElementById("fTime");
 const SPOT_BASE_CATS = ["景點","餐廳","飯店","其他"];
 let selectedSpotCat = "景點";
 let pendingCustomSpotCat = null;
+let pendingCustomHoldCat = null;   // 備忘錄剛輸入、還沒存檔的自訂類別
 
 function getAllSpotCategories(){
   const custom = [...new Set(
-    items.filter(i=>i.tripId===activeTripId && i.type==="spot" && i.category && !SPOT_BASE_CATS.includes(i.category))
+    items.filter(i=>i.tripId===activeTripId && (i.type==="spot" || i.type==="holding") && i.category && !SPOT_BASE_CATS.includes(i.category))
          .map(i=>i.category)
   )];
-  if(pendingCustomSpotCat && !custom.includes(pendingCustomSpotCat) && !SPOT_BASE_CATS.includes(pendingCustomSpotCat)){
-    custom.push(pendingCustomSpotCat);
-  }
+  [pendingCustomSpotCat, pendingCustomHoldCat].forEach(function(c){
+    if(c && !custom.includes(c) && !SPOT_BASE_CATS.includes(c)) custom.push(c);
+  });
   return [...SPOT_BASE_CATS, ...custom];
 }
 const fCategoryChips = document.getElementById("fCategoryChips");
@@ -2779,7 +2807,7 @@ function openSpotModal(spot){
   const derived = computeDerivedTimes(currentDay);
   fTime.value = spot && derived[spot.id] ? (derived[spot.id].arrival||"") : (isFirstPosition ? defaultAnchor : "");
   if(isFirstPosition){
-    timeHint.textContent = "抵達時間＝下方「出發時間」（若有加交通段則再加交通時間），改「出發時間」即可調整";
+    timeHint.textContent = "抵達時間＝下方「出發時間」（若有加交通則再加交通時間），改「出發時間」即可調整";
   } else {
     timeHint.textContent = spot ? "此地點時間由前面行程自動算出（非第一個地點不能手動改）" : "儲存後會依前面行程自動算出抵達時間";
   }
@@ -2921,7 +2949,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
   if(!editingSpotId){
     const dup = items.find(i=>i.tripId===activeTripId && i.type==="spot" && i.name && i.name.trim()===name);
     if(dup){
-      const goAhead = await askConfirm("名稱重複", `「${name}」在 ${dayLabel(dup.day)} 已經有一筆一樣名稱的地點了。\n如果是想調整原本那筆，建議取消後改用編輯。`, "還是新增");
+      const goAhead = await askConfirm("名稱重複", `「${name}」在 ${dayLabel(dup.day)} 已有同名地點。\n要修改請取消後使用編輯。`, "還是新增");
       if(!goAhead) return;
     }
   }
@@ -3052,6 +3080,13 @@ function haversineKm(lat1, lng1, lat2, lng2){
   const dLng = (lng2-lng1) * Math.PI/180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+// 機場往返距離長（常常 30～60 公里），速度比市區快：另外算
+function estimateAirportLegMinutes(mode, km){
+  if(mode==="taxi") return Math.max(10, Math.round(km*1.3/45*60) + 10);
+  if(mode==="subway" || mode==="jr") return Math.max(15, Math.round(km*1.3/40*60) + 20);
+  if(mode==="walk") return Math.max(1, Math.round(km*1.3/4.5*60));
+  return null;
 }
 function estimateDurationMinutes(mode, km){
   if(mode==="walk" || mode==="taxi"){
@@ -3224,7 +3259,9 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   selectedMode = it ? it.mode : (window.__suggestMode || "subway");
   window.__suggestMode = null;
   transChips.querySelectorAll(".chip").forEach(c=>c.classList.toggle("active", c.dataset.v===selectedMode));
-  tDuration.value = it ? (it.duration||"") : "";
+  const _prefillMins = (!it && window.__suggestMins) ? window.__suggestMins : "";
+  tDuration.value = it ? (it.duration||"") : _prefillMins;
+  window.__suggestMins = null;
   durationIsAutoEstimated = true;
   document.getElementById("tDurationAutoNote").style.display = "none";
   updateDurationSourceNote();
@@ -3242,14 +3279,22 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
     currentTransportPrevSpot = idx>0 ? arr[idx-1] : null;
     currentTransportNextSpot = idx<arr.length-1 ? arr[idx+1] : null;
     isLeading = idx===0;
+    // 第 1 天最前面的交通＝機場→第一個地點；最後一天最後的交通＝最後地點→機場。用機場座標當另一端，換交通方式才算得出時間
+    const _apGeo = k => { const g = canUseAdvanced() ? airportGeo[airportCode(k)] : null; return g ? { airport:true, lat:g.lat, lng:g.lng } : null; };
+    if(idx===0 && currentDay===days[0] && !currentTransportPrevSpot) currentTransportPrevSpot = _apGeo("arrive");
+    if(idx===arr.length-1 && currentDay===days[days.length-1] && !currentTransportNextSpot) currentTransportNextSpot = _apGeo("depart");
   } else {
     currentTransportPrevSpot = prevSpotOverride || null;
     currentTransportNextSpot = nextSpotOverride || null;
   }
   currentTransportIsLeading = isLeading;
-  document.getElementById("tEstimateHint").textContent = isLeading
+  const _fromEstimate = !!_prefillMins;
+  const _bothGeo = currentTransportPrevSpot && currentTransportNextSpot && currentTransportPrevSpot.lat!=null && currentTransportNextSpot.lat!=null;
+  document.getElementById("tEstimateHint").textContent = _fromEstimate
+    ? "這是系統估算的交通時間，修改後按「儲存」才會固定下來。"
+    : (isLeading && !_bothGeo)
     ? "⚠️ 這是當天第一段交通，沒有明確的出發座標可以算距離，時間需要手動輸入"
-    : "計程車/步行的預估時間會依直線距離自動估算（僅供參考），可自行修改";
+    : "時間依直線距離估算，僅供參考，可自行修改";
   const manualWrap = document.getElementById("tManualDepartWrap");
   if(isLeading){
     const s = flightSettings || {};
@@ -3261,7 +3306,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
     manualWrap.style.display = "none";
     document.getElementById("tDepartFollowWrap").style.display = "block";
   }
-  if(!it) applyDistanceEstimateIfEmpty();
+  if(!it && !_prefillMins) applyDistanceEstimateIfEmpty();
   updateStationHint();
   updateArriveDisplay();
 
@@ -3288,8 +3333,8 @@ function updateDurationSourceNote(){
   if(durationIsAutoEstimated){
     const isRail = (selectedMode==="subway" || selectedMode==="jr");
     note.textContent = isRail
-      ? "🤖 系統粗估（含轉乘/繞路可能誤差較大），可自行修改"
-      : "🤖 系統依直線距離估算，可自行修改";
+      ? "🤖 系統估算（轉乘、繞路可能有誤差），可自行修改"
+      : "🤖 系統估算，可自行修改";
     note.style.color = "var(--seal)";
   } else {
     note.textContent = "✏️ 自訂時間";
@@ -3304,7 +3349,7 @@ function applyDistanceEstimateIfEmpty(){
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
   if(!p || !n || p.lat==null || n.lat==null){ updateDurationSourceNote(); return; }
   const km = haversineKm(p.lat, p.lng, n.lat, n.lng);
-  const mins = estimateDurationMinutes(selectedMode, km);
+  const mins = (p.airport || n.airport) ? estimateAirportLegMinutes(selectedMode, km) : estimateDurationMinutes(selectedMode, km);
   if(mins){ tDuration.value = mins; durationIsAutoEstimated = true; }
   updateDurationSourceNote();
 }
@@ -3409,7 +3454,7 @@ async function deleteSpotWithAdjacentTransport(spot){
   if(idx>0 && arr[idx-1].type==="transport") toDelete.push(arr[idx-1].id);
   if(idx<arr.length-1 && arr[idx+1].type==="transport") toDelete.push(arr[idx+1].id);
   const msg = toDelete.length>1
-    ? "確定要刪除嗎？這個地點前後連接的交通段也會一併刪除。"
+    ? "確定要刪除嗎？前後相連的交通也會一併刪除。"
     : "確定要刪除嗎？";
   if(!await askConfirm("刪除地點", msg, "刪除")) return;
   try{
@@ -3551,7 +3596,7 @@ async function moveSpotToDay(spot, targetDay){
   if(idx>0 && arr[idx-1].type==="transport") toDeleteTransports.push(arr[idx-1].id);
   if(idx<arr.length-1 && arr[idx+1].type==="transport") toDeleteTransports.push(arr[idx+1].id);
   if(toDeleteTransports.length){
-    if(!await askConfirm("換天移動", "這個地點前後連接的交通段會一併移除，因為換天後不再相鄰。", "移動")) return;
+    if(!await askConfirm("換天移動", "換天後，前後相連的交通會一併移除。", "移動")) return;
   }
   const order = computeOrder(targetDay);
   const batch = db.batch();
@@ -3619,12 +3664,10 @@ function renderHolding(){
 }
 
 const holdModalMask = document.getElementById("holdModalMask");
-const hTypeChips = document.getElementById("hTypeChips");
 const hCategoryChips = document.getElementById("hCategoryChips");
 const hCategoryWrap = document.getElementById("hCategoryWrap");
 let selectedHoldType = "spot";
 let selectedHoldCategory = "景點";
-let pendingCustomHoldCat = null;
 
 function renderHoldCatChips(){
   hCategoryChips.innerHTML = "";
@@ -3656,20 +3699,9 @@ document.getElementById("hCustomCatConfirm").addEventListener("click", ()=>{
 });
 
 function updateHoldTypeUI(){
-  hCategoryWrap.style.display = selectedHoldType==="spot" ? "block" : "none";
-  if(selectedHoldType==="spot"){ checkPlacesStatus("hPlacesStatus"); renderHoldCatChips(); }
-  else { document.getElementById("hPlacesStatus").style.display = "none"; }
+  checkPlacesStatus("hPlacesStatus"); renderHoldCatChips();
 }
-hTypeChips.querySelectorAll(".chip").forEach(chip=>{
-  chip.addEventListener("click", ()=>{
-    selectedHoldType = chip.dataset.v;
-    hTypeChips.querySelectorAll(".chip").forEach(c=>c.classList.remove("active"));
-    chip.classList.add("active");
-    updateHoldTypeUI();
-  });
-});
-// default active state
-hTypeChips.querySelector('[data-v="spot"]').classList.add("active");
+// 預設選「景點」
 selectedHoldCategory = "景點";
 renderHoldCatChips();
 
@@ -3678,17 +3710,17 @@ document.getElementById("holdCancel").addEventListener("click", ()=>holdModalMas
 let holdEditingId = null;
 function showHoldList(){
   holdEditingId = null;
-  document.getElementById("holdTitle").textContent = "口袋名單";
+  document.getElementById("holdTitle").textContent = "備忘錄";
   document.getElementById("holdListWrap").style.display = "block";
   document.getElementById("holdFormWrap").style.display = "none";
 }
 function showHoldForm(h){
   holdEditingId = h ? h.id : null;
-  document.getElementById("holdTitle").textContent = h ? "編輯口袋名單" : "新增口袋名單";
+  document.getElementById("holdTitle").textContent = h ? "編輯備忘錄" : "新增備忘錄";
   document.getElementById("holdSave").textContent = h ? "儲存" : "新增";
-  selectedHoldType = h ? (h.holdType||"spot") : "spot";
-  selectedHoldCategory = (h && h.category) ? h.category : "景點";
-  hTypeChips.querySelectorAll(".chip").forEach(c=>c.classList.toggle("active", c.dataset.v===selectedHoldType));
+  pendingCustomHoldCat = (h && h.category && !SPOT_BASE_CATS.includes(h.category)) ? h.category : null;
+  selectedHoldType = "spot";   // 不再分「類型」，一律用「類別」；舊的純備註資料編輯時歸到「其他」
+  selectedHoldCategory = (h && h.category) ? h.category : (h ? "其他" : "景點");
   document.getElementById("hName").value = h ? h.name : "";
   document.getElementById("hNote").value = h ? (h.note||"") : "";
   hSelectedLatLng = null;
@@ -4246,6 +4278,17 @@ function buildAirportStopCard(kind){
   return div;
 }
 
+// 所有彈窗每次打開都從最上面開始（不會停在上次捲到的位置）
+document.querySelectorAll(".modal-mask").forEach(function(m){
+  try{
+    new MutationObserver(function(){
+      if(!m.classList.contains("show")) return;
+      m.scrollTop = 0;
+      var md = m.querySelector(".modal"); if(md) md.scrollTop = 0;
+    }).observe(m, { attributes:true, attributeFilter:["class"] });
+  }catch(e){}
+});
+
 // ================= FAB =================
 fab.addEventListener("click", ()=>{
   if(currentTab==="packing"){ openPackModal(null); return; }   // 採買清單免費版也能用
@@ -4660,6 +4703,7 @@ function renderTripListBody(){
       subscribeFlightForActiveTrip();
       recomputeDays();
       renderAll();
+      try{ window.scrollTo(0,0); }catch(e){}
       tripListMask.classList.remove("show");
     });
     editBtn.addEventListener("click", ()=>openTripModal(t));
@@ -4701,7 +4745,7 @@ function buildShareText(){
     lines.push(`${dayLabel(day)}${dateLabel ? "（"+dateLabel+"）" : ""}`);
 
     const derived = computeDerivedTimes(day);
-    const arr = dayItems(day);
+    const arr = effectiveItems(day);
     if(arr.length===0){ lines.push("（尚未安排）"); return; }
 
     // Build display rows: each spot gets an optional "(交通方式 約X分)" suffix
@@ -4783,7 +4827,7 @@ function buildShareHtml(){
     const dateLabel = computeDateForDay(day);
     html += `<div style="background:${seal}; color:#fff; padding:9px 14px; border-radius:8px; font-weight:bold; margin:18px 0 8px;">${esc(day)}${dateLabel ? "（"+esc(dateLabel)+"）" : ""}</div>`;
     const derived = computeDerivedTimes(day);
-    const arr = dayItems(day);
+    const arr = effectiveItems(day);
     if(arr.length===0){ html += "<p>（尚未安排）</p>"; return; }
 
     const rows = [];
@@ -4906,7 +4950,7 @@ tripModalMask.addEventListener("click",(e)=>{ if(e.target===tripModalMask && !fi
 
 document.getElementById("trSave").addEventListener("click", async ()=>{
   const name = document.getElementById("trName").value.trim();
-  if(!name){ document.getElementById("trName").focus(); return; }
+  if(!name){ travelToast("請輸入行程名稱"); document.getElementById("trName").focus(); return; }
   const _s = document.getElementById("trStart").value, _e = document.getElementById("trEnd").value;
   if(_s && _e && _e < _s){ travelToast("結束日不能早於開始日，請重新選擇"); return; }
   const selectedRegion = document.querySelector("#trRegionChips .chip.active")?.dataset.v || "japan";
@@ -4947,7 +4991,7 @@ document.getElementById("trSave").addEventListener("click", async ()=>{
       await bumpTripsCreated();
       if(startedNow){
         setTimeout(function(){
-          alert("🎉 開始 "+TRAVEL_TRIAL_DAYS+" 天全功能試用\n\n到 "+myExpiry+" 為止，可建立 "+TRIAL_MAX_TRIPS+" 個行程，\n地圖、地點搜尋、伴手禮、交通段、花費彙總、行前準備清單、列印 PDF 都能用。");
+          alert("🎉 開始 "+TRAVEL_TRIAL_DAYS+" 天完整試用\n\n到 "+myExpiry+" 為止，可建立 "+TRIAL_MAX_TRIPS+" 個行程，所有功能開放。");
         }, 400);
       }
     }
@@ -5917,6 +5961,7 @@ previewMode.init({
   apply: function(mode){
     myPlan = (mode==='full') ? 'full' : mode;
     isAdminUser = false;
+    try{ closeSettings(); }catch(e){}   // 切到預覽畫面後要看到主畫面
     document.body.style.paddingTop = '44px';
     if(typeof applyPlanLocks==='function') applyPlanLocks();
     if(typeof renderAll==='function') renderAll();
