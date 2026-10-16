@@ -1052,6 +1052,11 @@ header #mapBtn, header #settingsBtn{
     </div>
     <div class="field"><label>項目名稱</label><input id="packName" type="text" placeholder="例：感冒藥"></div>
     <div class="field"><label>備註（選填）</label><textarea id="packNote" placeholder="數量、品牌、給誰的..."></textarea></div>
+    <div class="sec-card" id="packExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
+      <div class="field"><label>金額</label><input id="pExpAmount" type="number" placeholder="0"></div>
+      <div class="field"><label>幣別</label><div class="chip-row" id="pCurrencyChips"></div></div>
+      <div class="field" id="pPayerWrap" style="display:none;"><label>付款人</label><select id="pExpPayer"></select></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="packCancel">取消</button>
       <button class="btn btn-primary" id="packSave">儲存</button>
@@ -1274,7 +1279,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-64";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-65";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3840,7 +3845,7 @@ function renderExpense(){
   });
   const sym = currencySymbol(expDisplayCurrency);
 
-  const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense") && i.expense && i.expense.amount);
+  const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense"||i.type==="packing") && i.expense && i.expense.amount);
   if(flightSettings && flightSettings.expense){
     all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary } });
   }
@@ -3891,12 +3896,13 @@ function renderExpense(){
     row.className = "exp-item";
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
-    const dayTxt = i.type==="expense" ? (i.date || "行程外") : dayLabel(i.day);
+    const dayTxt = i.type==="expense" ? (i.date || "行程外") : (i.type==="packing" ? "行前" : dayLabel(i.day));
     const payTxt = (i.expense.payer) ? (" · " + i.expense.payer + "付") : "";
     row.innerHTML = `<div><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)} · ${escapeHtml(i.expense.category||"")}${escapeHtml(payTxt)}</div></div><div class="r">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</div>`;
     row.style.cursor = "pointer";
     row.addEventListener("click", ()=>{
       if(i.type==="expense"){ openExpenseModal(i); return; }
+      if(i.type==="packing"){ openPackModal(i); return; }   // 行前辦理：到清單的編輯視窗修改
       // 景點／交通的花費：直接開啟該項目的編輯畫面
       if(!canEdit()){ showUpgradeNeeded(); return; }
       if(i.type==="flight"){   // 機票花費：到航班分頁修改
@@ -4343,10 +4349,10 @@ const packModalMask = document.getElementById("packModalMask");
 const packCatChips = document.getElementById("packCatChips");
 const packName = document.getElementById("packName");
 const packNote = document.getElementById("packNote");
-const PACKING_BASE_CATS = ["出發前要辦","證件","金錢","電子","藥品","盥洗衣物","行李","其他"];   // 行前準備分頁的固定類別
-const packCatOf = i => { const c = i.category || "其他"; return c==="藥妝" ? "藥品" : c; };   // 舊的「藥妝」併進「藥品」
+const PACKING_BASE_CATS = ["行前辦理","證件","金錢","電子","藥品","盥洗衣物","行李","其他"];   // 行前準備分頁的固定類別
+const packCatOf = i => { const c = i.category || "其他"; return c==="藥妝" ? "藥品" : (c==="出發前要辦" ? "行前辦理" : c); };   // 舊的「藥妝」併進「藥品」、「出發前要辦」改名「行前辦理」   // 舊的「藥妝」併進「藥品」
 const SOUVENIR_CATS = ["伴手禮","紀念品","其他購物"];     // 伴手禮分頁只有這三類（紀念品＝磁鐵、明信片；其他購物＝彩妝、衣服、玩偶）
-const PACKING_CATEGORY_PRIORITY = ["出發前要辦","證件","金錢","電子","藥品","盥洗衣物","行李"];
+const PACKING_CATEGORY_PRIORITY = ["行前辦理","證件","金錢","電子","藥品","盥洗衣物","行李"];
 function sortPackingCategories(cats){
   return [...cats].sort((a,b)=>{
     if(a==="其他") return 1;
@@ -4358,7 +4364,7 @@ function sortPackingCategories(cats){
     return pa - pb;
   });
 }
-const PACKING_ICONS = { "出發前要辦":"✅", "藥妝":"💊", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "行李":"🧳", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "盥洗衣物":"🧴" };
+const PACKING_ICONS = { "行前辦理":"✅", "藥妝":"💊", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "行李":"🧳", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "盥洗衣物":"🧴" };
 let selectedPackCat = "其他";
 let editingPackId = null;
 
@@ -4366,7 +4372,7 @@ let pendingCustomPackCat = null;
 
 function getAllPackingCategories(){
   const custom = [...new Set(
-    items.filter(i=>i.tripId===activeTripId && i.type==="packing" && i.category && i.category!=="藥妝" && !PACKING_BASE_CATS.includes(i.category) && !SOUVENIR_CATS.includes(i.category))
+    items.filter(i=>i.tripId===activeTripId && i.type==="packing" && i.category && i.category!=="藥妝" && i.category!=="出發前要辦" && !PACKING_BASE_CATS.includes(i.category) && !SOUVENIR_CATS.includes(i.category))
          .map(i=>i.category)
   )];
   if(pendingCustomPackCat && !custom.includes(pendingCustomPackCat) && !PACKING_BASE_CATS.includes(pendingCustomPackCat)){
@@ -4397,6 +4403,7 @@ function renderPackCatChips(){
     document.getElementById("packCustomCatInput").focus();
   });
   // 類別固定，不提供自訂（舊資料已存的自訂類別仍照常顯示）
+  document.getElementById("packExpCard").style.display = (!inSouvenir && selectedPackCat==="行前辦理") ? "block" : "none";
 }
 document.getElementById("packCustomCatConfirm").addEventListener("click", ()=>{
   const name = document.getElementById("packCustomCatInput").value.trim();
@@ -4410,10 +4417,14 @@ function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
   selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他");
-  pendingCustomPackCat = (item && item.category && !PACKING_BASE_CATS.includes(item.category) && !SOUVENIR_CATS.includes(item.category)) ? item.category : null;
+  pendingCustomPackCat = (item && item.category && item.category!=="出發前要辦" && !PACKING_BASE_CATS.includes(item.category) && !SOUVENIR_CATS.includes(item.category)) ? item.category : null;
   renderPackCatChips();
   packName.value = item ? item.name : "";
   packNote.value = item ? (item.note||"") : "";
+  const pe = item && item.expense ? item.expense : {};
+  document.getElementById("pExpAmount").value = pe.amount || "";
+  setCurrencyChip(document.getElementById("pCurrencyChips"), pe.currency);
+  populatePayerSelect(document.getElementById("pExpPayer"), document.getElementById("pPayerWrap"), pe.payer || "");
   packModalMask.classList.add("show");
 }
 document.getElementById("packClose").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); pendingCustomPackCat = null; });
@@ -4424,6 +4435,11 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   const name = packName.value.trim();
   if(!name){ packName.focus(); return; }
   const data = { type:"packing", tripId: activeTripId, category: selectedPackCat, name, note: packNote.value.trim() };
+  // 「行前辦理」項目可填花費，會自動出現在花費頁（類別固定為行前辦理）；其他類別不帶花費
+  const pAmt = document.getElementById("pExpAmount").value;
+  data.expense = (selectedPackCat==="行前辦理")
+    ? { amount: pAmt ? Number(pAmt) : 0, category:"行前辦理", payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")) }
+    : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
       await db.collection(COLLECTION).doc(editingPackId).update(data);
@@ -4443,9 +4459,9 @@ async function togglePackChecked(item){
 }
 
 const BASIC_PACKING_LIST_CHINA = [
-  { category:"出發前要辦", name:"換匯", note:"" },
-  { category:"出發前要辦", name:"訂好機票與住宿", note:"" },
-  { category:"出發前要辦", name:"辦好網路（SIM卡/eSIM）", note:"" },
+  { category:"行前辦理", name:"換匯", note:"" },
+  { category:"行前辦理", name:"訂好機票與住宿", note:"" },
+  { category:"行前辦理", name:"辦好網路（SIM卡/eSIM）", note:"" },
   { category:"證件", name:"護照", note:"效期需6個月以上" },
   { category:"證件", name:"台胞證", note:"" },
   { category:"證件", name:"機票/訂房證明", note:"電子或紙本備份" },
@@ -4469,9 +4485,9 @@ const BASIC_PACKING_LIST_CHINA = [
   { category:"其他", name:"保溫瓶", note:"大陸公共場所常有熱水機" },
 ];
 const BASIC_PACKING_LIST_JAPAN = [
-  { category:"出發前要辦", name:"換匯", note:"" },
-  { category:"出發前要辦", name:"訂好機票與住宿", note:"" },
-  { category:"出發前要辦", name:"辦好網路（SIM卡/eSIM）", note:"" },
+  { category:"行前辦理", name:"換匯", note:"" },
+  { category:"行前辦理", name:"訂好機票與住宿", note:"" },
+  { category:"行前辦理", name:"辦好網路（SIM卡/eSIM）", note:"" },
   { category:"證件", name:"護照", note:"確認效期涵蓋整趟行程" },
   { category:"證件", name:"機票/訂房證明", note:"電子或紙本備份" },
   { category:"證件", name:"旅遊保險證明", note:"" },
@@ -4614,12 +4630,12 @@ function renderPacking(){
   toggle.className = "exp-currency-toggle";
   toggle.style.marginBottom = "12px";
   toggle.innerHTML = `
-    <button data-v="checklist" class="${packingViewMode==="checklist"?"active":""}">${canUseAdvanced()?"":"🔒 "}📋 行前準備</button>
+    <button data-v="checklist" class="${packingViewMode==="checklist"?"active":""}">${canUseAdvanced()?"":"🔒 "}🧳 行李清單</button>
     <button data-v="souvenir" class="${packingViewMode==="souvenir"?"active":""}">🎁 伴手禮・紀念品</button>
   `;
   toggle.querySelectorAll("button").forEach(btn=>{
     btn.addEventListener("click", ()=>{
-      if(btn.dataset.v==="checklist" && needAdvanced("行前準備清單")) return;
+      if(btn.dataset.v==="checklist" && needAdvanced("行李清單")) return;
       packingViewMode = btn.dataset.v; renderPacking();
     });
   });
@@ -4646,7 +4662,7 @@ function renderPacking(){
     empty.className = "empty";
     empty.innerHTML = packingViewMode==="souvenir"
       ? `<span class="emoji">🎁</span>還沒有伴手禮或紀念品<span class="esub">點右下角「＋」新增</span>`
-      : `<span class="emoji">🧳</span>還沒有行前準備項目<span class="esub">點右下角「＋」新增，或加入基本清單</span>`;
+      : `<span class="emoji">🧳</span>還沒有行李清單項目<span class="esub">點右下角「＋」新增，或加入基本清單</span>`;
     wrap.appendChild(empty);
     return;
   }
@@ -6656,7 +6672,7 @@ upgradeSheet.init({
     ['行李與採買清單', false, true],
     ['交通安排', false, true],
     ['花費彙總與匯率', false, true],
-    ['行前準備清單', false, true],
+    ['行李清單', false, true],
     ['存成 PDF', false, true],
     ['同帳號裝置數', '1 台', '3 台']
   ],
