@@ -295,9 +295,14 @@
   .exp-list:empty{display:none;}
   .exp-item{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:16px;}
   .exp-item:last-child{border-bottom:none;}
+  .exp-grp{display:flex; justify-content:space-between; align-items:baseline; font-size:14px; font-weight:700; color:var(--accent); padding:14px 0 4px; border-bottom:2px solid var(--line);}
+  .exp-grp.exch{color:var(--sub); border-bottom:2px dashed var(--line);}
+  .exp-grp.exch ~ .exp-item .r{color:var(--sub);}
+  .exp-grp:first-of-type{padding-top:6px;}
   .exp-item .l{color:var(--ink);}
   .exp-item .d{color:var(--sub); font-size:13px;}
-  .exp-item .r{color:var(--green); font-weight:700; font-size:16px; flex:0 0 auto;}
+  .exp-item .r{color:var(--green); font-weight:700; font-size:16px; flex:0 0 auto; text-align:right;}
+  .exp-item .r .sub{display:block; font-size:12px; font-weight:400; color:var(--sub); margin-top:1px;}
 
   /* ---------- FAB ---------- */
   .fab-wrap{position:fixed; inset:0; pointer-events:none; max-width:520px; margin:0 auto; z-index:20;}
@@ -609,6 +614,7 @@ header #mapBtn, header #settingsBtn{
       <div class="exp-total">
         <div class="exp-currency-toggle" id="expCurrencyToggle"></div>
         <div class="amt" id="expTotal">¥0</div>
+        <div id="expExchNote" style="font-size:12px; color:var(--sub); margin-top:2px;"></div>
         <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:11px;">更新匯率</button></div>
       </div>
       <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
@@ -761,10 +767,6 @@ header #mapBtn, header #settingsBtn{
     <p id="placesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
-      <div class="row2" id="fCustomCatForm" style="display:none; margin-top:8px;">
-        <input id="fCustomCatInput" type="text" placeholder="輸入類別名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
-        <button id="fCustomCatConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
-      </div>
     </div>
     <div class="field"><label>地址（用來在地圖上定位）</label><textarea id="fNote" placeholder="例：東京都台東區淺草2-3-1"></textarea></div>
     <button type="button" id="fGeocodeBtn" style="width:100%; padding:10px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:12px; margin-bottom:6px;">📍 找不到地點？用地址定位</button>
@@ -891,10 +893,6 @@ header #mapBtn, header #settingsBtn{
     <div id="holdFormWrap" style="display:none;">
       <div class="field" id="hCategoryWrap"><label>類別</label>
         <div class="chip-row" id="hCategoryChips"></div>
-        <div class="row2" id="hCustomCatForm" style="display:none; margin-top:8px;">
-          <input id="hCustomCatInput" type="text" placeholder="輸入類別名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
-          <button id="hCustomCatConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
-        </div>
       </div>
       <div class="field"><label>名稱</label><input id="hName" type="text" placeholder="例：朋友推薦的火鍋店"></div>
       <p id="hPlacesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
@@ -921,6 +919,7 @@ header #mapBtn, header #settingsBtn{
         <select id="eCategory">
           <option value="行前辦理">🧾 行前辦理</option>
           <option value="行前採買">🧳 行前採買</option>
+          <option value="衣物">👕 衣物</option>
           <option value="兌換">💱 兌換</option>
           <option value="購物">🛍️ 購物</option>
           <option value="餐飲">🍜 餐飲</option>
@@ -1045,10 +1044,6 @@ header #mapBtn, header #settingsBtn{
     <h2 id="packModalTitle">新增項目</h2>
     <div class="field"><label>類別</label>
       <div class="chip-row" id="packCatChips"></div>
-      <div class="row2" id="packCustomCatForm" style="display:none; margin-top:8px;">
-        <input id="packCustomCatInput" type="text" placeholder="輸入類別名稱" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
-        <button id="packCustomCatConfirm" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
-      </div>
     </div>
     <div class="field"><label>項目名稱</label><input id="packName" type="text" placeholder="例：感冒藥"></div>
     <div class="field"><label>備註（選填）</label><textarea id="packNote" placeholder="數量、品牌、給誰的..."></textarea></div>
@@ -1110,7 +1105,7 @@ const CATEGORY_ICON = { "景點":"🏛️", "餐廳":"🍜", "小吃":"🍢", "�
 let items = [];       // all firestore docs (all trips)
 let trips = [];       // all trip docs
 let activeTripId = null;
-let migrationDone = false;
+let firstTripShown = false;
 let days = ["Day1"];
 // 畫面顯示用：Day1 → 第1天（資料裡存的名稱不變）
 function dayLabel(d){ var m=/^Day(\d+)$/.exec(String(d||"")); return m ? "第"+m[1]+"天" : String(d||""); }
@@ -1243,30 +1238,6 @@ function applyPlanLocks(){
   renderVerTag();
 }
 
-// 第一次用新版登入：把還沒有歸屬的行程與項目歸到自己名下（只有管理員需要，資料本來就是你的）
-async function migrateOwnerIfNeeded(){
-  if(!isAdminUser || !db) return;
-  var flagKey="travel_owner_migrated_v1";
-  try{ if(localStorage.getItem(flagKey)) return; }catch(e){}
-  try{
-    var me=myOwnerEmail();
-    for(var ci=0; ci<2; ci++){
-      var name = ci===0 ? TRIPS_COLLECTION : COLLECTION;
-      var snap = await db.collection(name).get();
-      var batch=null, n=0;
-      for(var i=0;i<snap.docs.length;i++){
-        var d=snap.docs[i];
-        if(d.data().ownerEmail) continue;
-        if(!batch) batch=db.batch();
-        batch.update(d.ref, { ownerEmail: me });
-        n++;
-        if(n%400===0){ await batch.commit(); batch=null; }
-      }
-      if(batch) await batch.commit();
-    }
-    try{ localStorage.setItem(flagKey,"1"); }catch(e){}
-  }catch(e){ console.warn("owner 標記略過", e); }
-}
 
 // ---------- Auth（智在生活 Standard：收信登入＋管理員密碼）----------
 const loginScreen = document.getElementById("loginScreen");
@@ -1279,7 +1250,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-65";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-74";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1717,7 +1688,6 @@ async function enterApp(){
     fab.style.display = "none";
     bottomNav.style.display = "none";
     applyPlanLocks();
-    await migrateOwnerIfNeeded();
     startListening();
     startTripsListening();
     // 不在這裡載地圖 —— 等使用者真的開地圖分頁或新增地點時才載
@@ -1925,12 +1895,7 @@ function startTripsListening(){
       return ta-tb;
     });
     if(trips.length===0){
-      if(!migrationDone){
-        migrationDone = true;
-        const hasLegacy = await checkLegacyItems();
-        if(hasLegacy){ await createDefaultTripAndMigrate(); }
-        else { showFirstTripScreen(); }
-      }
+      if(!firstTripShown){ firstTripShown = true; showFirstTripScreen(); }
       renderAll();
       return;
     }
@@ -1972,35 +1937,6 @@ function hideFirstTripScreen(){
   document.getElementById("tripModalTitle").style.display = "";
   tripModalMask.classList.remove("fullscreen");
   tripModalMask.classList.remove("show");
-}
-
-async function checkLegacyItems(){
-  try{
-    const snap = await db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).get();
-    let hasLegacy = false;
-    snap.forEach(doc=>{
-      const d = doc.data();
-      if(d.type && d.type!=="flightSettings" && !d.tripId) hasLegacy = true;
-    });
-    return hasLegacy;
-  }catch(e){ console.error("checkLegacyItems failed", e); return false; }
-}
-
-async function createDefaultTripAndMigrate(){
-  try{
-    const tripRef = await db.collection(TRIPS_COLLECTION).add({
-      name:"預設行程", startDate:"", endDate:"", members:[],
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    const snap = await db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).get();
-    const batch = db.batch();
-    let any = false;
-    snap.forEach(doc=>{
-      const d = doc.data();
-      if(!d.tripId){ batch.update(doc.ref, { tripId: tripRef.id }); any = true; }
-    });
-    if(any) await batch.commit();
-  }catch(e){ console.error("migration failed", e); }
 }
 
 
@@ -2553,8 +2489,6 @@ const spotModalMask = document.getElementById("spotModalMask");
 const fTime = document.getElementById("fTime");
 const SPOT_BASE_CATS = ["景點","餐廳","小吃","飯店","購物","其他"];
 let selectedSpotCat = "景點";
-let pendingCustomSpotCat = null;
-let pendingCustomHoldCat = null;   // 備忘錄剛輸入、還沒存檔的自訂類別
 
 function getAllSpotCategories(){
   return [...SPOT_BASE_CATS];   // 類別固定，不再開放自訂
@@ -2562,7 +2496,6 @@ function getAllSpotCategories(){
 const fCategoryChips = document.getElementById("fCategoryChips");
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
-  document.getElementById("fCustomCatForm").style.display = "none";
   getAllSpotCategories().forEach(cat=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (cat===selectedSpotCat ? " active" : "");
@@ -2571,13 +2504,6 @@ function renderSpotCatChips(){
     fCategoryChips.appendChild(chip);
   });
 }
-document.getElementById("fCustomCatConfirm").addEventListener("click", ()=>{
-  const name = document.getElementById("fCustomCatInput").value.trim();
-  if(!name) return;
-  pendingCustomSpotCat = name;
-  selectedSpotCat = name;
-  renderSpotCatChips();
-});
 
 let currentSpotPhoto = "";
 function compressImageFile(file, maxWidth){
@@ -2736,7 +2662,6 @@ function initAutocomplete(){
           const hint = document.getElementById("fCatSuggestHint");
           if(guess){
             selectedSpotCat = guess;
-            pendingCustomSpotCat = null;
             renderSpotCatChips();
             hint.textContent = `已自動判斷類型為「${guess}」，可自行修改`;
             hint.style.display = "block";
@@ -2757,7 +2682,6 @@ function initAutocomplete(){
           const guess = guessCategoryFromPlaceTypes(p.types);
           if(guess && selectedHoldType==="spot"){
             selectedHoldCategory = guess;
-            pendingCustomHoldCat = null;
             renderHoldCatChips();
           }
         }
@@ -2829,7 +2753,6 @@ function openSpotModal(spot){
   document.getElementById("fDepartTime").value = spot ? (spot.departTime||"") : defaultAnchor;
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
-  pendingCustomSpotCat = (spot && spot.category && !SPOT_BASE_CATS.includes(spot.category)) ? spot.category : null;
   renderSpotCatChips();
   fName.value = spot ? spot.name : "";
   fNote.value = spot ? (spot.note||"") : "";
@@ -2923,7 +2846,7 @@ document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
     }
   });
 });
-function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; pendingCustomSpotCat = null; }
+function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; }
 document.getElementById("fExpToggle").addEventListener("click", ()=>{
   document.getElementById("fExpFields").style.display = "block";
   document.getElementById("fExpToggle").style.display = "none";
@@ -3707,7 +3630,6 @@ let selectedHoldCategory = "景點";
 
 function renderHoldCatChips(){
   hCategoryChips.innerHTML = "";
-  document.getElementById("hCustomCatForm").style.display = "none";
   getAllSpotCategories().forEach(cat=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (cat===selectedHoldCategory ? " active" : "");
@@ -3716,13 +3638,6 @@ function renderHoldCatChips(){
     hCategoryChips.appendChild(chip);
   });
 }
-document.getElementById("hCustomCatConfirm").addEventListener("click", ()=>{
-  const name = document.getElementById("hCustomCatInput").value.trim();
-  if(!name) return;
-  pendingCustomHoldCat = name;
-  selectedHoldCategory = name;
-  renderHoldCatChips();
-});
 
 function updateHoldTypeUI(){
   checkPlacesStatus("hPlacesStatus"); renderHoldCatChips();
@@ -3744,7 +3659,6 @@ function showHoldForm(h){
   holdEditingId = h ? h.id : null;
   document.getElementById("holdTitle").textContent = h ? "編輯備忘錄" : "新增備忘錄";
   document.getElementById("holdSave").textContent = h ? "儲存" : "新增";
-  pendingCustomHoldCat = (h && h.category && !SPOT_BASE_CATS.includes(h.category)) ? h.category : null;
   selectedHoldType = "spot";   // 不再分「類型」，一律用「類別」；舊的純備註資料編輯時歸到「其他」
   selectedHoldCategory = (h && h.category) ? h.category : (h ? "其他" : "景點");
   document.getElementById("hName").value = h ? h.name : "";
@@ -3811,6 +3725,7 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
 // ================= EXPENSE =================
 let expDisplayCurrency = localStorage.getItem("expDisplayCurrency") || "";
 
+const EXP_CAT_ICON = { "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
 function renderExpense(){
   if(!getActiveTrip()){
     const listWrap = document.getElementById("expList");
@@ -3850,11 +3765,20 @@ function renderExpense(){
     all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary } });
   }
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
-  const total = all.reduce((s,i)=>s+converted(i),0);
+  // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付與結算，只在明細最後面另外列出
+  const isExch = i => (i.expense.category||"")==="兌換";
+  const counted = all.filter(i=>!isExch(i));
+  const exchList = all.filter(isExch);
+  const exchSum = exchList.reduce((s,i)=>s+converted(i),0);
+  const total = counted.reduce((s,i)=>s+converted(i),0);
   document.getElementById("expTotal").textContent = sym+Math.round(total).toLocaleString();
+  const exNote = document.getElementById("expExchNote");
+  exNote.textContent = exchList.length ? `另有兌換 ${sym}${Math.round(exchSum).toLocaleString()}，不計入` : "";
 
-  const cats = {};
-  all.forEach(i=>{ const c=i.expense.category||"其他"; cats[c]=(cats[c]||0)+converted(i); });
+  const cats = {}, catN = {};
+  counted.forEach(i=>{ const c=i.expense.category||"其他"; cats[c]=(cats[c]||0)+converted(i); catN[c]=(catN[c]||0)+1; });
+  // 明細分組的順序：金額大的排前面（影響大的先看），金額相同再看筆數
+  const catRank = Object.keys(cats).map(c=>({c, n:catN[c], amt:cats[c]})).sort((x,y)=> y.amt-x.amt || y.n-x.n);
   const catWrap = document.getElementById("expCats");
   catWrap.innerHTML = "";
   Object.keys(cats).forEach(c=>{
@@ -3870,7 +3794,7 @@ function renderExpense(){
   if(trip && trip.members && trip.members.length){
     const byMember = {};
     trip.members.forEach(m=>{ byMember[m] = 0; });
-    all.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i); });
+    counted.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i); });
     trip.members.forEach(m=>{
       const p = document.createElement("div");
       p.className = "exp-cat-pill";
@@ -3879,7 +3803,7 @@ function renderExpense(){
     });
   }
 
-  renderExpenseSettlement(all, converted, sym, rate, primary, trip);
+  renderExpenseSettlement(counted, converted, sym, rate, primary, trip);
 
   const listWrap = document.getElementById("expList");
   listWrap.innerHTML = "";
@@ -3891,14 +3815,35 @@ function renderExpense(){
     if(a.day!==b.day) return (a.day||"").localeCompare(b.day||"", undefined, {numeric:true});
     return a.order-b.order;
   });
-  sorted.forEach(i=>{
+  // 明細依分類分組（順序同上方分類排行），每組有標題、筆數、小計
+  const expCatOf = i => i.expense.category || "其他";
+  const ordered = [];
+  const groupMeta = [...catRank];
+  if(exchList.length) groupMeta.push({ c:"兌換", n:exchList.length, amt:exchSum, exch:true });
+  groupMeta.forEach(x=> sorted.forEach(i=>{ if(expCatOf(i)===x.c) ordered.push(i); }));
+  let lastGrp = null;
+  ordered.forEach(i=>{
+    const gc = expCatOf(i);
+    if(gc!==lastGrp){
+      lastGrp = gc;
+      const g = groupMeta.find(x=>x.c===gc);
+      const h = document.createElement("div");
+      h.className = "exp-grp" + (g.exch ? " exch" : "");
+      h.innerHTML = `<span>${EXP_CAT_ICON[gc]||"📌"} ${escapeHtml(gc)} · ${g.n} 筆${g.exch ? "（不計入總額）" : ""}</span><span>${sym}${Math.round(g.amt).toLocaleString()}</span>`;
+      listWrap.appendChild(h);
+    }
     const row = document.createElement("div");
     row.className = "exp-item";
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
     const dayTxt = i.type==="expense" ? (i.date || "行程外") : (i.type==="packing" ? "行前" : dayLabel(i.day));
     const payTxt = (i.expense.payer) ? (" · " + i.expense.payer + "付") : "";
-    row.innerHTML = `<div><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)} · ${escapeHtml(i.expense.category||"")}${escapeHtml(payTxt)}</div></div><div class="r">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</div>`;
+    // 金額：粗體＝目前顯示幣別（加起來等於小計和總額）；原幣別不同時，下面用小灰字保留當初記的金額
+    const origCur = i.expense.currency || primaryCurrencyForTrip();
+    const sameCur = origCur===expDisplayCurrency;
+    const amtMain = sym + (sameCur ? Number(i.expense.amount).toLocaleString() : Math.round(converted(i)).toLocaleString());
+    const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
+    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}</div></div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
     row.addEventListener("click", ()=>{
       if(i.type==="expense"){ openExpenseModal(i); return; }
@@ -4040,10 +3985,6 @@ function openExpenseModal(it){
   document.getElementById("eName").value = it ? (it.name||"") : "";
   document.getElementById("eAmount").value = e.amount || "";
   const eCatSel = document.getElementById("eCategory");
-  eCatSel.querySelectorAll("option[data-legacy]").forEach(o=>o.remove());
-  if(e.category && ![...eCatSel.options].some(o=>o.value===e.category)){   // 舊資料（例如「行前準備」）：暫時補一個選項，避免編輯時變空白
-    const lo = document.createElement("option"); lo.value = e.category; lo.textContent = "📌 " + e.category; lo.dataset.legacy = "1"; eCatSel.appendChild(lo);
-  }
   eCatSel.value = e.category || "行前採買";
   setCurrencyChip(eCurrencyChips, it ? e.currency : "TWD");   // 新增時預設新台幣（事前花費多半用台幣付）
   populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), e.payer || "");
@@ -4349,10 +4290,10 @@ const packModalMask = document.getElementById("packModalMask");
 const packCatChips = document.getElementById("packCatChips");
 const packName = document.getElementById("packName");
 const packNote = document.getElementById("packNote");
-const PACKING_BASE_CATS = ["行前辦理","證件","金錢","電子","藥品","盥洗衣物","行李","其他"];   // 行前準備分頁的固定類別
-const packCatOf = i => { const c = i.category || "其他"; return c==="藥妝" ? "藥品" : (c==="出發前要辦" ? "行前辦理" : c); };   // 舊的「藥妝」併進「藥品」、「出發前要辦」改名「行前辦理」   // 舊的「藥妝」併進「藥品」
+const PACKING_BASE_CATS = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子","其他"];   // 行前準備分頁的固定類別
+const packCatOf = i => { let c = i.category || "其他"; if(c === "盥洗衣物") c = "盥洗保養"; return (PACKING_BASE_CATS.includes(c) || SOUVENIR_CATS.includes(c)) ? c : "其他"; };   // 不在固定類別內的一律顯示在「其他」
 const SOUVENIR_CATS = ["伴手禮","紀念品","其他購物"];     // 伴手禮分頁只有這三類（紀念品＝磁鐵、明信片；其他購物＝彩妝、衣服、玩偶）
-const PACKING_CATEGORY_PRIORITY = ["行前辦理","證件","金錢","電子","藥品","盥洗衣物","行李"];
+const PACKING_CATEGORY_PRIORITY = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子"];
 function sortPackingCategories(cats){
   return [...cats].sort((a,b)=>{
     if(a==="其他") return 1;
@@ -4364,26 +4305,14 @@ function sortPackingCategories(cats){
     return pa - pb;
   });
 }
-const PACKING_ICONS = { "行前辦理":"✅", "藥妝":"💊", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "行李":"🧳", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "盥洗衣物":"🧴" };
+const PACKING_ICONS = { "行前辦理":"✅", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "衣物":"👕", "盥洗保養":"🧴" };
 let selectedPackCat = "其他";
 let editingPackId = null;
 
-let pendingCustomPackCat = null;
-
-function getAllPackingCategories(){
-  const custom = [...new Set(
-    items.filter(i=>i.tripId===activeTripId && i.type==="packing" && i.category && i.category!=="藥妝" && i.category!=="出發前要辦" && !PACKING_BASE_CATS.includes(i.category) && !SOUVENIR_CATS.includes(i.category))
-         .map(i=>i.category)
-  )];
-  if(pendingCustomPackCat && !custom.includes(pendingCustomPackCat) && !PACKING_BASE_CATS.includes(pendingCustomPackCat)){
-    custom.push(pendingCustomPackCat);
-  }
-  return [...PACKING_BASE_CATS, ...custom];
-}
+function getAllPackingCategories(){ return [...PACKING_BASE_CATS]; }   // 類別固定
 
 function renderPackCatChips(){
   packCatChips.innerHTML = "";
-  document.getElementById("packCustomCatForm").style.display = "none";
   const inSouvenir = (packingViewMode==="souvenir");
   (inSouvenir ? SOUVENIR_CATS : getAllPackingCategories()).forEach(cat=>{
     const chip = document.createElement("div");
@@ -4393,31 +4322,13 @@ function renderPackCatChips(){
     chip.addEventListener("click", ()=>{ selectedPackCat = cat; renderPackCatChips(); });
     packCatChips.appendChild(chip);
   });
-  const addChip = document.createElement("div");
-  addChip.className = "chip";
-  addChip.style.borderStyle = "dashed";
-  addChip.textContent = "＋ 自訂";
-  addChip.addEventListener("click", ()=>{
-    document.getElementById("packCustomCatForm").style.display = "flex";
-    document.getElementById("packCustomCatInput").value = "";
-    document.getElementById("packCustomCatInput").focus();
-  });
-  // 類別固定，不提供自訂（舊資料已存的自訂類別仍照常顯示）
   document.getElementById("packExpCard").style.display = (!inSouvenir && selectedPackCat==="行前辦理") ? "block" : "none";
 }
-document.getElementById("packCustomCatConfirm").addEventListener("click", ()=>{
-  const name = document.getElementById("packCustomCatInput").value.trim();
-  if(!name) return;
-  pendingCustomPackCat = name;
-  selectedPackCat = name;
-  renderPackCatChips();
-});
 
 function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
   selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他");
-  pendingCustomPackCat = (item && item.category && item.category!=="出發前要辦" && !PACKING_BASE_CATS.includes(item.category) && !SOUVENIR_CATS.includes(item.category)) ? item.category : null;
   renderPackCatChips();
   packName.value = item ? item.name : "";
   packNote.value = item ? (item.note||"") : "";
@@ -4427,8 +4338,8 @@ function openPackModal(item){
   populatePayerSelect(document.getElementById("pExpPayer"), document.getElementById("pPayerWrap"), pe.payer || "");
   packModalMask.classList.add("show");
 }
-document.getElementById("packClose").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); pendingCustomPackCat = null; });
-document.getElementById("packCancel").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); pendingCustomPackCat = null; });
+document.getElementById("packClose").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); });
+document.getElementById("packCancel").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); });
 packModalMask.addEventListener("click",(e)=>{ if(e.target===packModalMask) packModalMask.classList.remove("show"); });
 
 document.getElementById("packSave").addEventListener("click", async ()=>{
@@ -4478,9 +4389,9 @@ const BASIC_PACKING_LIST_CHINA = [
   { category:"藥品", name:"個人常備藥", note:"感冒藥、腸胃藥、止痛藥" },
   { category:"藥品", name:"慢性病處方藥", note:"建議帶中/英文診斷證明" },
   { category:"藥品", name:"暈車暈船藥", note:"長途交通用" },
-  { category:"盥洗衣物", name:"個人盥洗用品", note:"飯店可能不提供牙刷" },
-  { category:"盥洗衣物", name:"依天氣衣物", note:"" },
-  { category:"盥洗衣物", name:"拖鞋、口罩", note:"" },
+  { category:"盥洗保養", name:"個人盥洗用品", note:"飯店可能不提供牙刷" },
+  { category:"衣物", name:"依天氣衣物", note:"" },
+  { category:"衣物", name:"拖鞋、口罩", note:"" },
   { category:"其他", name:"隨身小包", note:"放護照、手機、錢" },
   { category:"其他", name:"保溫瓶", note:"大陸公共場所常有熱水機" },
 ];
@@ -4501,9 +4412,9 @@ const BASIC_PACKING_LIST_JAPAN = [
   { category:"藥品", name:"個人常備藥", note:"感冒藥、腸胃藥、止痛藥" },
   { category:"藥品", name:"慢性病處方藥", note:"建議帶中/英文診斷證明" },
   { category:"藥品", name:"暈車暈船藥", note:"長途交通用" },
-  { category:"盥洗衣物", name:"個人盥洗用品", note:"飯店可能不提供牙刷" },
-  { category:"盥洗衣物", name:"依天氣衣物", note:"" },
-  { category:"盥洗衣物", name:"拖鞋、口罩", note:"" },
+  { category:"盥洗保養", name:"個人盥洗用品", note:"飯店可能不提供牙刷" },
+  { category:"衣物", name:"依天氣衣物", note:"" },
+  { category:"衣物", name:"拖鞋、口罩", note:"" },
   { category:"其他", name:"隨身小包", note:"放護照、手機、錢" },
   { category:"其他", name:"環保袋", note:"部分超商/藥妝店塑膠袋要另外收費" },
 ];
@@ -4518,28 +4429,28 @@ function getSeasonalPackingItems(){
   const month = new Date(trip.startDate+"T00:00:00").getMonth()+1; // 1-12
   if(month>=12 || month<=2){
     return [
-      { category:"盥洗衣物", name:"保暖外套/羽絨衣", note:"冬季體感常比溫度低，注意保暖" },
-      { category:"盥洗衣物", name:"圍巾/手套", note:"" },
-      { category:"盥洗衣物", name:"發熱衣", note:"" },
+      { category:"衣物", name:"保暖外套/羽絨衣", note:"冬季體感常比溫度低，注意保暖" },
+      { category:"衣物", name:"圍巾/手套", note:"" },
+      { category:"衣物", name:"發熱衣", note:"" },
     ];
   }
   if(month>=6 && month<=8){
     return [
-      { category:"盥洗衣物", name:"防曬用品", note:"" },
-      { category:"盥洗衣物", name:"雨具/折疊傘", note:"夏季常有午後雷陣雨" },
-      { category:"盥洗衣物", name:"薄外套", note:"室內冷氣通常很強" },
+      { category:"盥洗保養", name:"防曬用品", note:"" },
+      { category:"其他", name:"雨具/折疊傘", note:"夏季常有午後雷陣雨" },
+      { category:"衣物", name:"薄外套", note:"室內冷氣通常很強" },
     ];
   }
   if(month>=3 && month<=5){
     return [
-      { category:"盥洗衣物", name:"薄外套/長袖", note:"早晚溫差較大" },
-      { category:"盥洗衣物", name:"折疊傘", note:"春季多雨" },
+      { category:"衣物", name:"薄外套/長袖", note:"早晚溫差較大" },
+      { category:"其他", name:"折疊傘", note:"春季多雨" },
     ];
   }
   // 9-11 (秋)
   return [
-    { category:"盥洗衣物", name:"薄長袖/外套", note:"早晚偏涼" },
-    { category:"盥洗衣物", name:"折疊傘", note:"" },
+    { category:"衣物", name:"薄長袖/外套", note:"早晚偏涼" },
+    { category:"其他", name:"折疊傘", note:"" },
   ];
 }
 
@@ -4565,7 +4476,7 @@ async function importBasicPackingList(){
 }
 
 let packingViewMode = "checklist"; // "checklist" | "souvenir"（免費版進採買分頁時自動切到伴手禮）
-let packingCategoryFilter = null;
+let packingCategoryFilter = "all";   // "all"＝全部類別
 let _lastLongPressCard = null;
 
 function setupLongPressReveal(card){
@@ -4670,9 +4581,13 @@ function renderPacking(){
   let cats = packingViewMode==="souvenir" ? SOUVENIR_CATS.filter(c=>arr.some(i=>i.category===c)) : sortPackingCategories(getAllPackingCategories().filter(c=>arr.some(i=>packCatOf(i)===c)));
 
   if(packingViewMode==="checklist" && cats.length>1){
-    if(!cats.includes(packingCategoryFilter)) packingCategoryFilter = cats[0];
+    if(packingCategoryFilter!=="all" && !cats.includes(packingCategoryFilter)) packingCategoryFilter = "all";
     const sel = document.createElement("select");
     sel.style.cssText = "width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--card); margin-bottom:14px;";
+    const allOpt = document.createElement("option");
+    allOpt.value = "all"; allOpt.textContent = `全部（${arr.length}項）`;
+    if(packingCategoryFilter==="all") allOpt.selected = true;
+    sel.appendChild(allOpt);
     cats.forEach(cat=>{
       const count = arr.filter(i=>packCatOf(i)===cat).length;
       const opt = document.createElement("option");
@@ -4682,14 +4597,14 @@ function renderPacking(){
     });
     sel.addEventListener("change", ()=>{ packingCategoryFilter = sel.value; renderPacking(); });
     wrap.appendChild(sel);
-    cats = [packingCategoryFilter];
+    if(packingCategoryFilter!=="all") cats = [packingCategoryFilter];
   }
 
   cats.forEach(cat=>{
     const list = arr.filter(i=>packCatOf(i)===cat).sort((a,b)=>a.order-b.order);
     if(list.length===0) return;
     const checkedCount = list.filter(i=>i.checked).length;
-    if(packingViewMode==="checklist" && cats.length>1){
+    if(packingViewMode==="checklist" && cats.length===1 && packingCategoryFilter!=="all" && arr.length>0 && document.querySelector("#packingView select")){
       // dropdown already shows the category name, skip the redundant header
     } else if(packingViewMode==="checklist" || cats.length>1){
       const header = document.createElement("div");
