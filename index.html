@@ -4784,4 +4784,1942 @@ document.getElementById("tripSelBtn").addEventListener("click", ()=>{
   renderTripListBody();
   tripListMask.classList.add("show");
 });
-document.getElementById("tripListClose").addEventListener("click", ()=>tripListMask.classList.re
+document.getElementById("tripListClose").addEventListener("click", ()=>tripListMask.classList.remove("show"));
+tripListMask.addEventListener("click",(e)=>{ if(e.target===tripListMask) tripListMask.classList.remove("show"); });
+
+function renderTripListBody(){
+  const body = document.getElementById("tripListBody");
+  body.innerHTML = "";
+  trips.forEach(t=>{
+    const row = document.createElement("div");
+    row.className = "hold-card";
+    const range = (t.startDate||t.endDate) ? `<p class="hnote">${escapeHtml(t.startDate||"")} ~ ${escapeHtml(t.endDate||"")}</p>` : "";
+    row.innerHTML = `
+      <p class="hname">${t.id===activeTripId?"✓ ":""}${escapeHtml(t.name)}</p>
+      ${range}
+      <div class="hold-actions">
+        <button class="assign">切換</button>
+        <button class="assign" style="background:var(--bg); color:var(--ink);">✎ 編輯</button>
+        <button class="del">🗑 刪除</button>
+      </div>`;
+    const [switchBtn, editBtn, delBtn] = row.querySelectorAll("button");
+    switchBtn.addEventListener("click", ()=>{
+      activeTripId = t.id;
+      localStorage.setItem("chinaTravelActiveTrip", activeTripId);
+      subscribeFlightForActiveTrip();
+      recomputeDays();
+      renderAll();
+      try{ window.scrollTo(0,0); }catch(e){}
+      tripListMask.classList.remove("show");
+    });
+    editBtn.addEventListener("click", ()=>openTripModal(t));
+    delBtn.addEventListener("click", ()=>deleteTrip(t.id));
+    body.appendChild(row);
+  });
+}
+
+document.getElementById("tripAddBtn").addEventListener("click", ()=>{
+  if(!canCreateTrip()){ showTripQuotaSheet(); return; }
+  openTripModal(null);
+});
+
+function timeOfDayLabel(timeStr){
+  if(!timeStr) return "未定時間";
+  const h = parseInt(timeStr.split(":")[0], 10);
+  if(h < 12) return "早上";
+  if(h < 18) return "下午";
+  return "晚上";
+}
+
+function buildShareText(){
+  const trip = getActiveTrip();
+  const s = flightSettings || {};
+  const lines = [];
+  lines.push(trip ? trip.name : "行程");
+
+  if(s.outFlightNo || s.outFrom){
+    lines.push("");
+    lines.push("✈️ 去程航班");
+    lines.push(`${s.outAirline||""} ${s.outFlightNo||""}　${AIRPORTS[s.outFrom]||s.outFrom||""} ${s.outDepartTime||"--:--"} → ${AIRPORTS[s.outTo]||s.outTo||""} ${s.outArriveTime||"--:--"}`.trim());
+  }
+
+  days.forEach((day, dayIdx)=>{
+    if(tripExpiredLocked(trip) && dayIdx >= FREE_MAX_DAYS) return;   // 到期後第 4 天起不分享
+    if(dayIdx>0){ lines.push(""); lines.push("──────────"); }
+    lines.push("");
+    const dateLabel = computeDateForDay(day);
+    lines.push(`${dayLabel(day)}${dateLabel ? "（"+dateLabel+"）" : ""}`);
+
+    const derived = computeDerivedTimes(day);
+    const arr = effectiveItems(day);
+    if(arr.length===0){ lines.push("（尚未安排）"); return; }
+
+    // Build display rows: each spot gets an optional "(交通方式 約X分)" suffix
+    // from the transport that immediately precedes it.
+    const rows = [];
+    let pendingTransportLabel = null;
+    let spotIndex = 0;
+    arr.forEach(it=>{
+      if(it.type==="transport"){
+        pendingTransportLabel = `${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}`;
+      } else if(it.type==="spot"){
+        const d = derived[it.id] || {};
+        const isFirstSpot = spotIndex===0;
+        const displayTime = isFirstSpot ? (it.departTime || d.arrival || "") : (d.arrival || "");
+        const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
+        rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
+        pendingTransportLabel = null;
+        spotIndex++;
+      }
+    });
+
+    let lastGroup = null;
+    rows.forEach(row=>{
+      const group = timeOfDayLabel(row.time);
+      if(group !== lastGroup){
+        lines.push(`──── ${group} ────`);
+        lastGroup = group;
+      }
+      const timeStr = row.time || "未定";
+      const extras = [row.transport, row.stayInfo].filter(Boolean).join("，");
+      const suffix = extras ? `（${extras}）` : "";
+      lines.push(`${timeStr} ${row.name}${suffix}`);
+      lines.push("");
+    });
+  });
+  if(tripExpiredLocked(trip) && days.length > FREE_MAX_DAYS){
+    lines.push(""); lines.push("（第 "+(FREE_MAX_DAYS+1)+" 天起需升級完整版才能查看）");
+  }
+
+  if(s.retFlightNo || s.retFrom){
+    lines.push("");
+    lines.push("✈️ 回程航班");
+    lines.push(`${s.retAirline||""} ${s.retFlightNo||""}　${AIRPORTS[s.retFrom]||s.retFrom||""} ${s.retDepartTime||"--:--"} → ${AIRPORTS[s.retTo]||s.retTo||""} ${s.retArriveTime||"--:--"}`.trim());
+  }
+
+  return lines.join("\n");
+}
+
+function buildShareHtml(){
+  const trip = getActiveTrip();
+  const s = flightSettings || {};
+  const esc = escapeHtml;
+  const seal = "#2C86AD";
+  let html = `<h1 style="font-size:22px; margin-bottom:2px;">${esc(trip ? trip.name : "行程")}</h1>`;
+
+  if(trip && trip.startDate && trip.endDate){
+    html += `<p style="color:#777; margin:0 0 10px;">${esc(trip.startDate)} ～ ${esc(trip.endDate)}</p>`;
+  }
+  if(trip && trip.notes){
+    html += `<p style="background:#F5F6F8; border-radius:8px; padding:8px 12px; color:#444; font-size:13px; white-space:pre-wrap;">📝 ${esc(trip.notes)}</p>`;
+  }
+
+  if(s.outFlightNo || s.outFrom || s.retFlightNo || s.retFrom){
+    html += `<table style="width:100%; border-collapse:collapse; margin:10px 0 20px;"><tr>`;
+    if(s.outFlightNo || s.outFrom){
+      html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
+        <b>✈️ 去程</b><br>${esc(s.outAirline||"")} ${esc(s.outFlightNo||"")}<br>${esc(AIRPORTS[s.outFrom]||s.outFrom||"")} ${esc(s.outDepartTime||"--:--")} → ${esc(AIRPORTS[s.outTo]||s.outTo||"")} ${esc(s.outArriveTime||"--:--")}
+      </td><td style="width:12px;"></td>`;
+    }
+    if(s.retFlightNo || s.retFrom){
+      html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
+        <b>✈️ 回程</b><br>${esc(s.retAirline||"")} ${esc(s.retFlightNo||"")}<br>${esc(AIRPORTS[s.retFrom]||s.retFrom||"")} ${esc(s.retDepartTime||"--:--")} → ${esc(AIRPORTS[s.retTo]||s.retTo||"")} ${esc(s.retArriveTime||"--:--")}
+      </td>`;
+    }
+    html += `</tr></table>`;
+  }
+
+  days.forEach(day=>{
+    const dateLabel = computeDateForDay(day);
+    html += `<div class="pdf-day" style="background:${seal}; color:#fff; padding:9px 14px; border-radius:8px; font-weight:bold; margin:18px 0 8px;">${esc(day)}${dateLabel ? "（"+esc(dateLabel)+"）" : ""}</div>`;
+    const derived = computeDerivedTimes(day);
+    const arr = effectiveItems(day);
+    if(arr.length===0){ html += "<p>（尚未安排）</p>"; return; }
+
+    const rows = [];
+    let pendingTransportLabel = null;
+    let spotIndex = 0;
+    arr.forEach(it=>{
+      if(it.type==="transport"){
+        pendingTransportLabel = `${TRANSPORT_ICON[it.mode]||""}${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}`;
+      } else if(it.type==="spot"){
+        const d = derived[it.id] || {};
+        const isFirstSpot = spotIndex===0;
+        const displayTime = isFirstSpot ? (it.departTime || d.arrival || "") : (d.arrival || "");
+        const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
+        rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
+        pendingTransportLabel = null;
+        spotIndex++;
+      }
+    });
+
+    const th = (t, w)=>`<th style="text-align:left; padding:7px 6px; font-size:12px; ${w ? "width:"+w+"; " : ""}border-bottom:2px solid ${seal};">${t}</th>`;
+    html += `<table class="pdf-table" style="width:100%; border-collapse:collapse; margin-bottom:6px; table-layout:fixed;">
+      <thead><tr style="background:#EFF2F3;">${th("時間","56px")}${th("地點","17%")}${th("交通","13%")}${th("地址","27%")}${th("備註","")}</tr></thead><tbody>`;
+    rows.forEach((row, idx)=>{
+      const memoLines = [];
+      if(row.stayInfo) memoLines.push(...row.stayInfo.split("，"));   // 「停留…」「…離開」各一行
+      if(row.memo) memoLines.push(row.memo);
+      const memoHtml = memoLines.map(l=>esc(l)).join("<br>");
+      const bg = idx%2===0 ? "#FFFFFF" : "#FAFBFB";
+      const td = "padding:7px 6px; vertical-align:top; border-bottom:1px solid #EEE; word-break:break-all;";
+      html += `<tr style="background:${bg};">
+        <td style="${td} font-size:13px; white-space:nowrap; word-break:normal;"><b>${esc(row.time || "未定")}</b></td>
+        <td style="${td} font-size:13px;">${esc(row.name)}</td>
+        <td style="${td} font-size:12px; color:#555;">${esc(row.transport || "").replace(" 約","<br>約")}</td>
+        <td style="${td} font-size:12px; color:#777;">${esc(row.note || "").replace(/\s+(邮政编码|郵政編碼|郵遞區號)/,"<br>$1")}</td>
+        <td style="${td} font-size:12px; color:#555;">${memoHtml}${row.photo ? `<br><img src="${row.photo}" style="width:90px; border-radius:6px; margin-top:4px;">` : ""}</td>
+      </tr>`;
+    });
+    html += `</tbody>`;
+    html += `</table>`;
+  });
+
+  return html;
+}
+
+function exportItineraryPdf(){
+  const bodyHtml = buildShareHtml();
+  document.getElementById("printArea").innerHTML = bodyHtml;
+  window.print();
+}
+
+const shareModalMask = document.getElementById("shareModalMask");
+document.getElementById("shareTripBtn").addEventListener("click", ()=>shareModalMask.classList.add("show"));
+document.getElementById("shareClose").addEventListener("click", ()=>shareModalMask.classList.remove("show"));
+shareModalMask.addEventListener("click",(e)=>{ if(e.target===shareModalMask) shareModalMask.classList.remove("show"); });
+document.getElementById("shareTextBtn").addEventListener("click", async ()=>{
+  shareModalMask.classList.remove("show");
+  const text = buildShareText();
+  const trip = getActiveTrip();
+  if(navigator.share){
+    try{ await navigator.share({ title: trip ? trip.name : "行程", text }); }
+    catch(e){ /* user cancelled share, ignore */ }
+  } else {
+    try{
+      await navigator.clipboard.writeText(text);
+      travelToast("已複製到剪貼簿");
+    }catch(e){
+      console.error("clipboard write failed", e);
+      alert("無法自動複製，請手動選取以下內容：\n\n"+text);
+    }
+  }
+});
+document.getElementById("sharePdfBtn").addEventListener("click", ()=>{
+  shareModalMask.classList.remove("show");
+  if(needAdvanced("存成 PDF")) return;
+  try{ exportItineraryPdf(); }
+  catch(e){ console.error("export pdf failed", e); travelToast(failMsg("匯出", e)); }
+});
+
+function openTripModal(trip){
+  editingTripId = trip ? trip.id : null;
+  document.getElementById("tripModalTitle").textContent = trip ? "編輯行程" : "新增行程";
+  document.getElementById("trName").value = trip ? trip.name : "";
+  document.getElementById("trStart").value = trip ? (trip.startDate||"") : "";
+  document.getElementById("trEnd").value = trip ? (trip.endDate||"") : "";
+  document.getElementById("trNotes").value = trip ? (trip.notes||"") : "";
+  const region = trip ? (trip.region||"japan") : "japan";
+  document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.toggle("active", c.dataset.v===region));
+  trMembersTemp = trip && trip.members ? [...trip.members] : [];
+  renderMemberChips();
+  tripListMask.classList.remove("show");
+  tripModalMask.classList.add("show");
+}
+document.querySelectorAll("#trRegionChips .chip").forEach(chip=>{
+  chip.addEventListener("click", ()=>{
+    document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.remove("active"));
+    chip.classList.add("active");
+  });
+});
+function renderMemberChips(){
+  trMembersChips.innerHTML = "";
+  trMembersTemp.forEach((m,idx)=>{
+    const chip = document.createElement("div");
+    chip.className = "chip active";
+    chip.textContent = m + " ✕";
+    chip.addEventListener("click", ()=>{ trMembersTemp.splice(idx,1); renderMemberChips(); });
+    trMembersChips.appendChild(chip);
+  });
+}
+document.getElementById("trAddMemberBtn").addEventListener("click", ()=>{
+  const name = trNewMember.value.trim();
+  if(!name) return;
+  trMembersTemp.push(name);
+  trNewMember.value = "";
+  renderMemberChips();
+});
+document.getElementById("tripModalClose").addEventListener("click", ()=>tripModalMask.classList.remove("show"));
+document.getElementById("trCancel").addEventListener("click", ()=>tripModalMask.classList.remove("show"));
+tripModalMask.addEventListener("click",(e)=>{ if(e.target===tripModalMask && !firstTripFlow) tripModalMask.classList.remove("show"); });
+
+document.getElementById("trSave").addEventListener("click", async ()=>{
+  const name = document.getElementById("trName").value.trim();
+  if(!name){ travelToast("請輸入行程名稱"); document.getElementById("trName").focus(); return; }
+  const _s = document.getElementById("trStart").value, _e = document.getElementById("trEnd").value;
+  if(_s && _e && _e < _s){ travelToast("結束日不能早於開始日，請重新選擇"); return; }
+  const selectedRegion = document.querySelector("#trRegionChips .chip.active")?.dataset.v || "japan";
+  const data = {
+    name, startDate: document.getElementById("trStart").value, endDate: document.getElementById("trEnd").value,
+    members: trMembersTemp, region: selectedRegion, notes: document.getElementById("trNotes").value.trim()
+  };
+  try{
+    if(editingTripId){
+      // 免費版的行程最多 3 天
+      var _et = trips.find(function(t){ return t.id===editingTripId; });
+      if(isFreePlan() && _et && !tripExpiredLocked(_et) && tripSpanDays(data.startDate, data.endDate) > FREE_MAX_DAYS){
+        showAdvancedSheet("建立超過 3 天的行程"); return;
+      }
+      await db.collection(TRIPS_COLLECTION).doc(editingTripId).update(data);
+    } else {
+      // 先開試用再蓋 tier：第一個行程算在試用期內（試用結束後前 3 天可看，第 4 天起升級才能看）。
+      // 第一個行程建立時才開始算 14 天試用
+      const startedNow = await startTrialIfNeeded();
+      data.tier = currentTier();
+      if(!isAdminUser){
+        if(data.tier === "trial" && trips.filter(function(t){ return t.tier==="trial"; }).length >= TRIAL_MAX_TRIPS){
+          showAdvancedSheet("建立更多行程"); return;
+        }
+        if(data.tier === "free"){
+          if(trips.filter(function(t){ return t.tier==="free"; }).length >= FREE_MAX_TRIPS){
+            showAdvancedSheet("建立更多行程"); return;
+          }
+          if(tripSpanDays(data.startDate, data.endDate) > FREE_MAX_DAYS){
+            showAdvancedSheet("建立超過 3 天的行程"); return;
+          }
+        }
+      }
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const ref = await db.collection(TRIPS_COLLECTION).add(data);
+      activeTripId = ref.id;
+      localStorage.setItem("chinaTravelActiveTrip", activeTripId);
+      await bumpTripsCreated();
+      if(startedNow){
+        setTimeout(function(){
+          alert("🎉 開始 "+TRAVEL_TRIAL_DAYS+" 天完整試用\n\n到 "+myExpiry+" 為止，可建立 "+TRIAL_MAX_TRIPS+" 個行程，所有功能開放。");
+        }, 400);
+      }
+    }
+    // hideFirstTripScreen() runs automatically via the trips listener once
+    // the new trip doc arrives; only close manually when not in that flow.
+    if(!firstTripFlow){ tripModalMask.classList.remove("show"); }
+  }catch(e){ console.error("save trip failed", e); travelToast(failMsg("儲存", e)); }
+});
+
+async function deleteTrip(id){
+  if(trips.length<=1){ travelToast("至少要保留一個行程，無法刪除"); return; }
+  const t = trips.find(x=>x.id===id);
+  if(!isAdminUser && !isPaidPlan(myPlan) && myPlan!=="trial"){ travelToast("免費版不能刪除行程，升級完整版後才可刪除"); return; }
+  if(!await askConfirm("刪除「"+(t?t.name:"")+"」", "裡面的行程、花費資料也會一併刪除，此動作無法復原。", "刪除")) return;
+  try{
+    const snap = await db.collection(COLLECTION).where("ownerEmail","==",myOwnerEmail()).where("tripId","==",id).get();
+    const batch = db.batch();
+    snap.forEach(doc=>batch.delete(doc.ref));
+    batch.delete(db.collection(COLLECTION).doc("flight_"+id));
+    await batch.commit();
+    await db.collection(TRIPS_COLLECTION).doc(id).delete();
+    if(activeTripId===id){
+      activeTripId = null;
+      localStorage.removeItem("chinaTravelActiveTrip");
+    }
+    renderTripListBody();
+  }catch(e){ console.error("delete trip failed", e); travelToast(failMsg("刪除", e)); }
+}
+
+// ===== PWA：註冊 Service Worker（離線快取＋偵測新版）=====
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      reg.addEventListener('updatefound', function(){
+        var nw=reg.installing; if(!nw) return;
+        nw.addEventListener('statechange', function(){
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            var ub=document.getElementById('updateBar'); if(ub) ub.style.display='flex';
+          }
+        });
+      });
+    }).catch(function(){});
+    // 只有按了「立即更新」才重載：第一次裝 sw.js 也會觸發 controllerchange，
+    // 無條件重載可能打斷收信登入（登入連結只能用一次）
+    var _reloaded=false, _updateAsked=false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if(!_updateAsked || _reloaded) return; _reloaded=true; window.location.reload();
+    });
+    var ubtn=document.getElementById('updateBtn');
+    if(ubtn) ubtn.addEventListener('click', function(){
+      _updateAsked=true;
+      navigator.serviceWorker.getRegistration().then(function(reg){
+        if(reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+      });
+      var ub=document.getElementById('updateBar'); if(ub) ub.style.display='none';
+    });
+  });
+}
+
+// ===== 確認視窗（Promise 版，取代原生 confirm）=====
+function askConfirm(title, msg, okText){
+  return confirmDialog({ title:title, message:msg, okText:okText||"確定", accent:"#2C86AD" });
+}
+
+// ===== 失敗訊息：真的斷線才叫人檢查網路，其他原因不要誤導 =====
+function failMsg(what, err){
+  var code = String((err && (err.code || err.message)) || "");
+  if((typeof navigator!=="undefined" && navigator.onLine===false)
+     || /unavailable|network|timeout|deadline|offline/i.test(code)){
+    return what + "失敗，請檢查網路連線";
+  }
+  if(/permission|denied|unauthenticated/i.test(code)) return what + "失敗，請重新登入再試一次";
+  return what + "失敗，請稍後再試";
+}
+
+// ===== 小提示 =====
+function travelToast(msg, ms){
+  var el=document.getElementById('_tToast');
+  if(!el){
+    el=document.createElement('div'); el.id='_tToast';
+    el.style.cssText='position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(45,50,56,.94);color:#fff;font-size:13px;line-height:1.5;padding:11px 18px;border-radius:999px;z-index:9999;pointer-events:none;transition:opacity .2s;';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg; el.style.opacity='1';
+  el.style.maxWidth='84%'; el.style.textAlign='center'; el.style.lineHeight='1.5';
+  clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity='0'; }, ms||1800);
+}
+
+// 旅遊：返回鍵一層一層往回的順序
+function appHandleBack(){
+  if(window.closeTopSharedOverlay && closeTopSharedOverlay()) return true;    // 條款／升級／備份／訂閱等共用彈窗
+  var masks=document.querySelectorAll('.modal-mask.show');
+  if(masks.length){ masks[masks.length-1].classList.remove('show'); return true; }   // 最上層彈窗
+  if(typeof settingsOpen==='function' && settingsOpen()){ closeSettings(); return true; }  // 設定頁
+  var main=document.getElementById('mainScreen');
+  if(!main || main.style.display==='none') return false;                      // 還在登入頁 → 離開
+  if(currentTab!=='itinerary'){                                               // 其他分頁（含地圖）→ 回行程
+    currentTab='itinerary';
+    renderAll();   // 反白統一由 renderAll 負責，底部與頂部地圖都會跟著更新
+    return true;
+  }
+  return false;                                                               // 行程首頁 → 提示再按一次
+}
+
+/* ===== 手機返回鍵（智在生活 Standard，四支 App 同一套）===== */
+(function(){
+  if(!window.history || !history.pushState) return;
+  var _exitArmed=false, _exitTimer=null;
+  function pushGuard(){ try{ history.pushState({haGuard:1}, ''); }catch(e){} }
+  pushGuard();
+  window.addEventListener('popstate', function(){
+    if(_exitArmed) return;
+    var handled=false;
+    try{ handled = appHandleBack(); }catch(e){ handled=false; }
+    if(handled){ pushGuard(); return; }
+    _exitArmed=true;
+    travelToast("再按一次返回鍵離開");
+    clearTimeout(_exitTimer);
+    _exitTimer=setTimeout(function(){ _exitArmed=false; pushGuard(); }, 2000);
+  });
+})();
+
+/* ==================== 訂閱管理（跨 App 共用模組）====================
+   四個 App 共用同一份程式碼，只有 SUBS_APPS 這張表要一致。
+   權限由 Firebase 規則擋（只認 mp65p@hotmail.com），前端只是介面。
+   ==================================================================== */
+(function(){
+  var SUBS_APPS = [
+    { id:'cal',  icon:'📅', name:'生活管家', path:'subscribers/' },
+    { id:'cook', icon:'🍳', name:'食在料理', path:'jiachangzhu_subscribers/' },
+    { id:'trv',  icon:'✈️', name:'旅遊計畫', path:'travel_subscribers/' },
+    { id:'crm',  icon:'👥', name:'客戶管理', path:'crm_subscribers/' }
+  ];
+  var PLAN_TXT = { trial:'試用', full:'完整版', basic:'完整版', family:'完整版', free:'免費版' };
+  // 沒有免費版的 App：試用到期轉唯讀，後台不提供「改為免費版」，到期顯示為「已到期」
+  var NO_FREE_APPS = { crm:true };
+  function planText(appId, plan){ return (plan==='free' && NO_FREE_APPS[appId]) ? '已到期' : (PLAN_TXT[plan]||plan); }
+  function devLimit(p){ return (p==='full'||p==='basic'||p==='family'||p==='trial') ? 3 : 1; }
+
+  var S = { data:{}, tab:'all', q:'', loading:false, sel:null, selApp:null,
+            addPlan:'full', addMonths:12, addApp:'crm' };
+
+  /* ---------- 小工具 ---------- */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  // 必須跟 Firebase 規則一致：email.toLowerCase().replace('.','_')
+  function eKey(e){ return String(e||'').toLowerCase().replace(/[.#$\[\]]/g,'_'); }
+  function isMail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
+  function ymd(ts){ var d=new Date(ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function slash(s){ return String(s||'').replace(/-/g,'/'); }
+  function addMonths(ts, m){ var d=new Date(ts); var day=d.getDate();
+    d.setMonth(d.getMonth()+m);
+    if(d.getDate()<day) d.setDate(0);   // 1/31 +1月 → 2/28，不要跳到 3/3
+    return d.getTime(); }
+  function toast(msg){
+    var t=document.getElementById('subsToast');
+    if(!t){ t=document.createElement('div'); t.id='subsToast';
+      t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:rgba(32,38,44,.94);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;z-index:10005;opacity:0;transition:opacity .2s;pointer-events:none;max-width:86vw;text-align:center;';
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(t._tm); t._tm=setTimeout(function(){ t.style.opacity='0'; }, 2000);
+  }
+  function fail(act, err){
+    if(!navigator.onLine) return act+'失敗，請確認網路後再試';
+    var c=(err&&(err.code||err.message))||'';
+    if(/permission|denied|auth/i.test(c)) return act+'失敗，請重新登入後再試';
+    return act+'失敗，請稍後再試';
+  }
+  function confirmBox(msg, onOk){
+    if(window.showConfirm) return window.showConfirm(msg, onOk);
+    if(window.askConfirm){ var r=window.askConfirm(msg); if(r&&r.then){ r.then(function(ok){ if(ok) onOk(); }); return; } }
+    if(confirm(msg)) onOk();
+  }
+
+  /* ---------- 狀態判讀 ---------- */
+  function stat(sub){
+    if(!sub) return null;
+    var now=Date.now();
+    var exp = sub.expiry ? Date.parse(sub.expiry+'T23:59:59') : 0;
+    var expired = !!(exp && now>exp);
+    var days = exp ? Math.ceil((exp-now)/86400000) : null;
+    return { plan: expired?'free':(sub.plan||'free'), rawPlan:sub.plan||'free',
+             expiry:sub.expiry||'', expired:expired, days:days,
+             disabled: sub.status==='disabled', raw:sub };
+  }
+  function statHtml(st, appId){
+    if(!st) return '<span class="subs-stat subs-none">－</span>';
+    if(st.disabled) return '<span class="subs-stat subs-gray">已停用</span>';
+    var name = planText(appId, st.rawPlan);
+    if(st.expired) return '<span class="subs-stat subs-bad">已過期 · 過期 '+Math.abs(st.days)+' 天</span>';
+    if(st.days==null) return '<span class="subs-stat subs-gray">'+name+'</span>';
+    if(st.days<=7)  return '<span class="subs-stat subs-bad">'+name+' · 剩 '+st.days+' 天</span>';
+    if(st.days<=30) return '<span class="subs-stat subs-warn">'+name+' · 剩 '+st.days+' 天</span>';
+    return '<span class="subs-stat subs-ok">'+name+' · '+slash(st.expiry)+'</span>';
+  }
+
+  /* ---------- 讀取 ---------- */
+  async function load(){
+    S.loading=true; render();
+    var out={};
+    for(var i=0;i<SUBS_APPS.length;i++){
+      var a=SUBS_APPS[i];
+      try{ var snap=await firebase.database().ref(a.path).once('value'); out[a.id]=snap.val()||{}; }
+      catch(e){ out[a.id]=null; }
+    }
+    S.data=out; S.loading=false; render();
+  }
+  function rows(){
+    var map={};
+    SUBS_APPS.forEach(function(a){
+      var d=S.data[a.id]; if(!d) return;
+      Object.keys(d).forEach(function(k){
+        if(!map[k]) map[k]={ key:k, email:'', apps:{} };
+        var s=d[k]||{};
+        if(!map[k].email) map[k].email = s.email || k;
+        map[k].apps[a.id]=s;
+      });
+    });
+    var arr=Object.keys(map).map(function(k){ return map[k]; });
+    // 篩選
+    var q=S.q.trim().toLowerCase();
+    if(q) arr=arr.filter(function(r){ return (r.email+' '+r.key).toLowerCase().indexOf(q)>=0; });
+    if(S.tab==='soon'){
+      arr=arr.filter(function(r){
+        return SUBS_APPS.some(function(a){
+          var st=stat(r.apps[a.id]);
+          return st && !st.disabled && st.days!=null && st.days<=30 && st.days>-30;
+        });
+      });
+      arr.sort(function(x,y){ return minDays(x)-minDays(y); });
+    } else if(S.tab!=='all'){
+      arr=arr.filter(function(r){ return !!r.apps[S.tab]; });
+      arr.sort(function(x,y){ return String(x.email).localeCompare(String(y.email)); });
+    } else {
+      arr.sort(function(x,y){ return String(x.email).localeCompare(String(y.email)); });
+    }
+    return arr;
+  }
+  function minDays(r){
+    var m=99999;
+    SUBS_APPS.forEach(function(a){ var st=stat(r.apps[a.id]);
+      if(st && st.days!=null && st.days<m) m=st.days; });
+    return m;
+  }
+
+  /* ---------- 畫面 ---------- */
+  function render(){
+    var body=document.getElementById('subsBody'); if(!body) return;
+    var cnt=document.getElementById('subsCount');
+    document.querySelectorAll('.subs-tab').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-tab')===S.tab); });
+
+    if(S.loading){ body.innerHTML='<div class="subs-empty">載入中…</div>'; if(cnt) cnt.textContent=''; return; }
+
+    var bad=SUBS_APPS.filter(function(a){ return S.data[a.id]===null; });
+    var warn = bad.length ? '<div class="subs-empty" style="padding:14px;color:#c0392b;font-size:13px">'+
+      esc(bad.map(function(a){return a.name;}).join('、'))+' 讀取失敗，請確認網路或 Firebase 規則</div>' : '';
+
+    var arr=rows();
+    if(cnt) cnt.textContent='共 '+arr.length+' 位';
+    if(!arr.length){
+      body.innerHTML = warn + '<div class="subs-empty">📭<br>'+
+        (S.q ? '找不到「'+esc(S.q)+'」' : S.tab==='soon' ? '沒有快到期的客戶' : '還沒有客戶')+
+        '<br><span style="font-size:13px">'+(S.q?'換個關鍵字試試':'有人付款後，按下面的「新增客戶」')+'</span></div>';
+      return;
+    }
+    var only = (S.tab==='all'||S.tab==='soon') ? null : S.tab;
+    body.innerHTML = warn + arr.map(function(r){
+      var lines = SUBS_APPS.filter(function(a){ return !only || a.id===only; }).map(function(a){
+        var st=stat(r.apps[a.id]);
+        return '<div class="subs-line" data-k="'+esc(r.key)+'" data-a="'+a.id+'">'+
+               '<span class="subs-ico">'+a.icon+'</span>'+
+               '<span class="subs-app">'+a.name+'</span>'+
+               statHtml(st, a.id)+
+               '<span class="subs-arrow">›</span></div>';
+      }).join('');
+      return '<div class="subs-card"><div class="subs-email">'+esc(r.email)+'</div>'+
+             '<div class="subs-key">'+esc(r.key)+'</div>'+lines+'</div>';
+    }).join('');
+
+    body.querySelectorAll('.subs-line').forEach(function(el){
+      el.onclick=function(){ openManage(el.getAttribute('data-k'), el.getAttribute('data-a')); };
+    });
+  }
+
+  /* ---------- 新增 ---------- */
+  /* 開通只有一種情境：有人付錢了。
+     試用是 App 自己開的、免費版是試用到期自動轉的，都不需要手動建立，
+     所以這裡不給方案選項，一律開完整版。 */
+  function openAdd(){
+    S.addMonths=12; S.addApp = (S.tab!=='all'&&S.tab!=='soon') ? S.tab : 'crm';
+    sheet(addHtml());
+    wireAdd();
+  }
+  function addHtml(){
+    return '<div class="subs-sh-title">開通完整版</div>'+
+      '<div class="subs-sh-sub">有人付款後用這個開通</div>'+
+      '<div class="subs-label">哪個 App</div>'+
+      '<div class="subs-chips" id="ax">'+SUBS_APPS.map(function(a){
+        return '<button type="button" class="subs-chip'+(a.id===S.addApp?' on':'')+'" data-v="'+a.id+'">'+a.icon+' '+a.name+'</button>';
+      }).join('')+'</div>'+
+      '<div class="subs-label">客戶 Email</div>'+
+      '<input type="email" class="subs-input" id="aEmail" placeholder="linda@gmail.com" autocomplete="off" inputmode="email">'+
+      '<div class="subs-label">期間</div>'+
+      '<div class="subs-chips" id="am">'+
+        '<button type="button" class="subs-chip on" data-v="12">一年</button>'+
+        '<button type="button" class="subs-chip" data-v="24">兩年</button>'+
+      '</div>'+
+      '<div class="subs-calc" id="aCalc"></div>'+
+      '<button type="button" class="subs-primary" id="aGo">確定開通</button>'+
+      '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">取消</button>';
+  }
+  function wireAdd(){
+    var em=document.getElementById('aEmail');
+    function chips(id, set){
+      var box=document.getElementById(id); if(!box) return;
+      box.querySelectorAll('.subs-chip').forEach(function(b){
+        b.onclick=function(){
+          box.querySelectorAll('.subs-chip').forEach(function(x){ x.classList.remove('on'); });
+          b.classList.add('on'); set(b.getAttribute('data-v')); calc();
+        };
+      });
+    }
+    chips('ax', function(v){ S.addApp=v; });
+    chips('am', function(v){ S.addMonths=Number(v); });
+    if(em) em.addEventListener('input', calc);
+    calc();
+    document.getElementById('aGo').onclick=doAdd;
+
+    function calc(){
+      var c=document.getElementById('aCalc'); if(!c) return;
+      var v=(em&&em.value||'').trim().toLowerCase();
+      c.innerHTML = '資料位置　<b>'+(v?esc(eKey(v)):'—')+'</b><br>到期日　　<b>'+
+                    slash(ymd(addMonths(Date.now(), S.addMonths)))+'</b>';
+    }
+  }
+  async function doAdd(){
+    var em=document.getElementById('aEmail'), btn=document.getElementById('aGo');
+    var v=(em&&em.value||'').trim().toLowerCase();
+    if(!isMail(v)){ toast('Email 格式不正確'); if(em) em.focus(); return; }
+    var app=SUBS_APPS.filter(function(a){ return a.id===S.addApp; })[0];
+    var key=eKey(v), now=Date.now();
+    var exp=ymd(addMonths(now, S.addMonths));
+    btn.disabled=true; btn.textContent='處理中…';
+    try{
+      var ref=firebase.database().ref(app.path+key);
+      var snap=await ref.once('value');
+      if(snap.val()){
+        // 已經有帳號（多半是試用中的人付錢了）→ 只升級方案與到期日，
+        // 不動 devices / clientsCreated，他既有的資料與裝置都保留
+        await ref.update({ plan:'full', expiry:exp, status:'active', deviceLimit:devLimit('full') });
+        toast('已升級　'+app.name+'　完整版　至 '+slash(exp));
+      } else {
+        var rec = { email:v, plan:'full', expiry:exp, status:'active',
+                    deviceLimit:devLimit('full'), createdAt:now, lastSeen:now, devices:{} };
+        if(app.id === 'crm') rec.clientsCreated = 0;   // CRM 的記錄有這個欄位，缺了會跟 App 自建的格式不一致
+        await ref.set(rec);
+        toast('已開通　'+app.name+'　完整版　至 '+slash(exp));
+      }
+      closeSheet(); await load();
+    }catch(e){ toast(fail('開通', e)); btn.disabled=false; btn.textContent='確定開通'; }
+  }
+  /* ---------- 管理單一客戶 ---------- */
+  function openManage(key, appId){
+    S.sel=key; S.selApp=appId;
+    var app=SUBS_APPS.filter(function(a){ return a.id===appId; })[0];
+    var sub=(S.data[appId]||{})[key];
+    var st=stat(sub);
+    var email=(sub&&sub.email)||key;
+
+    if(!sub){
+      sheet('<div class="subs-sh-title">'+esc(email)+'</div>'+
+        '<div class="subs-sh-sub">'+app.icon+' '+app.name+'　尚未開通</div>'+
+        '<button type="button" class="subs-primary" id="mNew">開通完整版一年</button>'+
+        '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">關閉</button>');
+      document.getElementById('mNew').onclick=function(){
+        S.addApp=appId; S.addPlan='full'; S.addMonths=12;
+        sheet(addHtml()); wireAdd();
+        var e=document.getElementById('aEmail'); if(e){ e.value=email; e.dispatchEvent(new Event('input')); }
+      };
+      return;
+    }
+    var used=Object.keys(sub.devices||{}).length;
+    var isPaid = (st.rawPlan==='full'||st.rawPlan==='basic'||st.rawPlan==='family');
+    sheet(
+      '<div class="subs-sh-title">'+esc(email)+'</div>'+
+      '<div class="subs-sh-sub">'+app.icon+' '+app.name+'　'+
+        (st.expiry ? planText(app.id, st.rawPlan)+' · '+slash(st.expiry) : planText(app.id, st.rawPlan))+
+        '</div>'+
+      '<button type="button" class="subs-primary" id="mRenew">續約一年</button>'+
+      (isPaid && !NO_FREE_APPS[app.id] ? '<div class="subs-label">取消付費</div>'+
+        '<div class="subs-chips" id="mp">'+
+          '<button type="button" class="subs-chip" data-v="free">改為免費版</button>'+
+        '</div>' : '')+
+      '<div class="subs-label">延長</div>'+
+      '<div class="subs-chips" id="me">'+
+        '<button type="button" class="subs-chip" data-v="1">＋1 月</button>'+
+        '<button type="button" class="subs-chip" data-v="12">＋1 年</button>'+
+        '<button type="button" class="subs-chip" data-v="ask">自訂…</button>'+
+      '</div>'+
+      '<div class="subs-row2"><span>裝置</span><span class="v">'+used+' / '+(sub.deviceLimit||devLimit(st.rawPlan))+'</span>'+
+        '<button type="button" class="subs-mini" id="mDev">清除</button></div>'+
+      '<div class="subs-row2"><span>狀態</span><span class="v">'+(st.disabled?'已停用':'啟用中')+'</span>'+
+        '<button type="button" class="subs-mini" id="mTog">'+(st.disabled?'恢復':'停用')+'</button></div>'+
+      '<button type="button" class="subs-ghost" onclick="subsAdmin.closeSheet()">關閉</button>'+
+      '<button type="button" class="subs-danger" id="mDel">清除訂閱紀錄</button>'
+    );
+
+    var path=app.path+key;
+    document.getElementById('mRenew').onclick=function(){ extend(path, 12); };
+    document.getElementById('me').querySelectorAll('.subs-chip').forEach(function(b){
+      b.onclick=function(){
+        var v=b.getAttribute('data-v');
+        if(v==='ask'){ var m=prompt('延長幾個月？','12'); if(m===null) return;
+          m=parseInt(m,10); if(!m||m<1){ toast('請輸入 1 以上的數字'); return; } extend(path, m); }
+        else extend(path, Number(v));
+      };
+    });
+    var mpBox=document.getElementById('mp');
+    if(mpBox) mpBox.querySelectorAll('.subs-chip').forEach(function(b){
+      b.onclick=function(){
+        confirmBox('把這位客戶改回免費版？\n付費功能會立刻鎖住，資料保留。', function(){
+          changePlan(path, 'free');
+        });
+      };
+    });
+    document.getElementById('mDev').onclick=function(){
+      confirmBox('清除這位客戶的裝置紀錄？\n他需要重新登入。', async function(){
+        try{ await firebase.database().ref(path+'/devices').remove(); toast('已清除裝置'); closeSheet(); await load(); }
+        catch(e){ toast(fail('清除', e)); }
+      });
+    };
+    document.getElementById('mTog').onclick=async function(){
+      var next = st.disabled ? 'active' : 'disabled';
+      try{ await firebase.database().ref(path+'/status').set(next);
+        toast(next==='disabled'?'已停用':'已恢復'); closeSheet(); await load(); }
+      catch(e){ toast(fail('更新', e)); }
+    };
+    document.getElementById('mDel').onclick=function(){
+      confirmBox('清除「'+email+'」在'+app.name+'的訂閱紀錄？\n\n客戶的 App 資料會保留，之後重新開通即可接續使用。', async function(){
+        try{ await firebase.database().ref(path).remove(); toast('已清除訂閱紀錄'); closeSheet(); await load(); }
+        catch(e){ toast(fail('清除', e)); }
+      });
+    };
+  }
+
+  // 續約：從「原到期日」往後加，已過期才從今天算，剩餘天數不會被吃掉
+  async function extend(path, months){
+    try{
+      var snap=await firebase.database().ref(path+'/expiry').once('value');
+      var cur=snap.val(), now=Date.now();
+      var base = cur ? Math.max(Date.parse(cur+'T23:59:59'), now) : now;
+      var next = ymd(addMonths(base, months));
+      await firebase.database().ref(path).update({ expiry:next, status:'active' });
+      toast('已延長至 '+slash(next));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('續約', e)); }
+  }
+  async function changePlan(path, plan){
+    try{
+      var up={ plan:plan, deviceLimit:devLimit(plan) };
+      if(plan==='free') up.expiry='';
+      await firebase.database().ref(path).update(up);
+      toast('已改成 '+(PLAN_TXT[plan]||plan));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('修改', e)); }
+  }
+
+  /* ---------- 容器 ---------- */
+  function sheet(html){
+    var w=document.getElementById('subsSheet');
+    w.querySelector('.subs-sheet').innerHTML=html;
+    w.classList.add('on');
+  }
+  function closeSheet(){ var w=document.getElementById('subsSheet'); if(w) w.classList.remove('on'); }
+
+  function mount(){
+    if(document.getElementById('subsPage')) return;
+    var tabs='<button type="button" class="subs-tab on" data-tab="all">全部</button>'+
+      '<button type="button" class="subs-tab" data-tab="soon">⚠️ 快到期</button>'+
+      SUBS_APPS.map(function(a){ return '<button type="button" class="subs-tab" data-tab="'+a.id+'">'+a.icon+' '+a.name+'</button>'; }).join('');
+    var d=document.createElement('div');
+    d.innerHTML=
+      '<div id="subsPage">'+
+        '<div class="subs-head"><button type="button" class="subs-back" onclick="subsAdmin.close()">‹ 返回</button>'+
+          '<span class="subs-title">訂閱管理</span><span class="subs-count" id="subsCount"></span></div>'+
+        '<div class="subs-tools">'+
+          '<input type="search" class="subs-search" id="subsQ" placeholder="搜尋 Email" autocomplete="off">'+
+          '<div class="subs-tabs">'+tabs+'</div>'+
+        '</div>'+
+        '<div class="subs-body" id="subsBody"></div>'+
+        '<button type="button" class="subs-fab" onclick="subsAdmin.add()">＋ 新增客戶</button>'+
+      '</div>'+
+      '<div id="subsSheet" onclick="if(event.target===this)subsAdmin.closeSheet()"><div class="subs-sheet"></div></div>';
+    while(d.firstChild) document.body.appendChild(d.firstChild);
+    document.getElementById('subsQ').addEventListener('input', function(e){ S.q=e.target.value; render(); });
+    document.querySelectorAll('.subs-tab').forEach(function(b){
+      b.onclick=function(){ S.tab=b.getAttribute('data-tab'); render(); };
+    });
+  }
+
+  window.subsAdmin={
+    open: function(){ mount(); document.getElementById('subsPage').classList.add('on'); load(); },
+    close: function(){ closeSheet(); var p=document.getElementById('subsPage'); if(p) p.classList.remove('on'); },
+    add: openAdd,
+    closeSheet: closeSheet,
+    _s: S
+  };
+})();
+
+/* ==================== 付款說明卡（四個 App 共用）====================
+   藍新「快速收款連結」拿到後，把該 App 的 url 填進 PAY_LINKS 即可，
+   其餘都不用動。留空時會顯示「請聯繫客服」。
+   ==================================================================== */
+(function(){
+  var PAY_LINKS = {
+    cal:  '',   // 行事曆   $990／年
+    cook: '',   // 食在料理 $990／年
+    trv:  '',   // 旅遊計畫 $990／年
+    crm:  ''    // 客戶管理 $6,000／年（早鳥）
+  };
+  var LINE_URL = 'https://lin.ee/DwhMLJm';
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function tip(msg){
+    var t=document.getElementById('payTip');
+    if(!t){ t=document.createElement('div'); t.id='payTip';
+      t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:rgba(32,38,44,.94);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;z-index:10050;opacity:0;transition:opacity .2s;pointer-events:none;';
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(t._tm); t._tm=setTimeout(function(){ t.style.opacity='0'; },1800);
+  }
+
+  /* opts: { app:'crm', email:'...', price:6000, per:500, accent:'#4A7A9B', note:'早鳥價' } */
+  window.payCardHtml = function(opts){
+    var o=opts||{}, ac=o.accent||'#E8735C';
+    var mail=o.email||'';
+    var per = o.per ? '<div style="color:#6B7280;font-size:13px;margin-top:4px">平均每月約 $'+o.per+'</div>' : '';
+    var badge = o.note ? '<span style="background:'+ac+';color:#fff;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;margin-left:8px;vertical-align:middle">'+esc(o.note)+'</span>' : '';
+    return '<div id="payCard" data-app="'+esc(o.app||'')+'" data-ac="'+ac+'" style="border:2px solid '+ac+';border-radius:16px;padding:18px;margin-top:18px;background:#fff">'+
+      '<div style="font-size:15px;font-weight:800;color:#2E2E33">完整版'+badge+'</div>'+
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">'+
+        '<span style="font-size:34px;font-weight:900;color:'+ac+';letter-spacing:-.5px">$'+Number(o.price||0).toLocaleString()+'</span>'+
+        '<span style="color:#8A8A93;font-size:14px">/年</span></div>'+ per +
+      '<div style="background:#F6F7F9;border-radius:12px;padding:13px;margin-top:15px">'+
+        '<div style="font-size:12px;color:#7b8794;margin-bottom:6px">帳號資訊</div>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div id="payMail" style="flex:1;font-size:14px;font-weight:700;color:#2E2E33;word-break:break-all">'+esc(mail||'（請先登入）')+'</div>'+
+          (mail?'<button type="button" id="payCopy" style="flex:none;border:1px solid #dfe3e8;background:#fff;color:#5a6a78;border-radius:8px;padding:7px 12px;font-size:12px;font-family:inherit;min-height:36px">複製</button>':'')+
+        '</div>'+
+        '<div style="font-size:12px;color:#B45309;line-height:1.65;margin-top:10px">⚠️ 付款時請於「電子郵件」欄填寫上方信箱，以利帳號開通。</div>'+
+      '</div>'+
+      '<label for="payAgree" style="display:flex;gap:9px;align-items:flex-start;margin-top:15px;font-size:12px;line-height:1.65;color:#39423C;cursor:pointer">'+
+        '<input type="checkbox" id="payAgree" style="flex:none;width:18px;height:18px;margin-top:1px;accent-color:'+ac+'">'+
+        '<span>我了解本服務提供免費試用，並同意付款開通後不適用七日猶豫期、恕不退費。'+
+          '<a href="javascript:void(0)" id="payTerms" style="color:'+ac+';text-decoration:underline">付款與退款說明</a></span>'+
+      '</label>'+
+      '<button type="button" id="payGo" disabled style="width:100%;border:none;background:#C8CFD6;color:#fff;border-radius:12px;padding:15px;font-size:16px;font-weight:800;margin-top:12px;min-height:50px;font-family:inherit;cursor:not-allowed">前往付款</button>'+
+      '<div style="text-align:center;color:#8A8A93;font-size:12px;margin-top:10px;line-height:1.7">付款後 1 個工作天內完成開通<br>有問題可隨時聯繫客服</div>'+
+    '</div>';
+  };
+
+  // 插入 payCardHtml 之後呼叫，綁定按鈕
+  window.payCardBind = function(){
+    var card=document.getElementById('payCard'); if(!card) return;
+    var app=card.getAttribute('data-app');
+    var mail=(document.getElementById('payMail')||{}).textContent||'';
+    var cp=document.getElementById('payCopy');
+    if(cp) cp.onclick=function(){
+      var done=function(){ tip('已複製　'+mail); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(mail).then(done, fallback);
+      } else fallback();
+      function fallback(){
+        var ta=document.createElement('textarea'); ta.value=mail;
+        ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta);
+        ta.select(); try{ document.execCommand('copy'); done(); }catch(e){ tip('複製失敗，請手動選取'); }
+        document.body.removeChild(ta);
+      }
+    };
+    var chk=document.getElementById('payAgree');
+    var go=document.getElementById('payGo');
+    var tl=document.getElementById('payTerms');
+    if(tl) tl.onclick=function(){ if(window.legalDocs) legalDocs.open('pay'); };
+    // 沒勾選就不能付款 —— 這個勾選是「事先同意放棄猶豫期」的證明，不是裝飾
+    var accent = card.getAttribute('data-ac') || '#14564A';
+    if(chk && go) chk.onchange=function(){
+      go.disabled = !chk.checked;
+      go.style.background = chk.checked ? accent : '#C8CFD6';
+      go.style.cursor = chk.checked ? 'pointer' : 'not-allowed';
+    };
+    if(go) go.onclick=function(){
+      if(go.disabled) return;
+      var url=PAY_LINKS[app];
+      if(url){ window.open(url,'_blank','noopener'); return; }
+      tip('付款連結準備中，將為您轉至客服');
+      setTimeout(function(){ window.open(LINE_URL,'_blank','noopener'); }, 700);
+    };
+  };
+})();
+
+</script>
+<script>window.LEGAL_APP='trv';</script>
+<script>
+/* ==================== 法律文件（四個 App 共用）====================
+   三份：服務條款、隱私權政策、付款與退款說明。
+   客戶管理另加第四份：客戶資料處理說明。
+   範圍限於：客戶資料隱私、智慧財產權保護、使用規範、付款退款。
+   ==================================================================== */
+(function(){
+  var APP = (window.LEGAL_APP || 'cal');
+  var UPDATED = '2026/10/13';
+  var MAIL = 'beyunself@hotmail.com';
+  var LINE_NAME = '智在生活';
+
+  var CFG = {
+    cal:  { name:'生活管家', trial:'二十一', price:'990', devTxt:'完整版及試用期間之同一帳號至多得於三台裝置登入，免費版為一台。' },
+    cook: { name:'食在料理', trial:'十四',   price:'990', local:true, devTxt:'同一帳號限於一台裝置登入；更換裝置時，得於新裝置登入後登出舊裝置。' },
+    trv:  { name:'旅遊計畫', trial:'十四',   price:'990', devTxt:'完整版及試用期間之同一帳號至多得於三台裝置登入，免費版為一台。' },
+    crm:  { name:'客戶管理', trial:'三十',   price:'7,200', noFree:true, devTxt:'完整版之同一帳號至多得於二台裝置登入，試用期間為一台。' }   // noFree：沒有免費版，試用到期轉唯讀
+  };
+  var C = CFG[APP] || CFG.cal;
+  var PRICE_TXT = { cal:'新臺幣 990 元／年', cook:'新臺幣 990 元／年', trv:'新臺幣 990 元／年',
+                    crm:'新臺幣 7,200 元／年。限時優惠方案（如早鳥價），依購買頁面公告為準。' };
+  C.priceTxt = PRICE_TXT[APP] || PRICE_TXT.cal;
+
+  var CN = ['','一','二','三','四','五','六','七','八','九','十'];
+  function sec(n, t, body){ return '<h4><span class="lg-n">'+CN[n]+'、</span>'+t+'</h4>'+body; }
+  function p(){ return Array.prototype.slice.call(arguments)
+    .map(function(s){ return '<p>'+s+'</p>'; }).join(''); }
+  function ol(){ return '<ol class="lg-ol">' + Array.prototype.slice.call(arguments)
+    .map(function(s){ return '<li>'+s+'</li>'; }).join('') + '</ol>'; }
+  function h(t,b){ return { t:t, b:b }; }
+
+  /* 賣方資訊：目前僅以品牌名稱「智在生活」揭露。如需補充名稱、地址，於此處新增即可。 */
+  var CONTACT = p('電子郵件：'+MAIL, '官方 LINE：'+LINE_NAME);
+
+  /* ---------- 服務條款 ---------- */
+  var TERMS =
+    sec(1,'契約之成立與變更', ol(
+      '本條款為使用者與「智在生活」（下稱本服務）間之契約。使用者開始使用本服務，即視為已閱讀並同意本條款全部內容。',
+      '本條款如有修訂，將於本服務內公告；公告後使用者繼續使用，視為同意修訂後之條款。')) +
+    sec(2,'帳號', ol(
+      '本服務以電子郵件驗證連結辨識使用者身分，不另設密碼。使用者應妥善保管其電子郵件帳號；凡經由該帳號所為之操作，均推定為使用者本人所為。',
+      C.devTxt,
+      '使用者於共用裝置使用後應即登出，以避免第三人存取其資料。',
+      '未滿十八歲者，應經法定代理人同意後始得使用本服務。')) +
+    sec(3,'智慧財產權', ol(
+      '本服務之程式碼、使用者介面、視覺設計、文字、圖像、資料結構，及「智在生活」名稱與標識，其著作權及其他智慧財產權均屬本服務所有。未經事前書面同意，不得以任何方式使用。',
+      '使用者自行輸入之內容，其權利歸屬使用者。使用者得隨時匯出，或請求刪除。')) +
+    sec(4,'使用限制',
+      p('使用者不得為下列行為：') +
+      ol('重製、散布、公開傳輸或改作本服務之程式碼或介面設計。',
+         '以自動化程式、網路爬蟲或其他方式大量擷取本服務之資料。',
+         '進行還原工程、反組譯、反編譯，或以其他方式試圖取得原始碼。',
+         '轉售、出租、出借帳號，或以營利為目的提供第三人使用。',
+         '以其他方式侵害本服務之智慧財產權，或妨礙本服務正常運作。') +
+      p('使用者違反前項規定者，本服務得逕行停止其帳號之使用，並保留法律追訴權。')) +
+    sec(5,'服務之提供與變更', ol(
+      '本服務得因維護、升級或不可抗力事由暫停或中斷服務，並儘可能事前公告。',
+      '本服務終止營運時，應於三十日前公告，並提供資料匯出方式。',
+      '使用者應自行定期匯出備份，以保全其資料。')) +
+    sec(6,'責任範圍', ol(
+      '本服務依現狀提供，不保證全無中斷或錯誤。',
+      '本服務就使用者所受損害之賠償責任，以使用者就本服務已支付之當年度費用為限。但因故意或重大過失所致者，不在此限。')) +
+    sec(7,'聯絡方式', CONTACT);
+
+  /* ---------- 隱私權政策 ---------- */
+  var PRIVACY =
+    sec(1,'蒐集之個人資料',
+      p('本服務蒐集下列資料：') +
+      ol('使用者之電子郵件位址：用於身分辨識及寄送登入連結。',
+         '使用者自行輸入之內容：用於提供本服務之各項功能。',
+         '裝置識別碼：用於計算同一帳號之登入裝置數量。') +
+      p('本服務不蒐集通訊錄、位置資訊、照片或其他裝置資料，亦未使用任何廣告或行為追蹤工具。')) +
+    sec(2,'資料之儲存', ol(
+      C.local ? '帳號及訂閱資料儲存於 Google 雲端服務；使用者於本服務建立之料理、菜單、庫存及採購等內容，僅儲存於使用者之裝置本機，不上傳至本服務。' : '前條資料儲存於 Google 雲端服務。',
+      '各帳號之資料以使用者之電子郵件位址區隔，其他使用者無從讀取。')) +
+    sec(3,'資料之存取與利用', ol(
+      '本服務僅於使用者申告問題而有協助排除障礙之必要，或系統異常而有修復之必要時，存取使用者資料。',
+      '除前款情形外，本服務不查閱使用者資料，不作行銷利用，亦不提供予任何第三人。')) +
+    sec(4,'委外之第三方服務',
+      ol('Google 雲端服務：提供身分驗證及資料儲存。',
+         '藍新金流：提供付款處理。本服務不取得使用者之信用卡號。') +
+      p('前開服務各有其隱私權政策。')) +
+    sec(5,'保存期限', ol(
+      '資料於帳號存續期間持續保存。',
+      C.local ? '使用者得隨時請求刪除帳號，本服務應於三十日內刪除其帳號及訂閱資料；備份系統中之副本亦於同期間內一併移除。儲存於使用者裝置本機之內容，使用者得自行於該裝置清除。刪除後無法回復，請先自行匯出。' : '使用者得隨時請求刪除帳號，本服務應於三十日內刪除其全部資料；備份系統中之副本亦於同期間內一併移除。刪除後無法回復，請先自行匯出。')) +
+    sec(6,'使用者之權利', p(
+      '使用者就其個人資料，得行使查詢、閱覽、製給複製本、補充或更正、請求停止蒐集處理利用及請求刪除之權利。多數項目於本服務內即可自行完成，其餘得以電子郵件或官方 LINE 聯繫。')) +
+    sec(7,'Cookie 與本機儲存', p(
+      '本服務僅使用維持登入狀態所必要之本機儲存，未用於追蹤或廣告。')) +
+    sec(8,'聯絡方式', CONTACT);
+
+  /* ---------- 付款與退款 ---------- */
+  var PAY =
+    sec(1,'費用',
+      '<table class="lg-t"><tbody><tr><td>'+C.name+'　完整版</td><td>'+C.priceTxt+'</td></tr></tbody></table>' +
+      p('其他產品之方案與費用，請參閱官方網站 handyassist-system.github.io。')) +
+    sec(2,'免費試用', ol(
+      C.noFree
+        ? C.name+'提供'+C.trial+'日免費試用。試用期間得建立五位客戶（已建立之客戶即使刪除，名額不予退還），並使用客戶、合約、預約及收款功能；營運儀表板及客戶追蹤為完整版功能。'
+        : C.name+'提供'+C.trial+'日免費試用，試用期間功能全部開放。',
+      C.noFree
+        ? '試用期屆滿後，帳號轉為唯讀：使用者既有資料仍予保留，得查看及匯出，惟不得新增或編輯；升級完整版後即恢復。'
+        : '試用期屆滿後轉為免費版。免費版功能受限但無使用期限，使用者既有資料仍予保留。')) +
+    sec(3,'付款', ol(
+      '本服務採藍新金流線上刷卡付款。',
+      '使用者付款時應填寫其登入本服務所使用之電子郵件位址，作為開通之依據；填寫錯誤者，本服務無從開通。')) +
+    sec(4,'開通與使用期間', ol(
+      '本服務於收訖款項後一個工作日內完成開通。',
+      '方案效期自開通日起算一年。',
+      '於效期屆滿前續約者，自原到期日起算延長，剩餘日數不予扣除。')) +
+    sec(5,'退款', ol(
+      '本服務提供免費試用，使用者應於試用期間確認本服務是否符合其需求。',
+      '依「通訊交易解除權合理例外情事適用準則」第二條第五款，本服務屬非以有形媒介提供之數位內容，經使用者事前同意後提供者，不適用七日猶豫期之規定。使用者於付款前之勾選同意，即為前開事前同意。',
+      '付款並完成開通後，恕不受理退款。',
+      '因本服務重大瑕疵致無法使用，經通知後未能於合理期間內修復者，得個案協商處理。')) +
+    sec(6,'聯絡方式', CONTACT);
+
+  /* ---------- 客戶資料處理（僅客戶管理）---------- */
+  var CLIENTDATA =
+    sec(1,'當事人地位', ol(
+      '就使用者於本服務建立之客戶個人資料，使用者為個人資料保護法所稱之蒐集者，本服務為受託處理者。',
+      '本服務僅於使用者委託之範圍內處理及利用前開資料。')) +
+    sec(2,'使用者之義務', ol(
+      '使用者向其客戶蒐集個人資料時，應依個人資料保護法第八條規定盡告知義務，並確保其蒐集、處理及利用具備合法事由。',
+      '使用者不得於本服務儲存與其營業無關之個人資料。',
+      '使用者不得於本服務儲存病歷、醫療、基因、性生活、健康檢查及犯罪前科等特種個人資料。')) +
+    sec(3,'安全維護', ol(
+      '各帳號之客戶資料以使用者之電子郵件位址區隔，其他使用者無從讀取。',
+      '本服務僅於協助排除障礙所必要時存取，不作行銷利用，亦不提供予任何第三人。')) +
+    sec(4,'事故通知', p(
+      '發生個人資料遭竊取、竄改、毀損、滅失或洩漏之情事時，本服務應於知悉後儘速通知使用者，並提供已掌握之事故範圍及影響資訊，以利使用者依法辦理後續事宜。')) +
+    sec(5,'資料刪除', p(
+      '使用者得隨時請求刪除帳號及其全部客戶資料，本服務應於三十日內完成；備份系統中之副本亦於同期間內一併移除。')) +
+    sec(6,'聯絡方式', CONTACT);
+
+  /* 重點摘要：給人先看的白話版，條文本身一個字都沒動，以條文為準。 */
+  function brief(items){
+    return '<div class="lg-brief"><div class="lg-brief-t">重點摘要</div><ul>' +
+      items.map(function(s){ return '<li>'+s+'</li>'; }).join('') +
+      '</ul><div class="lg-brief-n">以下為摘要，完整內容以條文為準。</div></div>';
+  }
+  var DEV_SHORT = { cal:'完整版與試用最多 3 台裝置，免費版 1 台', cook:'限 1 台裝置，換裝置時登出舊的即可',
+                    trv:'完整版與試用最多 3 台裝置，免費版 1 台', crm:'完整版最多 2 台裝置，試用期 1 台' };
+  var PRICE_SHORT = { cal:'完整版 NT$990／年', cook:'完整版 NT$990／年', trv:'完整版 NT$990／年',
+                      crm:'完整版 NT$7,200／年；限時優惠依購買頁面公告為準' };
+  var BRIEF_TERMS = brief([
+    '用電子郵件的登入連結進入，不設密碼，請自行保管信箱。',
+    (DEV_SHORT[APP] || DEV_SHORT.cal) + '。',
+    '你輸入的內容屬於你，隨時可匯出或請求刪除。',
+    '程式與介面屬本服務，請勿重製、轉售或出借帳號。',
+    '請定期匯出備份。']);
+  var BRIEF_PRIVACY = brief([
+    C.local ? '只蒐集：Email、裝置識別碼；你的內容只存在你的裝置。' : '只蒐集：Email、你輸入的內容、裝置識別碼。',
+    '除了協助排除問題或修復系統異常，不會查看你的資料；不作行銷、不提供第三人。',
+    '不蒐集通訊錄、位置、照片，也沒有廣告或行為追蹤。',
+    '可隨時請求刪除，30 天內完成。']);
+  var BRIEF_PAY = brief([
+    PRICE_SHORT[APP] || PRICE_SHORT.cal,
+    C.noFree ? C.name + '免費試用 30 天；到期轉唯讀，資料保留，可查看與匯出。'
+             : C.name + '免費試用 ' + (APP === 'cal' ? '21' : '14') + ' 天' + (APP === 'trv' ? '，從建立第一個行程起算' : '') + '；到期後轉為免費版。',
+    '付款後一個工作日內開通，效期一年，提前續約順延。',
+    '付款並開通後恕不退款；試用期請先確認是否適用。']);
+  var BRIEF_CLIENT = brief([
+    '客戶資料由你蒐集，本服務只是受託代為儲存。',
+    '向客戶蒐集資料時，請依個資法告知客戶。',
+    '請勿儲存病歷、醫療、基因、性生活、健康檢查、犯罪前科等資料。',
+    '資料發生外洩時，本服務會儘速通知你。',
+    '可隨時請求刪除帳號與客戶資料，30 天內完成。']);
+
+  var DOCS = [ h('服務條款', BRIEF_TERMS + TERMS), h('隱私權政策', BRIEF_PRIVACY + PRIVACY), h('付款與退款', BRIEF_PAY + PAY) ];
+  if(APP === 'crm') DOCS.push(h('客戶資料處理', BRIEF_CLIENT + CLIENTDATA));
+
+  function css(){
+    if(document.getElementById('lgCss')) return;
+    var s=document.createElement('style'); s.id='lgCss';
+    s.textContent =
+      '#lgWrap{position:fixed;inset:0;background:rgba(18,22,20,.55);z-index:10040;display:none;align-items:flex-end;}'+
+      '#lgWrap.on{display:flex;}'+
+      '.lg-box{background:#FCFCFA;color:#1F2724;width:100%;max-height:92vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;overflow:hidden;}'+
+      '.lg-head{text-align:center;padding:10px 0 16px;}'+
+      '.lg-logo{width:96px;height:auto;border-radius:12px;display:block;margin:0 auto;}'+
+      '.lg-bn{font-size:16px;font-weight:700;letter-spacing:.06em;line-height:1.3;color:#1F2724;}'+
+      '.lg-bs{font-size:12px;color:#8A928C;letter-spacing:.14em;margin-top:4px;}'+
+      '.lg-tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;background:#fff;'+
+        'border-bottom:1px solid #EAEDE8;padding:6px 12px 0;flex:none;border-radius:18px 18px 0 0;}'+
+      '.lg-tab{flex:none;background:none;border:none;border-bottom:2px solid transparent;color:#6B736D;'+
+        'font-size:13px;font-family:inherit;padding:11px 10px;min-height:44px;cursor:pointer;white-space:nowrap;}'+
+      '.lg-tab.on{color:#14564A;border-bottom-color:#14564A;font-weight:700;}'+
+      '.lg-body{overflow-y:auto;padding:20px 20px 30px;-webkit-overflow-scrolling:touch;'+
+        'font-size:14px;line-height:1.95;color:#3B443E;}'+
+      '.lg-doc{border-top:1px solid #E3E7E1;border-bottom:1px solid #E3E7E1;padding:14px 0;margin-bottom:8px;text-align:center;}'+
+      '.lg-doc-t{font-size:18px;font-weight:700;color:#1F2724;letter-spacing:.02em;}'+
+      '.lg-doc-s{font-size:12px;color:#9AA29B;margin-top:5px;letter-spacing:.06em;}'+
+      '.lg-body h4{font-size:15px;color:#1F2724;margin:26px 0 8px;font-weight:700;letter-spacing:.02em;}'+
+      '.lg-n{color:#14564A;}'+
+      '.lg-brief{background:#F1F6F4;border:1px solid #D6E4DE;border-radius:12px;padding:12px 14px;margin:6px 0 4px;}'+
+      '.lg-brief-t{font-size:13px;font-weight:700;color:#14564A;margin-bottom:4px;}'+
+      '.lg-brief ul{margin:0;padding-left:18px;font-size:13px;line-height:1.8;color:#2f3a34;}'+
+      '.lg-brief-n{font-size:12px;color:#5f6b76;margin-top:6px;}'+
+      '.lg-body p{margin:0 0 10px;}'+
+      '.lg-ol{margin:4px 0 12px;padding:0;list-style:none;counter-reset:lgi;}'+
+      '.lg-ol>li{counter-increment:lgi;position:relative;padding-left:3.1em;margin-bottom:7px;}'+
+      '.lg-ol>li::before{content:"（"counter(lgi,cjk-ideographic)"）";position:absolute;left:0;color:#5D6A62;}'+
+      '.lg-t{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:13px;}'+
+      '.lg-t td{padding:8px 0;border-bottom:1px solid #EDF0EC;}'+
+      '.lg-t td:last-child{text-align:right;color:#14564A;font-weight:600;padding-left:12px;}'+
+      '.lg-foot{flex:none;padding:12px 18px calc(16px + env(safe-area-inset-bottom));border-top:1px solid #EAEDE8;background:#fff;}'+
+      '.lg-close{width:100%;background:#F2F4F1;color:#3B443E;border:1px solid #DDE2DA;border-radius:10px;'+
+        'padding:13px;font-size:15px;font-family:inherit;min-height:48px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+
+  function mount(){
+    css();
+    if(document.getElementById('lgWrap')) return;
+    var w=document.createElement('div'); w.id='lgWrap';
+    w.innerHTML =
+      '<div class="lg-box">'+
+        '<div class="lg-tabs" id="lgTabs"></div>'+
+        '<div class="lg-body" id="lgBody"></div>'+
+        '<div class="lg-foot"><button type="button" class="lg-close" id="lgClose">關閉</button></div>'+
+      '</div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function(e){ if(e.target===w) close(); });
+    document.getElementById('lgClose').addEventListener('click', close);
+    var tabs=document.getElementById('lgTabs');
+    DOCS.forEach(function(d,i){
+      var b=document.createElement('button');
+      b.type='button'; b.className='lg-tab'; b.textContent=d.t;
+      b.addEventListener('click', function(){ show(i); });
+      tabs.appendChild(b);
+    });
+  }
+  function show(i){
+    var tabs=document.querySelectorAll('.lg-tab');
+    for(var k=0;k<tabs.length;k++) tabs[k].classList.toggle('on', k===i);
+    var body=document.getElementById('lgBody');
+    body.innerHTML =
+      '<div class="lg-head">'+
+        '<img class="lg-logo" src="data:image/jpeg;base64,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" alt="智在生活">'+
+      '</div>'+
+      '<div class="lg-doc"><div class="lg-doc-t">'+C.name+'　'+DOCS[i].t+'</div>'+
+      '<div class="lg-doc-s">最後更新 '+UPDATED+'</div></div>' + DOCS[i].b;
+    body.scrollTop = 0;
+  }
+  function open(which){
+    mount();
+    var i = 0;
+    if(typeof which === 'number') i = which;
+    else if(which === 'privacy') i = 1;
+    else if(which === 'pay') i = 2;
+    else if(which === 'clientdata') i = 3;
+    if(i >= DOCS.length) i = 0;
+    show(i);
+    document.getElementById('lgWrap').classList.add('on');
+  }
+  function close(){ var w=document.getElementById('lgWrap'); if(w) w.classList.remove('on'); }
+
+  window.legalDocs = { open:open, close:close, appName:C.name };
+})();
+
+/* ==================== 預覽使用者畫面（四個 App 共用）====================
+   管理員用來看「客戶實際會看到什麼」。
+   共用的是介面（選單、橫幅、結束預覽）；每個 App 只要提供 apply / exit 兩個函式。
+   ==================================================================== */
+(function(){
+  var CFG = null;          // { apply:fn(mode), exit:fn(), modes:[...] }
+  var MODES = {
+    free:  { label:'免費版',   tip:'試用到期後的樣子' },
+    trial: { label:'試用中',   tip:'新客戶第一次進來的樣子' },
+    full:  { label:'完整版',   tip:'付費客戶' }
+  };
+
+  function css(){
+    if(document.getElementById('pvCss')) return;
+    var s=document.createElement('style'); s.id='pvCss';
+    s.textContent =
+      '#pvBar{position:fixed;left:0;right:0;top:0;z-index:10060;background:#B45309;color:#fff;'+
+        'font-size:13px;text-align:center;padding:9px 12px;padding-top:calc(9px + env(safe-area-inset-top,0px));'+
+        'display:none;font-family:inherit;}'+
+      '#pvBar.on{display:block;}'+
+      '#pvBar button{background:rgba(255,255,255,.22);color:#fff;border:none;border-radius:999px;'+
+        'padding:4px 12px;font-size:12px;font-family:inherit;margin-left:10px;cursor:pointer;min-height:30px;}'+
+      '#pvWrap{position:fixed;inset:0;background:rgba(18,22,20,.5);z-index:10061;display:none;align-items:flex-end;}'+
+      '#pvWrap.on{display:flex;}'+
+      '.pv-box{background:#fff;color:#1F2724;width:100%;border-radius:16px 16px 0 0;'+
+        'padding:20px 18px calc(22px + env(safe-area-inset-bottom));}'+
+      '.pv-t{font-size:16px;font-weight:700;margin-bottom:3px;}'+
+      '.pv-s{font-size:13px;color:#7b8794;margin-bottom:16px;}'+
+      '.pv-opt{display:block;width:100%;text-align:left;background:#F6F8F7;border:1px solid #E1E7E3;'+
+        'border-radius:11px;padding:13px 15px;margin-bottom:9px;font-family:inherit;cursor:pointer;min-height:56px;}'+
+      '.pv-opt b{display:block;font-size:15px;color:#1F2724;font-weight:700;}'+
+      '.pv-opt span{font-size:12px;color:#7b8794;}'+
+      '.pv-cancel{width:100%;background:#fff;color:#7b8794;border:1px solid #DDE2DA;border-radius:10px;'+
+        'padding:12px;font-size:14px;font-family:inherit;margin-top:4px;min-height:46px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+
+  function bar(){
+    var b=document.getElementById('pvBar');
+    if(!b){ b=document.createElement('div'); b.id='pvBar'; document.body.appendChild(b); }
+    return b;
+  }
+
+  function open(){
+    css();
+    var w=document.getElementById('pvWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='pvWrap';
+      w.innerHTML='<div class="pv-box">'+
+        '<div class="pv-t">預覽使用者畫面</div>'+
+        '<div class="pv-s">以使用者視角檢視畫面，預覽期間不會變更任何資料。</div>'+
+        '<div id="pvList"></div>'+
+        '<button type="button" class="pv-cancel" id="pvCancel">取消</button></div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function(e){ if(e.target===w) close(); });
+      document.getElementById('pvCancel').addEventListener('click', close);
+    }
+    var list=document.getElementById('pvList');
+    list.innerHTML='';
+    (CFG && CFG.modes || ['free','trial','full']).forEach(function(k){
+      var m=MODES[k]; if(!m) return;
+      if(CFG && CFG.labels && CFG.labels[k]) m = Object.assign({}, m, CFG.labels[k]);
+      var b=document.createElement('button');
+      b.type='button'; b.className='pv-opt';
+      b.innerHTML='<b>'+m.label+'</b><span>'+m.tip+'</span>';
+      b.addEventListener('click', function(){ start(k); });
+      list.appendChild(b);
+    });
+    w.classList.add('on');
+  }
+  function close(){ var w=document.getElementById('pvWrap'); if(w) w.classList.remove('on'); }
+
+  function start(mode){
+    if(!CFG || typeof CFG.apply!=='function') return;
+    close();
+    css();
+    var b=bar();
+    b.innerHTML='🧪 '+((CFG&&CFG.labels&&CFG.labels[mode]&&CFG.labels[mode].label)||(MODES[mode]?MODES[mode].label:mode))+'預覽中'+
+                '<button type="button" id="pvEnd">結束預覽</button>';
+    b.classList.add('on');
+    document.getElementById('pvEnd').onclick=stop;
+    try{ CFG.apply(mode); }catch(e){}
+  }
+  function stop(){
+    var b=document.getElementById('pvBar'); if(b) b.classList.remove('on');
+    if(CFG && typeof CFG.exit==='function'){ try{ CFG.exit(); }catch(e){} }
+  }
+
+  window.previewMode = {
+    init: function(cfg){ CFG = cfg; },
+    open: open,
+    stop: stop,
+    active: function(){ var b=document.getElementById('pvBar'); return !!(b && b.classList.contains('on')); }
+  };
+})();
+
+/* 預覽設定：旅遊計畫 */
+previewMode.init({
+  modes: ['free','trial','full'],
+  apply: function(mode){
+    myPlan = (mode==='full') ? 'full' : mode;
+    isAdminUser = false;
+    try{ closeSettings(); }catch(e){}   // 切到預覽畫面後要看到主畫面
+    document.body.style.paddingTop = '44px';
+    if(typeof applyPlanLocks==='function') applyPlanLocks();
+    if(typeof renderAll==='function') renderAll();
+  },
+  exit: function(){ location.reload(); }
+});
+
+/* ==================== 資料備份（匯出／匯入還原）====================
+   旅遊原本沒有備份機制，資料出問題無法救。其他三個 App 都有，這裡補齊。
+   匯入採「以 id 合併，同 id 以檔案為準」，不會刪掉檔案裡沒有的既有資料。
+   ==================================================================== */
+function travelExportBackup(){
+  try{
+    var payload = {
+      app: "travel", version: 1,
+      exportedAt: new Date().toISOString(),
+      ownerEmail: (typeof myOwnerEmail === "function") ? myOwnerEmail() : (myEmail || ""),
+      trips: trips.map(function(t){ return Object.assign({}, t); }),
+      items: items.map(function(i){ return Object.assign({}, i); })
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "旅遊計畫備份_" + (function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})() + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    travelToast("已匯出備份，請存到手機或雲端硬碟");
+  }catch(e){ travelToast(failMsg("匯出", e)); }
+}
+
+async function travelImportBackup(file){
+  if(!file) return;
+  var text;
+  try{ text = await file.text(); }
+  catch(e){ travelToast("讀取檔案失敗，請再試一次"); return; }
+  var data;
+  try{ data = JSON.parse(text); }
+  catch(e){ travelToast("這個檔案不是備份檔，請選擇匯出時下載的 .json"); return; }
+  if(!data || data.app !== "travel" || !Array.isArray(data.trips) || !Array.isArray(data.items)){
+    travelToast("這不是旅遊計畫的備份檔"); return;
+  }
+  var ok = await askConfirm(
+    "還原備份",
+    "備份裡有 " + data.trips.length + " 個行程、" + data.items.length + " 筆項目。\n\n" +
+    "相同的資料會被檔案覆蓋，檔案裡沒有的既有資料會保留。\n\n" +
+    "建議先匯出目前的資料留一份。",
+    "確定還原");
+  if(!ok) return;
+
+  window.__travelRestoring = true;
+  travelToast("還原中，請不要關閉…");
+  try{
+    var CHUNK = 400;
+    async function writeAll(list, coll){
+      for(var i=0; i<list.length; i+=CHUNK){
+        var batch = db.batch();
+        list.slice(i, i+CHUNK).forEach(function(doc){
+          var d = Object.assign({}, doc);
+          var id = d.id; delete d.id;
+          if(!id) return;
+          d.ownerEmail = (typeof myOwnerEmail === "function") ? myOwnerEmail() : d.ownerEmail;
+          batch.set(db.collection(coll).doc(id), d, { merge:true });
+        });
+        await batch.commit();
+      }
+    }
+    await writeAll(data.trips, TRIPS_COLLECTION);
+    await writeAll(data.items, COLLECTION);
+    travelToast("還原完成，正在重新載入…");
+    setTimeout(function(){ location.reload(); }, 1200);
+  }catch(e){
+    travelToast(failMsg("還原", e));
+  }finally{
+    window.__travelRestoring = false;
+  }
+}
+
+/* ==================== 資料備份選單（共用）====================
+   匯入會覆蓋既有資料，所以不跟匯出並排，改成先問要做哪一件。
+   ============================================================ */
+(function(){
+  function css(){
+    if(document.getElementById('bkCss')) return;
+    var s=document.createElement('style'); s.id='bkCss';
+    s.textContent =
+      '#bkWrap{position:fixed;inset:0;background:rgba(18,22,20,.5);z-index:10070;display:none;align-items:flex-end;}'+
+      '#bkWrap.on{display:flex;}'+
+      '.bk-box{background:#fff;color:#1F2724;width:100%;border-radius:16px 16px 0 0;'+
+        'padding:20px 18px calc(22px + env(safe-area-inset-bottom));}'+
+      '.bk-t{font-size:16px;font-weight:700;margin-bottom:3px;}'+
+      '.bk-s{font-size:13px;color:#7b8794;margin-bottom:16px;}'+
+      '.bk-opt{display:block;width:100%;text-align:left;background:#F6F8F7;border:1px solid #E1E7E3;'+
+        'border-radius:11px;padding:13px 15px;margin-bottom:9px;font-family:inherit;cursor:pointer;min-height:58px;}'+
+      '.bk-opt b{display:block;font-size:15px;color:#1F2724;font-weight:700;}'+
+      '.bk-opt span{font-size:12px;color:#7b8794;}'+
+      '.bk-opt.warn{background:#FDF6EC;border-color:#EBD9BC;}'+
+      '.bk-opt.warn span{color:#9A6A1E;}'+
+      '.bk-cancel{width:100%;background:#fff;color:#7b8794;border:1px solid #DDE2DA;border-radius:10px;'+
+        'padding:12px;font-size:14px;font-family:inherit;margin-top:4px;min-height:46px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+  function close(){ var w=document.getElementById('bkWrap'); if(w) w.classList.remove('on'); }
+  window.openBackupSheet = function(opts){
+    css();
+    var w=document.getElementById('bkWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='bkWrap';
+      w.innerHTML='<div class="bk-box">'+
+        '<div class="bk-t">資料備份</div>'+
+        '<div class="bk-s">建議定期匯出一份存在手機或雲端硬碟。</div>'+
+        '<button type="button" class="bk-opt" id="bkOut"><b>匯出備份</b>'+
+          '<span>下載一個檔案，之後可以用來還原</span></button>'+
+        '<button type="button" class="bk-opt warn" id="bkIn"><b>匯入還原</b>'+
+          '<span>⚠️ 會覆蓋目前的資料，請先匯出一份</span></button>'+
+        '<button type="button" class="bk-cancel" id="bkCancel">取消</button></div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function(e){ if(e.target===w) close(); });
+      document.getElementById('bkCancel').addEventListener('click', close);
+    }
+    document.getElementById('bkOut').onclick=function(){ close(); if(opts&&opts.onExport) opts.onExport(); };
+    document.getElementById('bkIn').onclick=function(){ close(); if(opts&&opts.onImport) opts.onImport(); };
+    w.classList.add('on');
+  };
+  window.closeBackupSheet = close;
+})();
+
+/* ==================== 到期提醒（四個 App 共用）====================
+   到期前 7／3／1 天與到期當天各提醒一次，同一天不重複。
+   試用與完整版說法不同：試用強調「還沒買」，完整版強調「續約」。
+   ==================================================================== */
+(function(){
+  var KEY = 'expiryNoticeShown';      // 存 "app|yyyy-mm-dd"，同一天只跳一次
+
+  function ymd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  // 用「日曆日」相減，不是毫秒差 —— 否則今天到期會被算成還有 1 天
+  function daysLeft(expiry){
+    if(!expiry) return null;
+    var end = new Date(expiry + 'T00:00:00');
+    if(isNaN(end.getTime())) return null;
+    var today = new Date(); today.setHours(0,0,0,0);
+    return Math.round((end.getTime() - today.getTime()) / 86400000);
+  }
+  function shownToday(app){
+    try{ return localStorage.getItem(KEY) === app + '|' + ymd(new Date()); }catch(e){ return false; }
+  }
+  function markShown(app){
+    try{ localStorage.setItem(KEY, app + '|' + ymd(new Date())); }catch(e){}
+  }
+
+  function css(accent){
+    var el=document.getElementById('exCss');
+    if(el) el.remove();
+    var s=document.createElement('style'); s.id='exCss';
+    s.textContent =
+      '#exWrap{position:fixed;inset:0;background:rgba(18,22,20,.5);z-index:10080;display:none;'+
+        'align-items:center;justify-content:center;padding:20px;}'+
+      '#exWrap.on{display:flex;}'+
+      '.ex-box{background:#fff;color:#1F2724;width:100%;max-width:330px;border-radius:18px;'+
+        'padding:24px 20px 20px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.2);}'+
+      '.ex-ico{font-size:40px;line-height:1;margin-bottom:12px;}'+
+      '.ex-t{font-size:18px;font-weight:700;margin-bottom:8px;}'+
+      '.ex-d{font-size:14px;color:#5B6F79;line-height:1.8;margin-bottom:20px;}'+
+      '.ex-d b{color:'+accent+';}'+
+      '.ex-go{width:100%;background:'+accent+';color:#fff;border:none;border-radius:12px;padding:14px;'+
+        'font-size:15px;font-weight:700;font-family:inherit;min-height:50px;cursor:pointer;}'+
+      '.ex-later{width:100%;background:none;color:#8A928C;border:none;padding:12px;margin-top:6px;'+
+        'font-size:14px;font-family:inherit;min-height:44px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+
+  function close(){ var w=document.getElementById('exWrap'); if(w) w.classList.remove('on'); }
+
+  /* cfg: { app, appName, plan, expiry, isAdmin, accent, onUpgrade } */
+  function check(cfg){
+    cfg = cfg || {};
+    if(cfg.isAdmin) return false;
+    var plan = cfg.plan || 'free';
+    if(plan !== 'trial' && plan !== 'full' && plan !== 'basic' && plan !== 'family') return false;
+
+    var d = daysLeft(cfg.expiry);
+    if(d === null) return false;
+    if(d > 7 || d < 0) return false;                 // 只在最後 7 天內提醒；已過期不在這裡處理
+    if(shownToday(cfg.app)) return false;
+
+    var isTrial = (plan === 'trial');
+    var accent = cfg.accent || '#2B93B8';
+    css(accent);
+
+    var title, desc, btn;
+    if(d === 0){
+      title = isTrial ? '試用今天到期' : '完整版今天到期';
+      desc  = isTrial
+        ? (cfg.noFree ? '明日起轉為唯讀。<br><b>資料完整保留，可查看與匯出。</b>' : (cfg.trialToday || '明日起轉為免費版，部分功能停用。<br><b>既有資料完整保留。</b>'))
+        : (cfg.noFree ? '明日起轉為唯讀。<br><b>資料完整保留，續約後即可恢復編輯。</b>' : '明日起轉為免費版。<br><b>資料完整保留，續約後即可恢復。</b>');
+    } else {
+      title = isTrial ? ('試用還有 ' + d + ' 天') : ('完整版還有 ' + d + ' 天到期');
+      desc  = isTrial
+        ? ('試用到 <b>' + cfg.expiry + '</b> 為止。<br>' + (cfg.noFree ? '到期後轉為唯讀，資料完整保留，可查看與匯出。' : (cfg.trialSoon || '到期後轉為免費版，部分功能停用，資料完整保留。')))
+        : ('使用到 <b>' + cfg.expiry + '</b> 為止。<br>現在續約會從原到期日往後延長，剩下的天數不會被吃掉。');
+    }
+    btn = isTrial ? '看方案' : '我要續約';
+
+    var w=document.getElementById('exWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='exWrap';
+      w.innerHTML='<div class="ex-box">'+
+        '<div class="ex-ico" id="exIco">⏰</div>'+
+        '<div class="ex-t" id="exT"></div>'+
+        '<div class="ex-d" id="exD"></div>'+
+        '<button type="button" class="ex-go" id="exGo"></button>'+
+        '<button type="button" class="ex-later" id="exLater">稍後再說</button></div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function(e){ if(e.target===w) close(); });
+      document.getElementById('exLater').addEventListener('click', close);
+    }
+    document.getElementById('exIco').textContent = (d <= 1) ? '⚠️' : '⏰';
+    document.getElementById('exT').textContent = title;
+    document.getElementById('exD').innerHTML = desc;
+    var go=document.getElementById('exGo');
+    go.textContent = btn;
+    go.onclick = function(){ close(); if(typeof cfg.onUpgrade === 'function') cfg.onUpgrade(); };
+    w.classList.add('on');
+    markShown(cfg.app);
+    return true;
+  }
+
+  window.expiryNotice = { check: check, close: close, _daysLeft: daysLeft };
+})();
+
+/* ==================== 返回鍵：先關最上層彈窗（四個 App 共用）====================
+   共用模組的彈窗都是後來才加的，各 App 原本的返回鍵不認得它們，
+   按下去會「穿過」彈窗去關底下的設定頁或分頁。這裡依 z-index 由高到低
+   檢查，有開著的就關掉並回報 true，讓呼叫端知道這次返回已經處理掉了。
+   ==================================================================== */
+(function(){
+  var LAYERS = [
+    { id:'cfWrap',    z:10090, close:function(){ var b=document.getElementById('cfNo'); if(b) b.click(); } },
+    { id:'exWrap',    z:10080, close:function(){ if(window.expiryNotice) expiryNotice.close(); } },
+    { id:'bkWrap',    z:10070, close:function(w){ w.classList.remove('on'); } },
+    { id:'pvWrap',    z:10061, close:function(w){ w.classList.remove('on'); } },
+    { id:'lgWrap',    z:10040, close:function(){ if(window.legalDocs) legalDocs.close(); } },
+    { id:'upWrap',    z:10030, close:function(){ if(window.upgradeSheet) upgradeSheet.close(); } },
+    { id:'subsSheet', z:10002, close:function(w){ w.classList.remove('on'); } }
+  ];
+  window.closeTopSharedOverlay = function(){
+    for(var i=0;i<LAYERS.length;i++){
+      var w = document.getElementById(LAYERS[i].id);
+      if(w && w.classList.contains('on')){
+        try{ LAYERS[i].close(w); }catch(e){ try{ w.classList.remove('on'); }catch(e2){} }
+        return true;
+      }
+    }
+    return false;
+  };
+})();
+
+/* ==================== 載入指示（四個 App 共用）====================
+   網路慢的時候畫面不能完全靜止，否則使用者會重複點按鈕或以為當掉。
+   appLoading.show("訊息") / appLoading.hide()；重複呼叫 show 只會換訊息。
+   ==================================================================== */
+(function(){
+  function css(){
+    if(document.getElementById('ldCss')) return;
+    var s=document.createElement('style'); s.id='ldCss';
+    s.textContent =
+      '#ldWrap{position:fixed;inset:0;z-index:10095;display:none;flex-direction:column;'+
+        'align-items:center;justify-content:center;gap:14px;background:rgba(252,252,250,.94);'+
+        '-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}'+
+      '#ldWrap.on{display:flex;}'+
+      '#ldWrap .ld-sp{width:34px;height:34px;border-radius:50%;'+
+        'border:3px solid rgba(90,100,95,.18);border-top-color:var(--ld-ac,#5B6F79);'+
+        'animation:ldSpin .8s linear infinite;}'+
+      '#ldWrap .ld-tx{font-size:14px;color:#5B6F79;font-family:inherit;letter-spacing:.02em;}'+
+      '@keyframes ldSpin{to{transform:rotate(360deg)}}'+
+      '@media (prefers-reduced-motion:reduce){#ldWrap .ld-sp{animation-duration:2.4s}}';
+    document.head.appendChild(s);
+  }
+  css();   // 立刻注入：CRM 有一顆寫在 HTML 裡的載入遮罩也要用到 .ld-sp
+  function el(){
+    var w=document.getElementById('ldWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='ldWrap';
+      w.setAttribute('role','status'); w.setAttribute('aria-live','polite');
+      w.innerHTML='<div class="ld-sp"></div><div class="ld-tx" id="ldTx">載入中…</div>';
+      document.body.appendChild(w);
+    }
+    return w;
+  }
+  window.appLoading = {
+    show: function(msg, accent){
+      var w=el();
+      if(accent) w.style.setProperty('--ld-ac', accent);
+      var t=document.getElementById('ldTx'); if(t) t.textContent = msg || '載入中…';
+      w.classList.add('on');
+    },
+    hide: function(){ var w=document.getElementById('ldWrap'); if(w) w.classList.remove('on'); },
+    visible: function(){ var w=document.getElementById('ldWrap'); return !!(w && w.classList.contains('on')); }
+  };
+})();
+
+/* ==================== 登入頁：管理員模式（四個 App 共用）====================
+   原本點「管理員登入」只是在客戶登入區「下面」再長出一段，整張卡愈疊愈長，
+   中間累積的間距讓畫面看起來很空。
+   改成：進管理員模式時把客戶登入區整個收起來，只留標題與管理員欄位，
+   並附一顆「返回一般登入」還原。標題區（前三個元素）一律保留。
+   ========================================================================= */
+(function(){
+  function hide(el, on){
+    if(!el) return;
+    if(on){
+      if(el.dataset.admPrev === undefined) el.dataset.admPrev = el.style.display || '';
+      el.style.display = 'none';
+    }else if(el.dataset.admPrev !== undefined){
+      el.style.display = el.dataset.admPrev;
+      delete el.dataset.admPrev;
+    }
+  }
+  window.adminOnly = {
+    /* toggleId：「🔧 管理員登入」那顆；boxId：管理員帳密區塊 */
+    bind: function(toggleId, boxId, accent){
+      var t = document.getElementById(toggleId), box = document.getElementById(boxId);
+      if(!t || !box || box.dataset.admBound) return;
+      box.dataset.admBound = '1';
+      var card = box.parentElement;
+      if(!card) return;
+
+      var back = document.createElement('button');
+      back.type = 'button';
+      back.id = boxId + 'Back';
+      back.textContent = '‹ 返回一般登入';
+      back.style.cssText = 'width:100%;margin-top:12px;padding:9px;background:none;border:none;' +
+        'color:#95a5a6;font-size:13px;font-family:inherit;cursor:pointer;';
+      back.addEventListener('click', function(){ set(false); });
+      box.appendChild(back);
+
+      function set(on){
+        var kids = [].slice.call(card.children);
+        kids.forEach(function(el, i){
+          if(el === box) return;
+          if(i < 3) return;                       // 圖示、標題、副標留著
+          hide(el, on);
+        });
+        box.style.display = on ? 'block' : 'none';
+        try{ card.scrollTop = 0; }catch(e){}
+      }
+      t.addEventListener('click', function(){
+        var open = !(box.style.display === 'none' || !box.style.display);
+        set(!open);
+      });
+    }
+  };
+
+  /* 四支 App 的 id 命名不同，存在哪一組就綁哪一組。
+     放在模組自己這裡，不依賴各 App 程式碼的執行順序。 */
+  (function auto(){
+    var pairs = [['adminLoginToggle','adminLoginBox'], ['crmAdminToggle','crmAdminBox']];
+    var done = false;
+    pairs.forEach(function(x){
+      if(document.getElementById(x[0]) && document.getElementById(x[1])){
+        try{ window.adminOnly.bind(x[0], x[1]); done = true; }catch(e){}
+      }
+    });
+    if(!done) setTimeout(auto, 60);
+  })();
+})();
+
+/* ==================== 安裝到桌面（四個 App 共用）====================
+   三件事在這裡統一：步驟說明的文字、「已安裝過」的提醒、按下安裝後的等待提示。
+   各 App 只要把自己接到的 beforeinstallprompt 事件交進來。
+   提示長條固定在畫面「下方」，不會蓋到標題列與返回鍵；15 秒後自動淡掉。
+   ==================================================================== */
+(function(){
+  var CFG = { appName:'這個 App', accent:'#5B6F79' };
+  var _t = null;                                   // 自動關閉的計時器
+  function isIOS(){
+    try{ return /iphone|ipad|ipod/i.test(navigator.userAgent); }catch(e){ return false; }
+  }
+  /* 已經從桌面圖示開啟 → 不必再顯示任何安裝相關提示 */
+  function installed(){
+    try{
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+             || window.navigator.standalone === true;
+    }catch(e){ return false; }
+  }
+  function steps(){
+    var n = CFG.appName;
+    return '安裝到手機桌面\n\n安裝步驟：\n' + (isIOS()
+      ? '1. 請改用「Safari 瀏覽器」開啟本頁\n2. 點下方「分享」按鈕 ⬆️\n3. 選「加入主畫面」'
+      : '1. 請改用「Chrome 瀏覽器」開啟本頁\n2. 點瀏覽器選單（⋮）\n3. 選「安裝應用程式／加到主畫面」')
+      + '\n\n💡 若您已安裝過，請直接至手機桌面開啟「' + n + '」開啟';
+  }
+  function css(){
+    if(document.getElementById('inCss')) return;
+    var s=document.createElement('style'); s.id='inCss';
+    s.textContent =
+      '#inBar{position:fixed;left:0;right:0;bottom:0;z-index:10096;max-width:520px;margin:0 auto;'+
+        'display:none;padding:12px 44px calc(12px + env(safe-area-inset-bottom,0px)) 16px;'+
+        'background:#2E2E33;color:#fff;font-size:13px;line-height:1.6;font-family:inherit;'+
+        'box-shadow:0 -2px 12px rgba(0,0,0,.25);cursor:pointer;'+
+        'opacity:0;transition:opacity .35s ease;}'+
+      '#inBar.on{display:block;}'+
+      '#inBar.show{opacity:1;}'+
+      '#inBar b{color:#FFD9A0;}'+
+      '#inBar .in-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;'+
+        'border:none;color:rgba(255,255,255,.7);font-size:18px;padding:6px 10px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+  /* html：提示內容；ms：幾毫秒後自動淡掉（不傳就用 15 秒） */
+  function bar(html, ms){
+    css();
+    var b=document.getElementById('inBar');
+    if(!b){
+      b=document.createElement('div'); b.id='inBar';
+      b.setAttribute('role','status');
+      document.body.appendChild(b);
+    }
+    b.innerHTML = html + '<button type="button" class="in-x" aria-label="關閉">×</button>';
+    b.onclick = hide;                              // 點長條任一處都可關掉
+    b.classList.add('on');
+    // 先掛上再加 .show，讓淡入生效
+    try{ void b.offsetWidth; }catch(e){}
+    b.classList.add('show');
+    if(_t){ clearTimeout(_t); _t=null; }
+    _t = setTimeout(hide, (typeof ms==='number' ? ms : 15000));
+    return b;
+  }
+  function hide(){
+    if(_t){ clearTimeout(_t); _t=null; }
+    var b=document.getElementById('inBar'); if(!b) return;
+    b.classList.remove('show');
+    setTimeout(function(){ b.classList.remove('on'); }, 360);
+  }
+
+  // 安裝完成時換成完成訊息（不是每支瀏覽器都會送這個事件，所以只當加分）
+  try{ window.addEventListener('appinstalled', function(){
+    try{ localStorage.setItem('installDismissed','1'); }catch(e){}
+    bar('✅ <b>安裝完成</b>　到手機桌面找「' + CFG.appName + '」就能開啟', 6000);
+  }); }catch(e){}
+
+  window.appInstall = {
+    init: function(cfg){ if(cfg) { CFG.appName = cfg.appName || CFG.appName; } },
+    steps: steps,
+    hide: hide,
+    installed: installed,
+    /* dp：各 App 接到的 beforeinstallprompt 事件；沒有就跳步驟說明。
+       回傳 Promise<boolean>，true 代表事件已經用掉，呼叫端要把自己的變數清空。 */
+    run: function(dp){
+      if(!dp){ try{ alert(steps()); }catch(e){} return Promise.resolve(false); }
+      try{
+        dp.prompt();
+        return dp.userChoice.then(function(r){
+          if(r && r.outcome === 'accepted'){
+            // 使用者已經按下安裝 → 記住，首頁橫條不用再出現
+            try{ localStorage.setItem('installDismissed','1'); }catch(e){}
+            bar('⏳ <b>安裝中，請稍候…</b>　<b>請勿關閉本頁</b>，完成後桌面會出現圖示');
+          } else {
+            bar('已取消安裝，隨時可以再從設定頁安裝', 4000);
+          }
+          return true;
+        }).catch(function(){ return true; });
+      }catch(e){
+        try{ alert(steps()); }catch(e2){}
+        return Promise.resolve(false);
+      }
+    }
+  };
+})();
+appInstall.init({ appName:'旅遊計畫' });
+
+/* ==================== 確認對話框（四個 App 共用）====================
+   各 App 原本的函式名與參數都保留，內部改成呼叫這裡，所以呼叫端一行都不用動。
+   opts: { title, message, okText, cancelText, danger, accent }
+   回傳 Promise<boolean>
+   ==================================================================== */
+(function(){
+  function css(accent, danger){
+    var el=document.getElementById('cfCss'); if(el) el.remove();
+    var okBg = danger ? '#C0392B' : accent;
+    var s=document.createElement('style'); s.id='cfCss';
+    s.textContent =
+      '#cfWrap{position:fixed;inset:0;background:rgba(18,22,20,.5);z-index:10090;display:none;'+
+        'align-items:center;justify-content:center;padding:20px;}'+
+      '#cfWrap.on{display:flex;}'+
+      '.cf-box{background:#fff;color:#1F2724;width:100%;max-width:330px;border-radius:18px;'+
+        'padding:22px 20px 18px;box-shadow:0 12px 40px rgba(0,0,0,.2);}'+
+      '.cf-t{font-size:16px;font-weight:700;margin-bottom:8px;text-align:center;}'+
+      '.cf-m{font-size:14px;color:#5B6F79;line-height:1.8;margin-bottom:20px;text-align:center;'+
+        'white-space:pre-wrap;word-break:break-word;}'+
+      '.cf-btns{display:flex;gap:9px;}'+
+      '.cf-btns button{flex:1;border-radius:12px;padding:13px 10px;font-size:15px;font-weight:700;'+
+        'font-family:inherit;min-height:50px;cursor:pointer;border:1px solid transparent;}'+
+      '.cf-no{background:#fff;color:#5B6F79;border-color:#DDE2DA !important;}'+
+      '.cf-ok{background:'+okBg+';color:#fff;}';
+    document.head.appendChild(s);
+  }
+
+  var resolver = null;
+  function finish(v){
+    var w=document.getElementById('cfWrap'); if(w) w.classList.remove('on');
+    var r=resolver; resolver=null;
+    if(r) r(v);
+  }
+
+  function confirmDialog(opts){
+    opts = opts || {};
+    css(opts.accent || '#2B93B8', !!opts.danger);
+    var w=document.getElementById('cfWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='cfWrap';
+      w.innerHTML='<div class="cf-box">'+
+        '<div class="cf-t" id="cfT"></div>'+
+        '<div class="cf-m" id="cfM"></div>'+
+        '<div class="cf-btns">'+
+          '<button type="button" class="cf-no" id="cfNo"></button>'+
+          '<button type="button" class="cf-ok" id="cfOk"></button>'+
+        '</div></div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function(e){ if(e.target===w) finish(false); });
+      document.getElementById('cfNo').addEventListener('click', function(){ finish(false); });
+      document.getElementById('cfOk').addEventListener('click', function(){ finish(true); });
+    }
+    var t=document.getElementById('cfT');
+    t.textContent = opts.title || '';
+    t.style.display = opts.title ? 'block' : 'none';
+    var m=document.getElementById('cfM');
+    if(opts.html) m.innerHTML = opts.html; else m.textContent = opts.message || '';
+    document.getElementById('cfNo').textContent = opts.cancelText || '取消';
+    document.getElementById('cfOk').textContent = opts.okText || '確定';
+    w.classList.add('on');
+
+    // 前一個還沒關就被叫第二次 → 前一個視為取消，不要卡住
+    if(resolver){ var prev=resolver; resolver=null; prev(false); }
+    return new Promise(function(res){ resolver = res; });
+  }
+
+  window.confirmDialog = confirmDialog;
+})();
+
+/* ==================== 升級頁（四個 App 共用）====================
+   統一成：比較表 ＋ 付款卡 ＋ 客服。各 App 只傳自己的功能清單與價格。
+   cfg: { app, name, accent, price, per, note, trial, rows:[[功能, 免費版, 完整版], ...],
+          email, lineUrl }
+   ==================================================================== */
+(function(){
+  var CFG = null;
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function css(accent){
+    var el=document.getElementById('upCss'); if(el) el.remove();
+    var s=document.createElement('style'); s.id='upCss';
+    s.textContent =
+      '#upWrap{position:fixed;inset:0;background:rgba(18,22,20,.5);z-index:10030;display:none;align-items:flex-end;}'+
+      '#upWrap.on{display:flex;}'+
+      '.up-box{background:#FCFCFA;color:#1F2724;width:100%;max-height:92vh;display:flex;'+
+        'flex-direction:column;border-radius:18px 18px 0 0;overflow:hidden;}'+
+      '.up-head{padding:18px 18px 14px;background:#fff;border-bottom:1px solid #EAEDE8;flex:none;}'+
+      '.up-t{font-size:18px;font-weight:700;}'+
+      '.up-s{font-size:13px;color:#7b8794;margin-top:4px;}'+
+      '.up-body{overflow-y:auto;padding:16px 18px 24px;-webkit-overflow-scrolling:touch;}'+
+      '.up-cmp{border:1px solid #E3E7E1;border-radius:12px;overflow:hidden;background:#fff;}'+
+      '.up-row{display:grid;grid-template-columns:1fr 66px 74px;align-items:center;gap:6px;'+
+        'padding:11px 13px;border-top:1px solid #EFF2ED;font-size:13px;line-height:1.5;}'+
+      '.up-row:first-child{border-top:none;background:#F4F7F4;font-size:12px;font-weight:700;'+
+        'color:#6B736D;letter-spacing:.04em;}'+
+      '.up-row span:nth-child(2),.up-row span:nth-child(3){text-align:center;}'+
+      '.up-no{color:#A9B2AB;}'+
+      '.up-yes{color:'+accent+';font-weight:700;}'+
+      '.up-note{font-size:12px;color:#7b8794;margin-top:12px;line-height:1.7;}'+
+      '.up-line{display:block;text-align:center;margin-top:14px;font-size:13px;color:'+accent+';'+
+        'text-decoration:underline;}'+
+      '.up-foot{flex:none;padding:10px 18px calc(14px + env(safe-area-inset-bottom));'+
+        'border-top:1px solid #EAEDE8;background:#fff;}'+
+      '.up-close{width:100%;background:#F2F4F1;color:#3B443E;border:1px solid #DDE2DA;border-radius:10px;'+
+        'padding:12px;font-size:15px;font-family:inherit;min-height:46px;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+
+  function close(){ var w=document.getElementById('upWrap'); if(w) w.classList.remove('on'); }
+
+  /* feat：可選，點了某個鎖住的功能才進來，會在標題下方點名那個功能 */
+  function open(feat){
+    var c = CFG; if(!c) return;
+    css(c.accent);
+    var w=document.getElementById('upWrap');
+    if(!w){
+      w=document.createElement('div'); w.id='upWrap';
+      w.innerHTML='<div class="up-box">'+
+        '<div class="up-head"><div class="up-t" id="upT"></div><div class="up-s" id="upS"></div></div>'+
+        '<div class="up-body" id="upB"></div>'+
+        '<div class="up-foot"><button type="button" class="up-close" id="upClose">關閉</button></div>'+
+      '</div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function(e){ if(e.target===w) close(); });
+      document.getElementById('upClose').addEventListener('click', close);
+    }
+    document.getElementById('upT').textContent = feat ? ('「'+feat+'」需要完整版') : ('升級 '+c.name+' 完整版');
+    document.getElementById('upS').textContent = c.trial
+      ? (c.trialNote || ('免費試用 '+c.trial+' 天，期間功能全部開放')) : '';
+
+    var rows = '<div class="up-row"><span></span><span>'+esc(c.freeLabel||'免費版')+'</span><span>完整版</span></div>';
+    (c.rows||[]).forEach(function(r){
+      function cell(v){
+        if(v === true)  return '<span class="up-yes">✓</span>';
+        if(v === false) return '<span class="up-no">—</span>';
+        return '<span class="'+(v==='—'?'up-no':'up-yes')+'">'+esc(v)+'</span>';
+      }
+      rows += '<div class="up-row"><span>'+esc(r[0])+'</span>'+cell(r[1])+cell(r[2])+'</div>';
+    });
+
+    var html = '<div class="up-cmp">'+rows+'</div>';
+    if(c.note) html += '<p class="up-note">'+esc(c.note)+'</p>';
+    html += window.payCardHtml({ app:c.app, email:c.email||'', price:c.price, per:c.per,
+                                 accent:c.accent, note:c.payNote });
+    if(c.lineUrl) html += '<a class="up-line" href="'+c.lineUrl+'" target="_blank" rel="noopener">有問題？聯繫客服</a>';
+
+    document.getElementById('upB').innerHTML = html;
+    document.getElementById('upB').scrollTop = 0;
+    if(window.payCardBind) window.payCardBind();
+    w.classList.add('on');
+  }
+
+  window.upgradeSheet = {
+    init: function(cfg){ CFG = cfg; },
+    open: open,
+    close: close,
+    setEmail: function(e){ if(CFG) CFG.email = e; }
+  };
+})();
+
+/* 升級頁設定：旅遊計畫 */
+upgradeSheet.init({
+  app:'trv', name:'旅遊計畫', accent:'#2C86AD', price:990, per:83, trial:14,
+  trialNote:'免費試用 14 天，期間功能全部開放，可建立 2 個行程',
+  lineUrl:LINE_SUPPORT_URL,
+  rows:[
+    ['建立行程數', '1 個', '不限'],
+    ['每個行程天數', '3 天', '不限'],
+    ['每日行程安排', true, true],
+    ['地圖與地點搜尋建議', false, true],
+    ['行李與採買清單', false, true],
+    ['交通安排', false, true],
+    ['花費彙總與匯率', false, true],
+    ['行李清單', false, true],
+    ['存成 PDF', false, true],
+    ['同帳號裝置數', '1 台', '3 台']
+  ],
+  note:'試用結束後，試用期間建立的行程前 3 天仍可查看、不能編輯，第 4 天起升級才能看；升級後全部恢復。'
+});
+</script>
+
+</body>
+</html>
