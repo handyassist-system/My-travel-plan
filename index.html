@@ -682,6 +682,7 @@ header #mapBtn, header #settingsBtn{
         <div class="chip-row" id="fsCurrencyChips"></div>
       </div>
       <div class="field" id="fsPayerWrap" style="display:none;"><label>付款人</label><select id="fsExpPayer"></select></div>
+      <div class="field" id="fsShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="fsShareChips"></div></div>
 </div>
       <p style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡</p>
       <button id="flightOnboardDone" type="button" class="btn btn-primary" style="display:none; width:100%; margin-top:6px;">完成，開始排行程</button>
@@ -791,6 +792,7 @@ header #mapBtn, header #settingsBtn{
         <div class="chip-row" id="fCurrencyChips"></div>
       </div>
       <div class="field" id="fPayerWrap" style="display:none;"><label>付款人</label><select id="fExpPayer"></select></div>
+      <div class="field" id="fShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="fShareChips"></div></div>
     </div>
     </div>
     <div class="sec-card"><div class="sec-h" data-for="fMoreFields"><span>📝 備註與照片</span></div>
@@ -869,6 +871,7 @@ header #mapBtn, header #settingsBtn{
         </div>
       </div>
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
+      <div class="field" id="tShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="tShareChips"></div></div>
     </div>
     </div>
     <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這段交通</button>
@@ -1063,6 +1066,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>金額</label><input id="pExpAmount" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label><div class="chip-row" id="pCurrencyChips"></div></div>
       <div class="field" id="pPayerWrap" style="display:none;"><label>付款人</label><select id="pExpPayer"></select></div>
+      <div class="field" id="pShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="pShareChips"></div></div>
       </div>
     </div>
     <div class="modal-actions">
@@ -1277,7 +1281,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-103";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-104";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2828,6 +2832,7 @@ function openSpotModal(spot){
   fExpAmount.value = spot && spot.expense ? (spot.expense.amount||"") : "";
   setCurrencyChip(fCurrencyChips, spot && spot.expense ? spot.expense.currency : primaryCurrencyForTrip());
   populatePayerSelect(fExpPayer, fPayerWrap, spot && spot.expense ? spot.expense.payer : "");
+  renderShareChipsIn("fShareWrap", "fShareChips", spot && spot.expense ? spot.expense.sharedBy : null);
   const hasExpense = !!(spot && spot.expense && spot.expense.amount);
   document.getElementById("fExpFields").style.display = "block";
   document.getElementById("fExpToggle").style.display = "none";
@@ -2942,6 +2947,7 @@ function geocodeAddress(address){
 document.getElementById("spotSave").addEventListener("click", async ()=>{
   const name = fName.value.trim();
   if(!name){ fName.focus(); return; }
+  if(shareNonePicked("fShareChips")){ travelToast("請至少選一位分攤的人"); return; }
   if(!editingSpotId){
     const dup = items.find(i=>i.tripId===activeTripId && i.type==="spot" && i.name && i.name.trim()===name);
     if(dup){
@@ -2961,7 +2967,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
-    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips) }
+    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips), sharedBy: readSharedByIn("fShareChips") }
   };
   try{
     const editing = editingSpotId ? items.find(i=>i.id===editingSpotId) : null;
@@ -3264,6 +3270,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   tExpAmount.value = it && it.expense ? (it.expense.amount||"") : "";
   setCurrencyChip(tCurrencyChips, it && it.expense ? it.expense.currency : primaryCurrencyForTrip());
   populatePayerSelect(tExpPayer, tPayerWrap, it && it.expense ? it.expense.payer : "");
+  renderShareChipsIn("tShareWrap", "tShareChips", it && it.expense ? it.expense.sharedBy : null);
   const hasExpense = !!(it && it.expense && it.expense.amount);
   document.getElementById("tExpFields").style.display = "block";
   document.getElementById("tExpToggle").style.display = "none";
@@ -3416,13 +3423,14 @@ document.getElementById("transDelete").addEventListener("click", async ()=>{
 transModalMask.addEventListener("click",(e)=>{ if(e.target===transModalMask) closeTransportModal(); });
 
 document.getElementById("transSave").addEventListener("click", async ()=>{
+  if(shareNonePicked("tShareChips")){ travelToast("請至少選一位分攤的人"); return; }
   const duration = tDuration.value ? Number(tDuration.value) : 0;
   const data = {
     type:"transport", tripId: activeTripId, mode: selectedMode, duration,
     manualDepartTime: currentTransportIsLeading ? (document.getElementById("tManualDepartTime").value || "") : "",
     manualFromStation: document.getElementById("tJrFromStation").value==="__custom__" ? "" : (document.getElementById("tJrFromStation").value || ""),
     manualToStation: document.getElementById("tJrToStation").value==="__custom__" ? "" : (document.getElementById("tJrToStation").value || ""),
-    expense: { amount: tExpAmount.value ? Number(tExpAmount.value) : 0, category: "交通", payer: tExpPayer.value||"", currency: getCurrencyChip(tCurrencyChips) }
+    expense: { amount: tExpAmount.value ? Number(tExpAmount.value) : 0, category: "交通", payer: tExpPayer.value||"", currency: getCurrencyChip(tCurrencyChips), sharedBy: readSharedByIn("tShareChips") }
   };
   try{
     if(pendingTransport.id){
@@ -3828,7 +3836,7 @@ function renderExpense(){
 
   const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense"||i.type==="packing") && i.expense && i.expense.amount);
   if(flightSettings && flightSettings.expense){
-    all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary } });
+    all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[] } });
   }
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
   // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付，只在明細最後面另外列出；但結算會算（付款人先墊、平分）
@@ -4031,23 +4039,40 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
 let editingExpenseId = null;
 const expModalMask = document.getElementById("expModalMask");
 const eCurrencyChips = document.getElementById("eCurrencyChips");
-function renderShareChips(selected){
+// 分攤的人：花費、清單、景點、交通、航班共用同一組選項（預設全員；空陣列＝全部成員）
+function renderShareChipsIn(wrapId, chipsId, selected, onChange){
   const trip = getActiveTrip();
   const members = (trip && trip.members) ? trip.members : [];
-  const wrap = document.getElementById("eShareWrap");
-  const chips = document.getElementById("eShareChips");
+  const wrap = document.getElementById(wrapId);
+  const chips = document.getElementById(chipsId);
   chips.innerHTML = "";
   if(members.length<2){ wrap.style.display = "none"; return; }
   wrap.style.display = "block";
-  const sel = (Array.isArray(selected) && selected.length) ? selected : members;
+  const valid = Array.isArray(selected) ? selected.filter(m=>members.includes(m)) : [];
+  const sel = valid.length ? valid : members;
   members.forEach(m=>{
     const c = document.createElement("div");
     c.className = "chip" + (sel.includes(m) ? " active" : "");
     c.dataset.m = m;
     c.textContent = m;
-    c.addEventListener("click", ()=>c.classList.toggle("active"));
+    c.addEventListener("click", ()=>{ c.classList.toggle("active"); if(onChange) onChange(); });
     chips.appendChild(c);
   });
+}
+function readSharedByIn(chipsId){
+  const trip = getActiveTrip();
+  const members = (trip && trip.members) ? trip.members : [];
+  if(members.length<2) return [];
+  const picked = [...document.querySelectorAll("#"+chipsId+" .chip.active")].map(c=>c.dataset.m);
+  return (picked.length===members.length) ? [] : picked;   // 空陣列＝全部成員
+}
+function renderShareChips(selected){ renderShareChipsIn("eShareWrap", "eShareChips", selected); }
+// 有 2 位以上成員、卻把分攤的人全部取消 → 不能存（跟花費頁一樣）
+function shareNonePicked(chipsId){
+  const trip = getActiveTrip();
+  if(!trip || (trip.members||[]).length<2) return false;
+  if(document.getElementById(chipsId).parentElement.style.display==="none") return false;
+  return document.querySelectorAll("#"+chipsId+" .chip.active").length===0;
 }
 function openExpenseModal(it){
   if(!getActiveTrip()) return;
@@ -4177,7 +4202,8 @@ async function saveFlightSettings(){
     retCheckinBuffer: g("fsRetCheckin") ? Number(g("fsRetCheckin")) : 0,
     expense: g("fsExpense") ? Number(g("fsExpense")) : 0,
     expenseCurrency: getCurrencyChip(fsCurrencyChips),
-    expensePayer: g("fsExpPayer") || ""
+    expensePayer: g("fsExpPayer") || "",
+    expenseSharedBy: readSharedByIn("fsShareChips")
   };
   try{
     await db.collection(COLLECTION).doc("flight_"+activeTripId).set(data, { merge:true });
@@ -4220,6 +4246,7 @@ function renderFlightForm(){
   setv("fsExpense", s.expense);
   setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
   populatePayerSelect(document.getElementById("fsExpPayer"), document.getElementById("fsPayerWrap"), s.expensePayer);
+  renderShareChipsIn("fsShareWrap", "fsShareChips", s.expenseSharedBy, scheduleSaveFlight);
 }
 
 // ---------- 航班倒推時間：到機場、出門 ----------
@@ -4447,6 +4474,7 @@ function openPackModal(item){
   }
   setCurrencyChip(document.getElementById("pCurrencyChips"), pe.currency);
   populatePayerSelect(document.getElementById("pExpPayer"), document.getElementById("pPayerWrap"), pe.payer || "");
+  renderShareChipsIn("pShareWrap", "pShareChips", pe.sharedBy);
   packModalMask.classList.add("show");
 }
 document.getElementById("packClose").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); });
@@ -4456,6 +4484,7 @@ packModalMask.addEventListener("click",(e)=>{ if(e.target===packModalMask) packM
 document.getElementById("packSave").addEventListener("click", async ()=>{
   const name = packName.value.trim();
   if(!name){ packName.focus(); return; }
+  if(selectedPackCat==="行前辦理" && shareNonePicked("pShareChips")){ travelToast("請至少選一位分攤的人"); return; }
   const data = { type:"packing", tripId: activeTripId, category: selectedPackCat, name, note: packNote.value.trim() };
   const qtyV = parseInt(document.getElementById("packQty").value, 10);
   if(qtyV > 0) data.qty = qtyV;
@@ -4463,7 +4492,7 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   // 「行前辦理」項目可填花費，會自動出現在花費頁（類別固定為行前辦理）；其他類別不帶花費
   const pAmt = document.getElementById("pExpAmount").value;
   data.expense = (selectedPackCat==="行前辦理")
-    ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")) }
+    ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")), sharedBy: readSharedByIn("pShareChips") }
     : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
