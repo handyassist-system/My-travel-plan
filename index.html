@@ -785,6 +785,7 @@ header #mapBtn, header #settingsBtn{
     <button type="button" id="fExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
     <div class="sec-card"><div class="sec-h" data-for="fExpFields"><span>💰 花費（選填）</span></div>
     <div id="fExpFields" style="display:none;">
+      <p style="font-size:12px; color:var(--sub); margin:-2px 0 10px; line-height:1.6;">行前已經在「行李清單」填過的（例如先訂好的住宿、門票），請不要在這裡重複填。</p>
       <div class="field"><label>金額</label><input id="fExpAmount" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label>
         <div class="chip-row" id="fCurrencyChips"></div>
@@ -861,6 +862,7 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h" data-for="tExpFields"><span>💰 花費（選填）</span></div>
     <div id="tExpFields" style="display:none;">
       <div class="row2">
+        <p style="font-size:12px; color:var(--sub); margin:-2px 0 10px; line-height:1.6;">行前已經在「行李清單」填過的（例如先訂好的車票、接送機），請不要在這裡重複填。</p>
         <div class="field"><label>金額</label><input id="tExpAmount" type="number" placeholder="0"></div>
         <div class="field"><label>幣別</label>
           <div class="chip-row" id="tCurrencyChips"></div>
@@ -917,17 +919,13 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>類別</label>
         <select id="eCategory">
-          <option value="行前辦理">🧾 行前辦理</option>
           <option value="行前採買">🧳 行前採買</option>
-          <option value="衣物">👕 衣物</option>
-          <option value="兌換">💱 兌換</option>
+          <option value="兌換">💱 兌換（不計入總額）</option>
           <option value="購物">🛍️ 購物</option>
           <option value="餐飲">🍜 餐飲</option>
-          <option value="交通">🚆 交通</option>
-          <option value="門票">🎫 門票</option>
-          <option value="住宿">🏨 住宿</option>
           <option value="其他">📌 其他</option>
         </select>
+        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前就訂好的住宿、門票、交通、保險，請到「行李清單」的項目填金額；到當地才付的，請填在行程的項目裡。</p>
       </div>
     </div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
@@ -1049,9 +1047,23 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>數量（選填）</label><input id="packQty" type="number" inputmode="numeric" min="1" placeholder="例：5"></div>
     <div class="field"><label>備註（選填）</label><textarea id="packNote" placeholder="品牌、給誰的..."></textarea></div>
     <div class="sec-card" id="packExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
+      <p id="pExpHint" style="font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;">出發前就付掉的錢，請填在這裡。到當地才付的，請填在行程的項目裡，不要重複填。</p>
+      <p id="pFlightNote" style="display:none; font-size:13px; color:var(--sub); margin:0; line-height:1.6;">✈️ 機票金額請到「航班」設定輸入，這裡不用填。</p>
+      <div id="pExpFields">
+      <div class="field"><label>花費類別</label>
+        <select id="pExpCat">
+          <option value="行前辦理">🧾 行前辦理（保險、網路等）</option>
+          <option value="住宿">🏨 住宿</option>
+          <option value="門票">🎫 門票</option>
+          <option value="交通">🚆 交通</option>
+          <option value="兌換">💱 兌換（不計入總額）</option>
+          <option value="其他">📌 其他</option>
+        </select>
+      </div>
       <div class="field"><label>金額</label><input id="pExpAmount" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label><div class="chip-row" id="pCurrencyChips"></div></div>
       <div class="field" id="pPayerWrap" style="display:none;"><label>付款人</label><select id="pExpPayer"></select></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="packCancel">取消</button>
@@ -1265,7 +1277,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-101";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-102";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4045,6 +4057,12 @@ function openExpenseModal(it){
   document.getElementById("eName").value = it ? (it.name||"") : "";
   document.getElementById("eAmount").value = e.amount || "";
   const eCatSel = document.getElementById("eCategory");
+  // 新增只提供上面幾類；編輯舊資料時，若它的類別不在清單裡（例如舊的「衣物」「住宿」），暫時補回，避免存檔時被悄悄改掉
+  [...eCatSel.querySelectorAll("option[data-extra]")].forEach(o=>o.remove());
+  if(e.category && ![...eCatSel.options].some(o=>o.value===e.category)){
+    const xo = document.createElement("option"); xo.value = e.category; xo.dataset.extra = "1";
+    xo.textContent = (EXP_CAT_ICON[e.category]||"📌") + " " + e.category; eCatSel.appendChild(xo);
+  }
   eCatSel.value = e.category || "行前採買";
   setCurrencyChip(eCurrencyChips, it ? e.currency : "TWD");   // 新增時預設新台幣（事前花費多半用台幣付）
   populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), e.payer || "");
@@ -4385,6 +4403,29 @@ function renderPackCatChips(){
   document.getElementById("packExpCard").style.display = (!inSouvenir && selectedPackCat==="行前辦理") ? "block" : "none";
 }
 
+// 依項目名稱猜花費類別（使用者可改）；機票回傳 "flight"＝請到航班輸入
+function packExpDefaultCat(name){
+  const n = String(name||"");
+  if(/機票/.test(n)) return "flight";
+  if(/兌換|換匯|換錢|換.{0,4}現金/.test(n)) return "兌換";
+  if(/住宿|飯店|旅館|民宿/.test(n)) return "住宿";
+  if(/火車|高鐵|交通|接送|租車|巴士|船票|機場/.test(n)) return "交通";
+  if(/門票|票券|景點|樂園|迪士尼/.test(n)) return "門票";
+  return "行前辦理";
+}
+let _packExpCatTouched = false, _packExpHadAmount = false;
+function refreshPackExpUI(){
+  const sel = document.getElementById("pExpCat");
+  const d = packExpDefaultCat(packName.value);
+  const isFlight = (d==="flight") && !_packExpHadAmount;     // 已經填過金額的舊資料照常顯示，不隱藏
+  document.getElementById("pFlightNote").style.display = isFlight ? "block" : "none";
+  document.getElementById("pExpFields").style.display = isFlight ? "none" : "block";
+  document.getElementById("pExpHint").style.display = isFlight ? "none" : "block";
+  if(!_packExpCatTouched && d!=="flight") sel.value = d;
+}
+document.getElementById("pExpCat").addEventListener("change", ()=>{ _packExpCatTouched = true; });
+document.getElementById("packName").addEventListener("input", refreshPackExpUI);
+
 function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
@@ -4395,6 +4436,15 @@ function openPackModal(item){
   document.getElementById("packQty").value = (item && item.qty) ? item.qty : "";
   const pe = item && item.expense ? item.expense : {};
   document.getElementById("pExpAmount").value = pe.amount || "";
+  {
+    const sel = document.getElementById("pExpCat");
+    const cur = pe.category || "";
+    if(cur && ![...sel.options].some(o=>o.value===cur)){ const o=document.createElement("option"); o.value=cur; o.textContent=cur; sel.appendChild(o); }
+    _packExpHadAmount = !!pe.amount;
+    _packExpCatTouched = !!cur;                 // 已有類別就照舊，不再自動猜
+    if(cur) sel.value = cur;
+    refreshPackExpUI();
+  }
   setCurrencyChip(document.getElementById("pCurrencyChips"), pe.currency);
   populatePayerSelect(document.getElementById("pExpPayer"), document.getElementById("pPayerWrap"), pe.payer || "");
   packModalMask.classList.add("show");
@@ -4413,7 +4463,7 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   // 「行前辦理」項目可填花費，會自動出現在花費頁（類別固定為行前辦理）；其他類別不帶花費
   const pAmt = document.getElementById("pExpAmount").value;
   data.expense = (selectedPackCat==="行前辦理")
-    ? { amount: pAmt ? Number(pAmt) : 0, category:"行前辦理", payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")) }
+    ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")) }
     : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
