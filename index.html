@@ -1264,7 +1264,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-86";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-87";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5561,7 +5561,7 @@ function appHandleBack(){
       '<div class="subs-sh-sub">'+app.icon+' '+app.name+'　'+
         (st.expiry ? planText(app.id, st.rawPlan)+' · '+slash(st.expiry) : planText(app.id, st.rawPlan))+
         '</div>'+
-      '<button type="button" class="subs-primary" id="mRenew">續約一年</button>'+
+      '<button type="button" class="subs-primary" id="mRenew">'+(isPaid?'續約一年':'開通完整版一年')+'</button>'+
       (isPaid && !NO_FREE_APPS[app.id] ? '<div class="subs-label">取消付費</div>'+
         '<div class="subs-chips" id="mp">'+
           '<button type="button" class="subs-chip" data-v="free">改為免費版</button>'+
@@ -5581,7 +5581,7 @@ function appHandleBack(){
     );
 
     var path=app.path+key;
-    document.getElementById('mRenew').onclick=function(){ extend(path, 12); };
+    document.getElementById('mRenew').onclick=function(){ if(isPaid) extend(path, 12); else activateFull(path); };
     document.getElementById('me').querySelectorAll('.subs-chip').forEach(function(b){
       b.onclick=function(){
         var v=b.getAttribute('data-v');
@@ -5619,6 +5619,15 @@ function appHandleBack(){
   }
 
   // 續約：從「原到期日」往後加，已過期才從今天算，剩餘天數不會被吃掉
+  // 免費版／試用帳號付款後開通：方案改完整版、從今天起算一年（只延長到期日不會改方案）
+  async function activateFull(path){
+    try{
+      var next = ymd(addMonths(Date.now(), 12));
+      await firebase.database().ref(path).update({ plan:'full', expiry:next, status:'active', deviceLimit:devLimit('full') });
+      toast('已開通完整版，到期 '+slash(next));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('開通', e)); }
+  }
   async function extend(path, months){
     try{
       var snap=await firebase.database().ref(path+'/expiry').once('value');
