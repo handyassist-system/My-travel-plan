@@ -150,7 +150,7 @@
   .trip-sel{background:var(--card); border:1px solid var(--line); color:var(--ink); font-size:13px;
     font-weight:600; padding:9px 14px; border-radius:999px; max-width:100%; position:relative;}
   .trip-sel::before{content:"章"; display:inline-block; width:16px; height:16px; line-height:16px;
-    font-size:11px; color:#fff; background:var(--seal); border-radius:50%; margin-right:5px;}
+    font-size:12px; color:#fff; background:var(--seal); border-radius:50%; margin-right:5px;}
   .day-date-label{padding:0 20px; font-size:14px; color:var(--sub); margin-top:-2px;}
   .day-date-row{display:flex; align-items:center; justify-content:space-between; padding:0 20px; margin-top:-2px;}
   .day-date-row .day-date-label{padding:0;}
@@ -313,7 +313,7 @@
   }
   .day-row-btns{ display:flex; align-items:center; gap:8px; }
   .memo-pill{ display:flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; border:1px solid #B9D0DE; background:#fff; color:#2C86AD; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; }
-  .memo-pill .pk-n{ background:var(--seal-soft); color:var(--seal); border-radius:999px; padding:1px 8px; font-weight:700; font-size:11px; }
+  .memo-pill .pk-n{ background:var(--seal-soft); color:var(--seal); border-radius:999px; padding:1px 8px; font-weight:700; font-size:12px; }
   .memo-pill:active{ background:var(--seal-soft); }
 
   /* ---------- Bottom Nav ---------- */
@@ -322,7 +322,7 @@
     background:var(--card); border-top:1px solid var(--line); display:flex;
     padding:8px 6px calc(8px + env(safe-area-inset-bottom)); z-index:19;
   }
-  .nav-btn{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none; color:var(--sub); font-size:11px; padding:6px 0;}
+  .nav-btn{flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none; color:var(--sub); font-size:12px; padding:6px 0;}
   .nav-btn .ic{font-size:20px;}
   .nav-btn.active{color:var(--accent);}
   #mapBtn.hdr-on{background:var(--accent); border-radius:8px;}
@@ -413,7 +413,7 @@
 .subs-body{flex:1;overflow-y:auto;padding:12px 12px 100px;-webkit-overflow-scrolling:touch;}
 .subs-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .subs-email{font-size:14px;font-weight:600;color:#0B2A4D;word-break:break-all;margin-bottom:2px;}
-.subs-key{font-size:11px;color:#b0b8bf;word-break:break-all;margin-bottom:8px;}
+.subs-key{font-size:12px;color:#b0b8bf;word-break:break-all;margin-bottom:8px;}
 .subs-line{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #f0f2f4;min-height:44px;cursor:pointer;}
 .subs-line:first-of-type{border-top:none;}
 .subs-ico{font-size:15px;width:20px;text-align:center;flex:none;}
@@ -588,7 +588,7 @@ header #mapBtn, header #settingsBtn{
   <div id="mainScreen" style="display:none;">
     <header>
       <div style="display:flex; align-items:center; justify-content:space-between; position:relative;">
-        <h1 id="pageTitle">📅 行程 <span id="appVerTag" style="font-size:11px;color:var(--sub);font-weight:400;white-space:nowrap">v1.0</span></h1>
+        <h1 id="pageTitle">📅 行程 <span id="appVerTag" style="font-size:12px;color:var(--sub);font-weight:400;white-space:nowrap">v1.0</span></h1>
         <div style="display:flex;align-items:center;gap:2px;flex:none">
           <button id="mapBtn" title="地圖" style="background:none; border:none; font-size:20px; padding:4px 8px; border-radius:8px;">🗺️</button>
           <button id="settingsBtn" title="設定" style="background:none; border:none; font-size:20px; padding:4px 8px;">⚙️</button>
@@ -615,8 +615,9 @@ header #mapBtn, header #settingsBtn{
       <div class="exp-total">
         <div class="exp-currency-toggle" id="expCurrencyToggle"></div>
         <div class="amt" id="expTotal">¥0</div>
+        <div id="expAvgNote" style="font-size:13px; color:var(--sub); margin-top:4px;"></div>
         <div id="expExchNote" style="font-size:12px; color:var(--sub); margin-top:2px;"></div>
-        <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:11px;">更新匯率</button></div>
+        <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:12px;">更新匯率</button></div>
       </div>
       <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
         <button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
@@ -684,7 +685,7 @@ header #mapBtn, header #settingsBtn{
       </div>
       <div id="fsPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="fsPayerWrap" style="display:none;"><label>付款人</label><select id="fsExpPayer"></select></div>
-      <div class="field" id="fsShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="fsShareChips"></div></div>
+      <div class="field" id="fsShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fsShareChips"></div></div>
       <div class="exp-sub">📝 日期與備註</div>
       <div class="field"><label>日期（選填，付款日）</label><input id="fsExpDate" type="date"></div>
       <div class="field"><label>備註（選填）</label><textarea id="fsExpNote" placeholder="補充說明"></textarea></div>
@@ -769,7 +770,7 @@ header #mapBtn, header #settingsBtn{
     <h2 id="spotModalTitle">新增地點</h2>
     <div class="sec-card"><div class="sec-h">📍 地點</div>
     <div class="field"><label>名稱（可搜尋自動帶入）</label><input id="fName" type="text" placeholder="輸入地點名稱..."></div>
-    <p id="fCatSuggestHint" style="font-size:11px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
+    <p id="fCatSuggestHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
     <p id="placesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
@@ -788,17 +789,27 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>抵達時間</label><input id="fTime" type="time"></div>
     <p id="fTimeHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
     </div>
-    <button type="button" id="fExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
-    <div class="sec-card"><div class="sec-h" data-for="fExpFields"><span>💰 花費（選填）</span></div>
+    <button type="button" id="fExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 記錄這裡的花費</button>
+    <div class="sec-card" id="fExpCard"><div class="sec-h" data-for="fExpFields"><span>💰 花費（選填）</span></div>
     <div id="fExpFields" style="display:none;">
-      <p style="font-size:12px; color:var(--sub); margin:-2px 0 10px; line-height:1.6;">行前已經在「行李清單」填過的（例如先訂好的住宿、門票），請不要在這裡重複填。</p>
+      <div class="field"><label>花費類別</label>
+        <select id="fExpCat">
+          <option value="餐飲">🍜 餐飲</option>
+          <option value="購物">🛍️ 購物</option>
+          <option value="門票">🎫 門票</option>
+          <option value="住宿">🏨 住宿</option>
+          <option value="交通">🚆 交通</option>
+          <option value="其他">📌 其他</option>
+        </select>
+        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">預設依上方地點類別帶入，可依實際花費調整。例如在景點內買小吃，可改選「餐飲」。</p>
+      </div>
       <div class="field"><label>金額</label><input id="fExpAmount" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label>
         <div class="chip-row" id="fCurrencyChips"></div>
       </div>
       <div id="fPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="fPayerWrap" style="display:none;"><label>付款人</label><select id="fExpPayer"></select></div>
-      <div class="field" id="fShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="fShareChips"></div></div>
+      <div class="field" id="fShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fShareChips"></div></div>
       <div class="exp-sub">📝 日期</div>
       <div class="field"><label>日期（選填，付款日）</label><input id="fExpDate" type="date"></div>
     </div>
@@ -813,7 +824,7 @@ header #mapBtn, header #settingsBtn{
         <button type="button" id="fPhotoRemove" style="position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%; border:none; background:var(--seal); color:#fff; font-size:14px;">✕</button>
       </div>
       <button type="button" id="fPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
-      <p id="fPhotoStatus" style="font-size:11px; color:var(--sub); margin:4px 0 0; display:none;"></p>
+      <p id="fPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
     </div>
     </div>
     </div>
@@ -860,7 +871,7 @@ header #mapBtn, header #settingsBtn{
         <label>這段交通的出發時間</label>
         <input id="tManualDepartTime" type="time">
       </div>
-      <div class="field"><label>預估時間（分鐘）</label><input id="tDuration" type="number" placeholder="請輸入分鐘數"><p id="tDurationAutoNote" style="font-size:11px; margin:4px 0 0; display:none;"></p></div>
+      <div class="field"><label>預估時間（分鐘）</label><input id="tDuration" type="number" placeholder="請輸入分鐘數"><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
     </div>
     <div class="field" id="tArriveWrap" style="display:none;">
       <label>抵達時間（自動計算）</label>
@@ -868,10 +879,9 @@ header #mapBtn, header #settingsBtn{
     </div>
     <p id="tNoTimeHint" style="font-size:12px; color:var(--sub); margin:-4px 0 12px; display:none;">上一個地點尚未設定時間，無法自動計算</p>
     </div>
-    <button type="button" id="tExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 新增花費</button>
-    <div class="sec-card"><div class="sec-h" data-for="tExpFields"><span>💰 花費（選填）</span></div>
+    <button type="button" id="tExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 記錄這裡的花費</button>
+    <div class="sec-card" id="tExpCard"><div class="sec-h" data-for="tExpFields"><span>💰 花費（選填）</span></div>
     <div id="tExpFields" style="display:none;">
-      <p style="font-size:12px; color:var(--sub); margin:-2px 0 10px; line-height:1.6;">行前已經在「行李清單」填過的（例如先訂好的車票、接送機），請不要在這裡重複填。</p>
       <div class="row2">
         <div class="field"><label>金額</label><input id="tExpAmount" type="number" placeholder="0"></div>
         <div class="field"><label>幣別</label>
@@ -880,11 +890,13 @@ header #mapBtn, header #settingsBtn{
       </div>
       <div id="tPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
-      <div class="field" id="tShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="tShareChips"></div></div>
-      <div class="exp-sub">📝 日期與備註</div>
+      <div class="field" id="tShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="tShareChips"></div></div>
+      <div class="exp-sub">📝 日期</div>
       <div class="field"><label>日期（選填，付款日）</label><input id="tExpDate" type="date"></div>
-      <div class="field"><label>備註（選填）</label><textarea id="tExpNote" placeholder="補充說明"></textarea></div>
     </div>
+    </div>
+    <div class="sec-card"><div class="sec-h"><span>📝 備註</span></div>
+    <div class="field"><label>備註（選填）</label><textarea id="tExpNote" placeholder="補充說明"></textarea></div>
     </div>
     <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這段交通</button>
     <div class="modal-actions">
@@ -927,9 +939,9 @@ header #mapBtn, header #settingsBtn{
   <div class="modal">
     <button class="close-x" id="expModalClose">✕</button>
     <h2 id="expModalTitle">新增花費</h2>
-    <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">記錄行程以外的花費，例如行李箱、換匯</p>
+    <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">記錄不屬於特定景點的支出，例如購物、餐飲、行前採買。</p>
     <div class="sec-card"><div class="sec-h">💰 金額</div>
-    <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行李箱、兌換人民幣"></div>
+    <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行前採買的旅遊用品、伴手禮"></div>
     <div class="row2">
       <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>類別</label>
@@ -940,14 +952,14 @@ header #mapBtn, header #settingsBtn{
           <option value="餐飲">🍜 餐飲</option>
           <option value="其他">📌 其他</option>
         </select>
-        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前就訂好的住宿、門票、交通、保險，請到「行李清單」的項目填金額；到當地才付的，請填在行程的項目裡。</p>
+        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前已預訂的住宿、門票、交通，請在「行李清單」登錄花費；其他支出請填在這裡。</p>
       </div>
     </div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
     </div>
     <div class="sec-card" id="ePaySec"><div class="sec-h">👥 付款與分攤</div>
     <div class="field" id="ePayerWrap" style="display:none;"><label>付款人</label><select id="eExpPayer"></select></div>
-    <div class="field" id="eShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="eShareChips"></div></div>
+    <div class="field" id="eShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="eShareChips"></div></div>
     </div>
     <div class="sec-card"><div class="sec-h">📝 日期與備註</div>
     <div class="field"><label>日期（選填）</label><input id="eDate" type="date"></div>
@@ -1061,7 +1073,7 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>項目名稱</label><input id="packName" type="text" placeholder="例：感冒藥"></div>
     <div class="field"><label>數量（選填）</label><input id="packQty" type="number" inputmode="numeric" min="1" placeholder="例：5"></div>
     <div class="sec-card" id="packExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
-      <p id="pExpHint" style="font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;">出發前就付掉的錢，請填在這裡。到當地才付的，請填在行程的項目裡，不要重複填。</p>
+      <p id="pExpHint" style="font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;">出發前已付款的費用（如住宿、機票、保險）請填在這裡，會自動計入花費；當地才付的，請填在行程項目。</p>
       <p id="pFlightNote" style="display:none; font-size:13px; color:var(--sub); margin:0; line-height:1.6;">✈️ 機票金額請到「航班」設定輸入，這裡不用填。</p>
       <div id="pExpFields">
       <div class="field"><label>花費類別</label>
@@ -1078,7 +1090,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>幣別</label><div class="chip-row" id="pCurrencyChips"></div></div>
       <div id="pPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="pPayerWrap" style="display:none;"><label>付款人</label><select id="pExpPayer"></select></div>
-      <div class="field" id="pShareWrap" style="display:none;"><label>分攤的人（預設全員，點選可取消）</label><div class="chip-row" id="pShareChips"></div></div>
+      <div class="field" id="pShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="pShareChips"></div></div>
       <div class="exp-sub">📝 日期</div>
       <div class="field"><label>日期（選填，付款日）</label><input id="pExpDate" type="date"></div>
       </div>
@@ -1296,7 +1308,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-106";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-116";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2571,13 +2583,18 @@ function getAllSpotCategories(){
   return [...SPOT_BASE_CATS];   // 類別固定，不再開放自訂
 }
 const fCategoryChips = document.getElementById("fCategoryChips");
+let fExpCatTouched = false;
+function syncSpotExpCat(){
+  const sel = document.getElementById("fExpCat");
+  if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
+}
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
   getAllSpotCategories().forEach(cat=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (cat===selectedSpotCat ? " active" : "");
     chip.textContent = (CATEGORY_ICON[cat] || "📌") + " " + cat;
-    chip.addEventListener("click", ()=>{ selectedSpotCat = cat; renderSpotCatChips(); });
+    chip.addEventListener("click", ()=>{ selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat(); });
     fCategoryChips.appendChild(chip);
   });
 }
@@ -2651,6 +2668,9 @@ function populatePayerSelect(selectEl, wrapEl, currentValue){
   if(members.length===0){ wrapEl.style.display = "none"; selectEl.innerHTML = ""; return; }
   wrapEl.style.display = "block";
   selectEl.innerHTML = "";
+  let poolNote = wrapEl.querySelector(".pool-note");
+  if(!poolNote){ poolNote = document.createElement("p"); poolNote.className = "pool-note"; poolNote.style.cssText = "font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;"; poolNote.textContent = "選「公費現金」代表用共同現金支付，不算個人代墊。"; wrapEl.appendChild(poolNote); }
+  poolNote.style.display = members.length>=2 ? "" : "none";
   members.forEach(m=>{
     const opt = document.createElement("option");
     opt.value = m; opt.textContent = m;
@@ -2748,6 +2768,7 @@ function initAutocomplete(){
           if(guess){
             selectedSpotCat = guess;
             renderSpotCatChips();
+            syncSpotExpCat();
             hint.textContent = `已自動判斷類型為「${guess}」，可自行修改`;
             hint.style.display = "block";
           } else {
@@ -2851,8 +2872,22 @@ function openSpotModal(spot){
   document.getElementById("fPaySub").style.display = (fPayerWrap.style.display!=="none") ? "block" : "none";
   document.getElementById("fExpDate").value = spot && spot.expense ? (spot.expense.date||"") : "";
   const hasExpense = !!(spot && spot.expense && spot.expense.amount);
+  {
+    // 花費類別：新景點依地點類別自動帶入；舊資料若類別與自動值不同（曾是舊分類），保留原值
+    const sel = document.getElementById("fExpCat");
+    [...sel.querySelectorAll("option[data-extra]")].forEach(o=>o.remove());
+    const auto = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
+    const stored = spot && spot.expense && spot.expense.category;
+    fExpCatTouched = !!(stored && stored!==auto);
+    if(fExpCatTouched && ![...sel.options].some(o=>o.value===stored)){
+      const o = document.createElement("option"); o.value = stored; o.textContent = stored; o.dataset.extra = "1"; sel.appendChild(o);
+    }
+    sel.value = fExpCatTouched ? stored : auto;
+  }
   document.getElementById("fExpFields").style.display = "block";
-  document.getElementById("fExpToggle").style.display = "none";
+  // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
+  document.getElementById("fExpCard").style.display = hasExpense ? "" : "none";
+  document.getElementById("fExpToggle").style.display = hasExpense ? "none" : "";
   // 更多選項：已有備註或照片時自動展開，避免讓人以為資料不見了
   const hasMore = !!(spot && (spot.memo || spot.photo));
   document.getElementById("fMoreFields").style.display = "block";
@@ -2935,7 +2970,9 @@ document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
   });
 });
 function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; }
+document.getElementById("fExpCat").addEventListener("change", ()=>{ fExpCatTouched = true; });
 document.getElementById("fExpToggle").addEventListener("click", ()=>{
+  document.getElementById("fExpCard").style.display = "";
   document.getElementById("fExpFields").style.display = "block";
   document.getElementById("fExpToggle").style.display = "none";
 });
@@ -2964,7 +3001,8 @@ function geocodeAddress(address){
 document.getElementById("spotSave").addEventListener("click", async ()=>{
   const name = fName.value.trim();
   if(!name){ fName.focus(); return; }
-  if(shareNonePicked("fShareChips")){ travelToast("請至少選一位分攤的人"); return; }
+  const fExpOpen = document.getElementById("fExpCard").style.display !== "none";
+  if(fExpOpen && shareNonePicked("fShareChips")){ travelToast("請至少選一位分攤對象"); return; }
   if(!editingSpotId){
     const dup = items.find(i=>i.tripId===activeTripId && i.type==="spot" && i.name && i.name.trim()===name);
     if(dup){
@@ -2984,7 +3022,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
-    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips), sharedBy: readSharedByIn("fShareChips"), date: document.getElementById("fExpDate").value || "" }
+    expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: document.getElementById("fExpCat").value || SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips), sharedBy: readSharedByIn("fShareChips"), date: document.getElementById("fExpDate").value || "" }
   };
   try{
     const editing = editingSpotId ? items.find(i=>i.id===editingSpotId) : null;
@@ -3293,7 +3331,9 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   document.getElementById("tExpNote").value = it ? (it.note||"") : "";
   const hasExpense = !!(it && it.expense && it.expense.amount);
   document.getElementById("tExpFields").style.display = "block";
-  document.getElementById("tExpToggle").style.display = "none";
+  // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
+  document.getElementById("tExpCard").style.display = hasExpense ? "" : "none";
+  document.getElementById("tExpToggle").style.display = hasExpense ? "none" : "";
 
   let isLeading = isLeadingOverride || false;
   if(it){
@@ -3419,7 +3459,7 @@ function updateStationHintJapan(el){
   const link = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--seal); text-decoration:underline; font-weight:600;">在Google地圖查看電車路線／JR Pass適用線路</a>`;
   if(parts.length){
     el.innerHTML = "🚃 " + parts.join("　") + `<br>${link}`
-      + `<br><span style="color:var(--sub); font-weight:400; font-size:11px;">車站位置為概略，僅供參考</span>`;
+      + `<br><span style="color:var(--sub); font-weight:400; font-size:12px;">車站位置為概略，僅供參考</span>`;
   } else {
     el.innerHTML = "🚃 附近 1.5 公里內找不到 JR 站，請用下方選單選擇，或點連結查詢"
       + `<br>${link}`;
@@ -3431,6 +3471,7 @@ function closeTransportModal(){ transModalMask.classList.remove("show"); }
 document.getElementById("transClose").addEventListener("click", closeTransportModal);
 document.getElementById("transCancel").addEventListener("click", closeTransportModal);
 document.getElementById("tExpToggle").addEventListener("click", ()=>{
+  document.getElementById("tExpCard").style.display = "";
   document.getElementById("tExpFields").style.display = "block";
   document.getElementById("tExpToggle").style.display = "none";
 });
@@ -3443,7 +3484,7 @@ document.getElementById("transDelete").addEventListener("click", async ()=>{
 transModalMask.addEventListener("click",(e)=>{ if(e.target===transModalMask) closeTransportModal(); });
 
 document.getElementById("transSave").addEventListener("click", async ()=>{
-  if(shareNonePicked("tShareChips")){ travelToast("請至少選一位分攤的人"); return; }
+  if(document.getElementById("tExpCard").style.display !== "none" && shareNonePicked("tShareChips")){ travelToast("請至少選一位分攤對象"); return; }
   const duration = tDuration.value ? Number(tDuration.value) : 0;
   const data = {
     type:"transport", tripId: activeTripId, mode: selectedMode, duration,
@@ -3825,6 +3866,7 @@ function renderExpense(){
   if(!getActiveTrip()){
     const listWrap = document.getElementById("expList");
     document.getElementById("expTotal").textContent = "¥0";
+    document.getElementById("expAvgNote").textContent = "";
     document.getElementById("expCats").innerHTML = "";
     document.getElementById("expByMember").innerHTML = "";
     document.getElementById("expSettle").innerHTML = "";
@@ -3867,6 +3909,9 @@ function renderExpense(){
   const exchSum = exchList.reduce((s,i)=>s+converted(i),0);
   const total = counted.reduce((s,i)=>s+converted(i),0);
   document.getElementById("expTotal").textContent = sym+Math.round(total).toLocaleString();
+  const avgNote = document.getElementById("expAvgNote");
+  const nMem = (getActiveTrip().members||[]).length;
+  avgNote.textContent = (nMem>=2 && total>0) ? `平均每人約 ${sym}${Math.round(total/nMem).toLocaleString()}（${nMem} 人）` : "";
   const exNote = document.getElementById("expExchNote");
   exNote.textContent = exchList.length ? `另有兌換 ${sym}${Math.round(exchSum).toLocaleString()}，不計入總額與分類` : "";
 
@@ -3880,6 +3925,11 @@ function renderExpense(){
     const p = document.createElement("div");
     p.className = "exp-cat-pill";
     p.innerHTML = `<div class="c-label">${escapeHtml(c)}</div><div class="c-amt">${sym}${Math.round(cats[c]).toLocaleString()}</div>`;
+    p.style.cursor = "pointer";
+    p.addEventListener("click", ()=>{
+      const h = [...document.querySelectorAll("#expList .exp-grp")].find(e=>e.dataset.grp===c);
+      if(h) h.scrollIntoView({behavior:"smooth", block:"start"});
+    });
     catWrap.appendChild(p);
   });
 
@@ -3894,6 +3944,7 @@ function renderExpense(){
       const p = document.createElement("div");
       p.className = "exp-cat-pill";
       p.innerHTML = `<div class="c-label">👤 ${escapeHtml(m)}</div><div class="c-amt">${sym}${Math.round(byMember[m]).toLocaleString()}</div>`;
+      p.style.background = "var(--seal-soft)";   // 加底色：與可點的分類方塊區分
       memberWrap.appendChild(p);
     });
   }
@@ -3903,7 +3954,7 @@ function renderExpense(){
   const listWrap = document.getElementById("expList");
   listWrap.innerHTML = "";
   if(all.length===0){
-    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<span class="esub">在行程地點裡填入金額，或按上方「新增花費」</span></div>`;
+    listWrap.innerHTML = `<div class="empty"><span class="emoji">💰</span>還沒有花費紀錄<span class="esub">在行程項目點「＋ 記錄這裡的花費」，或按上方「新增花費」</span></div>`;
     return;
   }
   const sorted = [...all].sort((a,b)=>{
@@ -3924,6 +3975,7 @@ function renderExpense(){
       const g = groupMeta.find(x=>x.c===gc);
       const h = document.createElement("div");
       h.className = "exp-grp" + (g.exch ? " exch" : "");
+      h.dataset.grp = gc;
       h.innerHTML = `<span>${EXP_CAT_ICON[gc]||"📌"} ${escapeHtml(gc)} · ${g.n} 筆${g.exch ? "（不計入總額）" : ""}</span><span>${sym}${Math.round(g.amt).toLocaleString()}</span>`;
       listWrap.appendChild(h);
     }
@@ -4134,7 +4186,7 @@ document.getElementById("eSave").addEventListener("click", async ()=>{
   let sharedBy = [];
   if(members.length>=2){
     const picked = [...document.querySelectorAll("#eShareChips .chip.active")].map(c=>c.dataset.m);
-    if(picked.length===0){ travelToast("請至少選一位分攤的人"); return; }
+    if(picked.length===0){ travelToast("請至少選一位分攤對象"); return; }
     sharedBy = (picked.length===members.length) ? [] : picked;   // 空陣列＝全部成員
   }
   const data = {
@@ -4511,7 +4563,7 @@ packModalMask.addEventListener("click",(e)=>{ if(e.target===packModalMask) packM
 document.getElementById("packSave").addEventListener("click", async ()=>{
   const name = packName.value.trim();
   if(!name){ packName.focus(); return; }
-  if(selectedPackCat==="行前辦理" && shareNonePicked("pShareChips")){ travelToast("請至少選一位分攤的人"); return; }
+  if(selectedPackCat==="行前辦理" && shareNonePicked("pShareChips")){ travelToast("請至少選一位分攤對象"); return; }
   const data = { type:"packing", tripId: activeTripId, category: selectedPackCat, name, note: packNote.value.trim() };
   const qtyV = parseInt(document.getElementById("packQty").value, 10);
   if(qtyV > 0) data.qty = qtyV;
@@ -5063,6 +5115,12 @@ function renderPacking(){
       header.style.cssText = "font-size:15px; font-weight:700; color:var(--accent); margin:14px 0 8px;";
       header.textContent = `${cat}（${checkedCount}/${list.length}）`;
       wrap.appendChild(header);
+    }
+    if(cat==="行前辦理" && packingViewMode==="checklist"){
+      const eh = document.createElement("div");
+      eh.style.cssText = "font-size:12px; color:var(--sub); margin:-2px 2px 8px; line-height:1.6;";
+      eh.textContent = "💡 長按項目點 ✎ 編輯，可填寫金額、付款人與分攤對象，計入花費統計。";
+      wrap.appendChild(eh);
     }
     list.forEach((it, idx)=>{
       const card = document.createElement("div");
