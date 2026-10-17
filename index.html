@@ -1063,10 +1063,11 @@ header #mapBtn, header #settingsBtn{
 <div class="modal-mask" id="packLibMask">
   <div class="modal" style="max-height:88vh; display:flex; flex-direction:column;">
     <button class="close-x" id="packLibClose">✕</button>
-    <h2>從項目庫挑選</h2>
-    <p style="font-size:13px; color:var(--sub); margin:-6px 0 10px; line-height:1.5;">勾選要加入行李清單的項目，已在清單的會顯示灰色。<br>行動電源、藥品、剪刀等受限制物品，出發前請確認航空公司及目的地的最新攜帶規定。</p>
+    <h2 id="packLibTitle">從項目庫挑選</h2>
+    <p id="packLibDesc" style="font-size:13px; color:var(--sub); margin:-6px 0 10px; line-height:1.5;"></p>
     <div id="packLibBody" style="overflow-y:auto; flex:1; padding-bottom:6px;"></div>
     <div class="modal-actions">
+      <button class="btn btn-ghost" id="packLibBack" style="display:none;">上一步</button>
       <button class="btn btn-ghost" id="packLibCancel">取消</button>
       <button class="btn btn-primary" id="packLibAdd">加入</button>
     </div>
@@ -1264,7 +1265,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-87";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-89";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4468,7 +4469,8 @@ async function openPackLib(){
   const have = new Set(items.filter(i=>i.tripId===activeTripId && i.type==="packing").map(i=>i.name));
   const region = (trip && trip.region==="japan") ? "japan" : "china";
   const month = (trip && trip.startDate) ? (new Date(trip.startDate+"T00:00:00").getMonth()+1) : 0;
-  _packLibCtx = { have, region, month, mine:[] };
+  const recSeasons = new Set(PACK_LIB.seasons.filter(sn=>sn.months.includes(month)).map(sn=>sn.id));
+  _packLibCtx = { have, region, month, mine:[], step:1, seasonSel:recSeasons, actSel:new Set(), useMine:true };
   const myCtx = _packLibCtx;
   renderPackLib();
   document.getElementById("packLibMask").classList.add("show");
@@ -4479,31 +4481,67 @@ async function openPackLib(){
       const t = d.exists ? (d.data()||{}).packTemplate : null;
       if(t && Array.isArray(t.items) && t.items.length && _packLibCtx===myCtx
          && document.getElementById("packLibMask").classList.contains("show")){
-        const touched = _packLibPicked().length>0;
         myCtx.mine = t.items;
-        _packLibRerender(touched);
-        if(touched){   // 使用者已勾了東西：保留他的勾選，我的清單照預設全勾
+        if(myCtx.step===1){ renderPackLib(); }
+        else{
+        _packLibRerender(true);
+        {   // 使用者已勾了東西：保留他的勾選，我的清單照預設全勾
           document.querySelectorAll("#packLibBody input[type=checkbox]:not(:disabled)").forEach(cb=>{
             if(_packLibSecs[+cb.dataset.s].key==="mine") cb.checked = true;
           });
           updatePackLibCount();
+        }
         }
       }
     }
   }catch(e){ console.warn("load my packing list failed", e); }
 }
 let _packLibCtx = null;
+// 第 1 步：先勾條件（季節、活動、我的清單）；第 2 步：依條件組出清單，確認後才加入行程
+function renderPackLibStep1(){
+  const c = _packLibCtx;
+  document.getElementById("packLibTitle").textContent = "這趟旅程的條件";
+  document.getElementById("packLibDesc").innerHTML = "勾選後會自動組出清單，下一步可以再取消不要的項目。<br>通用清單與"+escapeHtml(PACK_LIB.country[c.region].label)+"專屬項目一定會帶入。";
+  document.getElementById("packLibBack").style.display = "none";
+  const btn = document.getElementById("packLibAdd"); btn.textContent = "下一步"; btn.disabled = false;
+  const body = document.getElementById("packLibBody"); body.innerHTML = "";
+  const mk = (title, hint, list, selSet, labelFn, onToggle)=>{
+    const h = document.createElement("div");
+    h.style.cssText = "font-size:14px; font-weight:700; padding:10px 2px 6px;";
+    h.textContent = title; body.appendChild(h);
+    if(hint){ const t = document.createElement("div"); t.style.cssText = "font-size:12px; color:var(--sub); margin:-2px 2px 8px;"; t.textContent = hint; body.appendChild(t); }
+    const row = document.createElement("div"); row.className = "chip-row"; row.style.marginBottom = "6px";
+    list.forEach(o=>{
+      const b = document.createElement("button"); b.type = "button";
+      b.className = "chip"+(selSet.has(o.id)?" active":""); b.textContent = labelFn(o);
+      b.addEventListener("click", ()=>{ if(selSet.has(o.id)) selSet.delete(o.id); else selSet.add(o.id); b.classList.toggle("active"); });
+      row.appendChild(b);
+    });
+    body.appendChild(row);
+  };
+  mk("季節（可複選）", c.month ? "已依出發月份標示建議的季節" : "行程沒有出發日，請自行選擇", PACK_LIB.seasons, c.seasonSel,
+     sn=>sn.label+(sn.months.includes(c.month)?"（建議）":""));
+  mk("活動（可複選）", "", PACK_LIB.acts, c.actSel, a=>a.label);
+  if(c.mine.length){
+    const sel = new Set(c.useMine ? ["mine"] : []);
+    mk("我的清單", "", [{id:"mine"}], sel, ()=>"⭐ 加入我的清單（"+c.mine.length+" 項）", null);
+    body.lastChild.firstChild.addEventListener("click", ()=>{ c.useMine = sel.has("mine"); });
+  }
+}
 function renderPackLib(){
-  const { have, region, month, mine } = _packLibCtx;
-  const hasMine = mine.length>0;
+  if(_packLibCtx.step===1){ renderPackLibStep1(); return; }
+  const { have, region, month, mine, seasonSel, actSel, useMine } = _packLibCtx;
+  document.getElementById("packLibTitle").textContent = "確認要加入的項目";
+  document.getElementById("packLibDesc").innerHTML = "已依條件組好，取消不要的再按加入；已在清單的會顯示灰色。<br>行動電源、藥品、剪刀等受限制物品，出發前請確認航空公司及目的地的最新攜帶規定。";
+  document.getElementById("packLibBack").style.display = "";
   const secs = [];
-  if(hasMine) secs.push({ key:"mine", title:"⭐ 我的清單", open:true, pre:true,
+  if(mine.length && useMine) secs.push({ key:"mine", title:"⭐ 我的清單", open:true, pre:true,
     items: mine.map((x,mi)=>({ c:normPackCat(x.category), n:x.name, note:x.note||"", qty:x.qty||0, mi })) });
-  secs.push({ key:"core", title:"📋 通用清單", open:!hasMine, pre:false, items:PACK_LIB.core });
+  secs.push({ key:"core", title:"📋 通用清單", open:true, pre:true, items:PACK_LIB.core });
   const ctry = PACK_LIB.country[region];
-  secs.push({ key:"country", title:ctry.label+" 專屬", open:!hasMine, pre:false, items:ctry.items });
-  PACK_LIB.seasons.forEach(sn=>{ const rec = sn.months.includes(month); secs.push({ key:sn.id, title:sn.label+(rec?"（建議）":""), open:rec, pre:false, items:sn.items }); });
-  PACK_LIB.acts.forEach(a=>{ secs.push({ key:a.id, title:a.label, open:false, pre:false, items:a.items }); });
+  secs.push({ key:"country", title:ctry.label+" 專屬", open:true, pre:true, items:ctry.items });
+  PACK_LIB.seasons.filter(sn=>seasonSel.has(sn.id)).forEach(sn=>{ secs.push({ key:sn.id, title:sn.label, open:true, pre:true, items:sn.items }); });
+  PACK_LIB.acts.filter(a=>actSel.has(a.id)).forEach(a=>{ secs.push({ key:a.id, title:a.label, open:true, pre:true, items:a.items }); });
   // 每區內依分類順序排好，同一分類的項目放在一起
   secs.forEach(sec=>{
     sec.items = sec.items.map((x,i)=>({x,i})).sort((p,q)=>{
@@ -4647,7 +4685,11 @@ async function addPackLibPicked(){
 document.getElementById("packLibClose").addEventListener("click", ()=>document.getElementById("packLibMask").classList.remove("show"));
 document.getElementById("packLibCancel").addEventListener("click", ()=>document.getElementById("packLibMask").classList.remove("show"));
 document.getElementById("packLibMask").addEventListener("click",(e)=>{ if(e.target.id==="packLibMask") e.target.classList.remove("show"); });
-document.getElementById("packLibAdd").addEventListener("click", addPackLibPicked);
+document.getElementById("packLibAdd").addEventListener("click", ()=>{
+  if(_packLibCtx && _packLibCtx.step===1){ _packLibCtx.step = 2; renderPackLib(); document.getElementById("packLibBody").scrollTop = 0; return; }
+  addPackLibPicked();
+});
+document.getElementById("packLibBack").addEventListener("click", ()=>{ if(_packLibCtx){ _packLibCtx.step = 1; renderPackLib(); } });
 
 // ---- 存成我的清單：存在自己的帳號（users/{uid}），下個行程可從項目庫「我的清單」挑選 ----
 async function savePackTemplate(){
@@ -5571,6 +5613,7 @@ function appHandleBack(){
         '<button type="button" class="subs-chip" data-v="1">＋1 月</button>'+
         '<button type="button" class="subs-chip" data-v="12">＋1 年</button>'+
         '<button type="button" class="subs-chip" data-v="ask">自訂…</button>'+
+        '<button type="button" class="subs-chip" data-v="set">改到期日</button>'+
       '</div>'+
       '<div class="subs-row2"><span>裝置</span><span class="v">'+used+' / '+(sub.deviceLimit||devLimit(st.rawPlan))+'</span>'+
         '<button type="button" class="subs-mini" id="mDev">清除</button></div>'+
@@ -5585,6 +5628,7 @@ function appHandleBack(){
     document.getElementById('me').querySelectorAll('.subs-chip').forEach(function(b){
       b.onclick=function(){
         var v=b.getAttribute('data-v');
+        if(v==='set'){ setExpiry(path, st.expiry); return; }
         if(v==='ask'){ var m=prompt('延長幾個月？','12'); if(m===null) return;
           m=parseInt(m,10); if(!m||m<1){ toast('請輸入 1 以上的數字'); return; } extend(path, m); }
         else extend(path, Number(v));
@@ -5627,6 +5671,21 @@ function appHandleBack(){
       toast('已開通完整版，到期 '+slash(next));
       closeSheet(); await load();
     }catch(e){ toast(fail('開通', e)); }
+  }
+  // 直接指定到期日（填錯可以改回來，也能縮短）
+  async function setExpiry(path, cur){
+    var d=prompt('新的到期日（年-月-日，例如 2027-10-17）', cur||'');
+    if(d===null) return;
+    d=d.trim().replace(/\//g,'-');
+    var m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(d);
+    var dt=m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
+    if(!dt || dt.getMonth()!==+m[2]-1 || dt.getDate()!==+m[3] || +m[1]<2020 || +m[1]>2100){ toast('日期格式不對，請填 年-月-日'); return; }
+    var next=ymd(dt);
+    try{
+      await firebase.database().ref(path).update({ expiry:next });
+      toast('到期日已改為 '+slash(next));
+      closeSheet(); await load();
+    }catch(e){ toast(fail('修改', e)); }
   }
   async function extend(path, months){
     try{
