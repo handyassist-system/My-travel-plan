@@ -1064,7 +1064,7 @@ header #mapBtn, header #settingsBtn{
   <div class="modal" style="max-height:88vh; display:flex; flex-direction:column;">
     <button class="close-x" id="packLibClose">✕</button>
     <h2>從項目庫挑選</h2>
-    <p style="font-size:13px; color:var(--sub); margin:-6px 0 10px; line-height:1.5;">勾選要加入行李清單的項目，已在清單的會顯示灰色。</p>
+    <p style="font-size:13px; color:var(--sub); margin:-6px 0 10px; line-height:1.5;">勾選要加入行李清單的項目，已在清單的會顯示灰色。<br>行動電源、藥品、剪刀等受限制物品，出發前請確認航空公司及目的地的最新攜帶規定。</p>
     <div id="packLibBody" style="overflow-y:auto; flex:1; padding-bottom:6px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="packLibCancel">取消</button>
@@ -1264,7 +1264,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-78";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-86";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1913,6 +1913,7 @@ function startTripsListening(){
       renderAll();
       return;
     }
+    firstTripShown = false;
     hideFirstTripScreen();
     bottomNav.style.display = "flex";
     if(!activeTripId || !trips.find(t=>t.id===activeTripId)){
@@ -3919,7 +3920,7 @@ document.getElementById("rateFetchBtn").addEventListener("click", async ()=>{
 
 // ================= 行程外花費 + 結算 =================
 // 結算規則：每筆花費由「付款人」先墊，分攤給「分攤的人」（沒指定＝全部成員）平分。
-// 沒填付款人、或付款人不在成員名單內的花費，無法結算，不納入並提示筆數。付款人選「公費現金」＝用換來的現金付，不算墊款、不進結算。
+// 沒填付款人、或付款人不在成員名單內的花費，無法結算，不納入並分別提示筆數。付款人選「公費現金」＝用換來的現金付，不算墊款、不進結算。
 function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   const box = document.getElementById("expSettle");
   if(!box) return;
@@ -3931,12 +3932,13 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   }
   const paid = {}, owed = {};
   members.forEach(m=>{ paid[m]=0; owed[m]=0; });
-  let skipped = 0, poolCount = 0, exchCount = 0;
+  let skipped = 0, poolCount = 0, exchCount = 0, gone = 0; const goneNames = new Set();
   const isExchItem = i => (i.expense.category||"")==="兌換";
   all.forEach(i=>{
     const payer = i.expense.payer;
     if(payer===POOL_PAYER){ poolCount++; return; }   // 公費現金：兌換時已平分，這裡不再算
-    if(!payer || !paid.hasOwnProperty(payer)){ skipped++; return; }
+    if(!payer){ skipped++; return; }
+    if(!paid.hasOwnProperty(payer)){ gone++; goneNames.add(payer); return; }
     if(isExchItem(i)) exchCount++;
     const amt = converted(i);
     let who = Array.isArray(i.expense.sharedBy) ? i.expense.sharedBy.filter(m=>owed.hasOwnProperty(m)) : [];
@@ -3978,6 +3980,7 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(rateNote)}`;
   if(exchCount>0 || poolCount>0) html += `<br>兌換由付款人先墊、全員平分；選「${POOL_PAYER}」的花費不再重複計算。換來的現金沒花完，請另外結清。`;
   if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
+  if(gone>0) html += `<br>⚠️ 有 ${gone} 筆花費的付款人（${escapeHtml([...goneNames].join('、'))}）已不在成員名單，未納入結算；請把他加回成員或改付款人`;
   html += `</div></div>`;
   box.innerHTML = html;
 }
@@ -4316,14 +4319,14 @@ const packModalMask = document.getElementById("packModalMask");
 const packCatChips = document.getElementById("packCatChips");
 const packName = document.getElementById("packName");
 const packNote = document.getElementById("packNote");
-const PACKING_BASE_CATS = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子","行李收納","其他"];   // 行前準備分頁的固定類別
-const packCatOf = i => { let c = i.category || "其他"; if(c === "盥洗衣物") c = "盥洗保養"; if(c === "行李" || c === "行李用品") c = "行李收納"; return (PACKING_BASE_CATS.includes(c) || SOUVENIR_CATS.includes(c)) ? c : "其他"; };   // 不在固定類別內的一律顯示在「其他」
+const PACKING_BASE_CATS = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子用品","行李收納","其他用品"];   // 行前準備分頁的固定類別
+const packCatOf = i => { let c = i.category || "其他用品"; if(c === "盥洗衣物") c = "盥洗保養"; if(c === "行李" || c === "行李用品") c = "行李收納"; if(c === "電子") c = "電子用品"; if(c === "其他") c = "其他用品"; return (PACKING_BASE_CATS.includes(c) || SOUVENIR_CATS.includes(c)) ? c : "其他用品"; };   // 不在固定類別內的一律顯示在「其他」
 const SOUVENIR_CATS = ["伴手禮","紀念品","其他購物"];     // 伴手禮分頁只有這三類（紀念品＝磁鐵、明信片；其他購物＝彩妝、衣服、玩偶）
-const PACKING_CATEGORY_PRIORITY = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子","行李收納"];
+const PACKING_CATEGORY_PRIORITY = ["行前辦理","證件","金錢","衣物","盥洗保養","藥品","電子用品","行李收納"];
 function sortPackingCategories(cats){
   return [...cats].sort((a,b)=>{
-    if(a==="其他") return 1;
-    if(b==="其他") return -1;
+    if(a==="其他用品") return 1;
+    if(b==="其他用品") return -1;
     const ia = PACKING_CATEGORY_PRIORITY.indexOf(a);
     const ib = PACKING_CATEGORY_PRIORITY.indexOf(b);
     const pa = ia===-1 ? PACKING_CATEGORY_PRIORITY.length : ia;
@@ -4331,8 +4334,8 @@ function sortPackingCategories(cats){
     return pa - pb;
   });
 }
-const PACKING_ICONS = { "行前辦理":"✅", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "其他":"📌", "證件":"📄", "金錢":"💰", "電子":"📱", "藥品":"💊", "衣物":"👕", "盥洗保養":"🧴", "行李收納":"🧳" };
-let selectedPackCat = "其他";
+const PACKING_ICONS = { "行前辦理":"✅", "伴手禮":"🎁", "紀念品":"🧲", "其他購物":"🛍️", "其他用品":"📌", "證件":"📄", "金錢":"💰", "電子用品":"📱", "藥品":"💊", "衣物":"👕", "盥洗保養":"🧴", "行李收納":"🧳" };
+let selectedPackCat = "其他用品";
 let editingPackId = null;
 
 function getAllPackingCategories(){ return [...PACKING_BASE_CATS]; }   // 類別固定
@@ -4354,7 +4357,7 @@ function renderPackCatChips(){
 function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
-  selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他");
+  selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他用品");
   renderPackCatChips();
   packName.value = item ? item.name : "";
   packNote.value = item ? (item.note||"") : "";
@@ -4405,60 +4408,58 @@ const PACK_LIB = {
   core: [
     _pk("行前辦理","換當地現金"), _pk("行前辦理","訂機票"), _pk("行前辦理","訂住宿"),
     _pk("行前辦理","辦網路（SIM 卡或 eSIM）"), _pk("行前辦理","買旅遊保險"), _pk("行前辦理","預約接送機"),
-    _pk("行前辦理","購買高鐵票"), _pk("行前辦理","預訂景點門票"), _pk("行前辦理","預訂餐廳"),
+    _pk("行前辦理","預訂火車／高鐵等交通票"), _pk("行前辦理","預訂景點門票"), _pk("行前辦理","預訂餐廳"),
     _pk("行前辦理","下載離線地圖"), _pk("行前辦理","設定行動支付"), _pk("行前辦理","確認信用卡可海外刷卡"),
     _pk("行前辦理","關閉家中電源"), _pk("行前辦理","關瓦斯"), _pk("行前辦理","鎖好門窗"), _pk("行前辦理","倒垃圾"),
     _pk("行前辦理","查目的地天氣"), _pk("行前辦理","下載 Papago 翻譯","文字、語音、相機翻譯"),
-    _pk("證件","護照","效期需 6 個月以上"), _pk("證件","機票"), _pk("證件","訂房憑證"), _pk("證件","旅遊保險單"),
-    _pk("證件","證件影本與照片","手機拍照存一份"), _pk("證件","健保卡"), _pk("證件","駕照","要租車才需要"), _pk("證件","緊急聯絡資料"),
+    _pk("證件","護照","效期需 6 個月以上"), _pk("證件","機票／登機資訊"), _pk("證件","訂房憑證"), _pk("證件","旅遊保險單"),
+    _pk("證件","重要證件備份","手機拍照存一份"), _pk("證件","健保卡"), _pk("證件","駕照","要租車才需要"), _pk("證件","緊急聯絡資料"),
     _pk("金錢","當地現金"), _pk("金錢","信用卡","多張備用，分開放"), _pk("金錢","少量台幣","回程備用"), _pk("金錢","零錢包"),
-    _pk("衣物","換洗衣物"), _pk("衣物","內衣褲"), _pk("衣物","襪子"), _pk("衣物","睡衣"), _pk("衣物","好走的鞋"), _pk("衣物","拖鞋"), _pk("衣物","口罩"), _pk("衣物","太陽眼鏡"),
+    _pk("衣物","換洗衣物"), _pk("衣物","內衣"), _pk("衣物","內褲"), _pk("衣物","襪子"), _pk("衣物","睡衣"), _pk("衣物","好走的鞋"), _pk("衣物","室內拖鞋"), _pk("衣物","室外拖鞋"), _pk("衣物","口罩"), _pk("衣物","太陽眼鏡"),
     _pk("盥洗保養","牙刷牙膏","飯店可能不提供牙刷"), _pk("盥洗保養","洗面乳"), _pk("盥洗保養","沐浴乳"), _pk("盥洗保養","洗髮精"),
     _pk("盥洗保養","毛巾"), _pk("盥洗保養","保養品"), _pk("盥洗保養","化妝用品"), _pk("盥洗保養","卸妝用品"),
-    _pk("盥洗保養","隱形眼鏡與藥水"), _pk("盥洗保養","刮鬍刀"), _pk("盥洗保養","生理用品"), _pk("盥洗保養","梳子"), _pk("盥洗保養","吹風機"), _pk("盥洗保養","指甲剪"), _pk("盥洗保養","棉花棒"), _pk("盥洗保養","洗衣精","小包裝"), _pk("盥洗保養","備用眼鏡"),
-    _pk("藥品","感冒退燒藥"), _pk("藥品","胃腸藥"), _pk("藥品","頭痛藥"), _pk("藥品","暈車暈船藥"), _pk("藥品","過敏藥"), _pk("藥品","眼藥水"), _pk("藥品","蚊蟲叮咬藥膏"), _pk("藥品","OK 繃"),
-    _pk("藥品","慢性病處方藥","建議帶中／英文診斷證明"),
-    _pk("電子","手機充電線"), _pk("電子","充電插頭"), _pk("電子","行動電源","登機要隨身"), _pk("電子","耳機"),
-    _pk("電子","相機與記憶卡"), _pk("電子","自拍棒"), _pk("電子","手電筒"),
+    _pk("盥洗保養","隱形眼鏡與藥水"), _pk("盥洗保養","刮鬍刀"), _pk("盥洗保養","生理用品"), _pk("盥洗保養","梳子"), _pk("盥洗保養","吹風機"), _pk("盥洗保養","乳液"), _pk("盥洗保養","護唇膏"), _pk("盥洗保養","指甲剪"), _pk("盥洗保養","棉花棒"), _pk("盥洗保養","洗衣精","小包裝"), _pk("盥洗保養","備用眼鏡"),
+    _pk("藥品","感冒退燒藥"), _pk("藥品","胃腸藥"), _pk("藥品","頭痛藥"), _pk("藥品","喉嚨噴劑"), _pk("藥品","喉糖"), _pk("藥品","暈車暈船藥"), _pk("藥品","過敏藥"), _pk("藥品","眼藥水"), _pk("藥品","蚊蟲叮咬藥膏"), _pk("藥品","OK 繃"),
+    _pk("藥品","個人必要藥品／慢性病處方藥","建議帶中／英文診斷證明；請確認航空公司及目的地規定"),
+    _pk("電子用品","手機充電線"), _pk("電子用品","充電插頭"), _pk("電子用品","轉接頭","日本插頭同台灣，通常不用；大陸多為兩孔或三孔"), _pk("電子用品","行動電源","登機要隨身；請確認航空公司最新規定"), _pk("電子用品","耳機"),
+    _pk("電子用品","相機與記憶卡"), _pk("電子用品","自拍棒"), _pk("電子用品","手電筒"),
     _pk("行李收納","行李鎖"), _pk("行李收納","行李帶"), _pk("行李收納","行李秤"), _pk("行李收納","壓縮袋"), _pk("行李收納","防水袋"),
     _pk("行李收納","塑膠袋"), _pk("行李收納","夾鏈袋"), _pk("行李收納","洗衣袋"), _pk("行李收納","隨身小包","放護照、手機、錢"), _pk("行李收納","環保購物袋"),
-    _pk("其他","家裡鑰匙"), _pk("其他","保溫瓶"), _pk("其他","摺疊水杯"), _pk("其他","酒精噴瓶"), _pk("其他","小剪刀","要託運，不能帶上機"),
-    _pk("其他","原子筆","填入境卡用"), _pk("其他","衛生紙"), _pk("其他","濕紙巾"), _pk("其他","零食"), _pk("其他","眼罩"), _pk("其他","頸枕")
+    _pk("其他用品","家裡鑰匙"), _pk("其他用品","保溫瓶"), _pk("其他用品","摺疊水杯"), _pk("其他用品","摺疊傘"), _pk("其他用品","酒精噴瓶"), _pk("其他用品","小剪刀","要託運，不能帶上機；請確認航空公司規定"),
+    _pk("其他用品","原子筆","填入境卡用"), _pk("其他用品","衛生紙"), _pk("其他用品","濕紙巾"), _pk("其他用品","眼罩"), _pk("其他用品","頸枕")
   ],
   country: {
     china: { label:"🇨🇳 大陸", items:[
       _pk("證件","台胞證","效期需 6 個月以上"), _pk("行前辦理","設定支付寶","大陸許多地方只收支付寶／微信支付"),
-      _pk("行前辦理","設定微信支付"), _pk("電子","VPN","出發前先在台灣裝好，當地不易下載"),
-      _pk("電子","轉接頭","大陸插座多為兩孔或三孔"),
+      _pk("行前辦理","設定微信支付"), _pk("電子用品","VPN","出發前先在台灣裝好"),
       _pk("行前辦理","下載高德地圖","導航與交通規劃，可下載離線地圖"), _pk("行前辦理","下載小紅書","旅遊攻略與台灣旅客筆記"),
       _pk("行前辦理","下載滴滴出行","叫車，車資自動計算扣款"), _pk("行前辦理","下載大眾點評","查餐廳評價、人均消費與營業時間"),
-      _pk("行前辦理","下載美團","外賣與到店團購"), _pk("行前辦理","下載迪士尼 App","去上海迪士尼才需要，可查排隊時間"),
-      _pk("行前辦理","下載鐵路 12306","官方火車與高鐵購票") ] },
+      _pk("行前辦理","下載美團","外賣與到店團購"), _pk("行前辦理","下載迪士尼 App","有安排迪士尼行程時"),
+      _pk("行前辦理","下載鐵路 12306","有搭乘火車／高鐵時") ] },
     japan: { label:"🇯🇵 日本", items:[
       _pk("金錢","交通 IC 卡","Suica／Pasmo／ICOCA，搭車與超商付款都能用"), _pk("行前辦理","Visit Japan Web 入境登錄"),
       _pk("行前辦理","下載乘換案內 App","查電車、新幹線路線、月台與換乘（開發商 Lapis Apps）"),
-      _pk("行前辦理","下載 Google 地圖","日本導航與查店家"), _pk("行前辦理","下載 PayPay","QR Code 支付，免換匯"),
-      _pk("行前辦理","下載 Tabelog","日本用戶餐廳評價與線上訂位") ] }
+      _pk("行前辦理","下載 Google 地圖","日本導航與查店家"), _pk("行前辦理","下載 PayPay","QR Code 支付"),
+      _pk("行前辦理","下載 Tabelog","有查詢餐廳需求時；日本用戶評價與線上訂位") ] }
   },
   seasons: [
-    { id:"spring", label:"🌸 春", months:[3,4,5], items:[ _pk("衣物","薄外套","早晚溫差較大"), _pk("衣物","長袖上衣"), _pk("其他","折疊傘","春季多雨"), _pk("衣物","防花粉口罩") ] },
-    { id:"summer", label:"☀️ 夏", months:[6,7,8], items:[ _pk("盥洗保養","防曬乳"), _pk("衣物","帽子"), _pk("其他","折疊傘","夏季常有午後雷陣雨"),
-      _pk("衣物","薄外套","室內冷氣通常很強"), _pk("藥品","防蚊液"), _pk("衣物","排汗衣"), _pk("電子","手持風扇") ] },
-    { id:"autumn", label:"🍂 秋", months:[9,10,11], items:[ _pk("衣物","薄外套","早晚偏涼"), _pk("衣物","長袖上衣"), _pk("其他","折疊傘"), _pk("盥洗保養","乳液") ] },
+    { id:"springfall", label:"🌸🍂 春秋", months:[3,4,5,9,10,11], items:[ _pk("衣物","薄外套","早晚溫差較大"), _pk("衣物","長袖上衣") ] },
+    { id:"summer", label:"☀️ 夏", months:[6,7,8], items:[ _pk("盥洗保養","防曬乳"), _pk("衣物","帽子"), _pk("衣物","薄外套","室內冷氣通常很強"), _pk("藥品","防蚊液"), _pk("衣物","排汗衣"), _pk("電子用品","手持風扇") ] },
     { id:"winter", label:"❄️ 冬", months:[12,1,2], items:[ _pk("衣物","羽絨外套","冬季體感常比溫度低，注意保暖"), _pk("衣物","圍巾"), _pk("衣物","手套"), _pk("衣物","毛帽"),
-      _pk("衣物","發熱衣"), _pk("衣物","保暖襪"), _pk("其他","暖暖包"), _pk("盥洗保養","乳液"), _pk("盥洗保養","護唇膏") ] }
+      _pk("衣物","發熱衣"), _pk("衣物","保暖襪"), _pk("其他用品","暖暖包") ] }
   ],
   acts: [
     { id:"beach", label:"🏖️ 海邊或溫泉", items:[ _pk("衣物","泳衣"), _pk("盥洗保養","浴巾"), _pk("行李收納","防水手機袋"), _pk("衣物","沙灘拖鞋"), _pk("盥洗保養","溫泉小毛巾") ] },
     { id:"hike",  label:"⛰️ 登山或戶外", items:[ _pk("衣物","登山鞋"), _pk("衣物","排汗衣"), _pk("行李收納","登山背包"), _pk("行李收納","背包防雨套"),
-      _pk("其他","護膝"), _pk("電子","頭燈"), _pk("衣物","防風防水外套") ] }
+      _pk("其他用品","護膝"), _pk("電子用品","頭燈"), _pk("衣物","防風防水外套") ] }
   ]
 };
 
 function normPackCat(c){
   if(c==="盥洗衣物") c = "盥洗保養";
   if(c==="行李" || c==="行李用品") c = "行李收納";
-  return (PACKING_BASE_CATS.includes(c) || SOUVENIR_CATS.includes(c)) ? c : "其他";
+  if(c==="電子") c = "電子用品"; if(c==="其他") c = "其他用品";
+  return (PACKING_BASE_CATS.includes(c) || SOUVENIR_CATS.includes(c)) ? c : "其他用品";
 }
 
 let _packLibSecs = [];
@@ -4467,21 +4468,40 @@ async function openPackLib(){
   const have = new Set(items.filter(i=>i.tripId===activeTripId && i.type==="packing").map(i=>i.name));
   const region = (trip && trip.region==="japan") ? "japan" : "china";
   const month = (trip && trip.startDate) ? (new Date(trip.startDate+"T00:00:00").getMonth()+1) : 0;
-  let mine = [];
+  _packLibCtx = { have, region, month, mine:[] };
+  const myCtx = _packLibCtx;
+  renderPackLib();
+  document.getElementById("packLibMask").classList.add("show");
+  // 先把畫面開出來，「我的清單」在背景讀取，讀到再補上
   try{
     if(auth && auth.currentUser){
       const d = await db.collection("users").doc(auth.currentUser.uid).get();
       const t = d.exists ? (d.data()||{}).packTemplate : null;
-      if(t && Array.isArray(t.items)) mine = t.items;
+      if(t && Array.isArray(t.items) && t.items.length && _packLibCtx===myCtx
+         && document.getElementById("packLibMask").classList.contains("show")){
+        const touched = _packLibPicked().length>0;
+        myCtx.mine = t.items;
+        _packLibRerender(touched);
+        if(touched){   // 使用者已勾了東西：保留他的勾選，我的清單照預設全勾
+          document.querySelectorAll("#packLibBody input[type=checkbox]:not(:disabled)").forEach(cb=>{
+            if(_packLibSecs[+cb.dataset.s].key==="mine") cb.checked = true;
+          });
+          updatePackLibCount();
+        }
+      }
     }
   }catch(e){ console.warn("load my packing list failed", e); }
+}
+let _packLibCtx = null;
+function renderPackLib(){
+  const { have, region, month, mine } = _packLibCtx;
   const hasMine = mine.length>0;
   const secs = [];
   if(hasMine) secs.push({ key:"mine", title:"⭐ 我的清單", open:true, pre:true,
-    items: mine.map(x=>({ c:normPackCat(x.category), n:x.name, note:x.note||"", qty:x.qty||0 })) });
-  secs.push({ key:"core", title:"📋 通用清單", open:!hasMine, pre:!hasMine, items:PACK_LIB.core });
+    items: mine.map((x,mi)=>({ c:normPackCat(x.category), n:x.name, note:x.note||"", qty:x.qty||0, mi })) });
+  secs.push({ key:"core", title:"📋 通用清單", open:!hasMine, pre:false, items:PACK_LIB.core });
   const ctry = PACK_LIB.country[region];
-  secs.push({ key:"country", title:ctry.label+" 專屬", open:!hasMine, pre:!hasMine, items:ctry.items });
+  secs.push({ key:"country", title:ctry.label+" 專屬", open:!hasMine, pre:false, items:ctry.items });
   PACK_LIB.seasons.forEach(sn=>{ const rec = sn.months.includes(month); secs.push({ key:sn.id, title:sn.label+(rec?"（建議）":""), open:rec, pre:false, items:sn.items }); });
   PACK_LIB.acts.forEach(a=>{ secs.push({ key:a.id, title:a.label, open:false, pre:false, items:a.items }); });
   // 每區內依分類順序排好，同一分類的項目放在一起
@@ -4511,6 +4531,13 @@ async function openPackLib(){
       b.addEventListener("click", ()=>{ det.querySelectorAll("input[type=checkbox]:not(:disabled)").forEach(cb=>{ cb.checked = (k===0); }); updatePackLibCount(); });
       bar.appendChild(b);
     });
+    if(sec.key==="mine"){
+      const cb = document.createElement("button");
+      cb.type = "button"; cb.textContent = "🗑 清除我的清單";
+      cb.style.cssText = "margin-left:auto; padding:6px 14px; border:1px solid var(--line); background:var(--bg); color:#d9534f; border-radius:999px; font-size:13px;";
+      cb.addEventListener("click", clearPackMine);
+      bar.appendChild(cb);
+    }
     det.appendChild(bar);
     let lastCat = "";
     sec.items.forEach((it, ii)=>{
@@ -4527,14 +4554,16 @@ async function openPackLib(){
       row.innerHTML = '<input type="checkbox" data-s="'+si+'" data-i="'+ii+'" style="width:20px; height:20px; margin-top:1px; flex:none;"'+(isHave?" disabled":(sec.pre?" checked":""))+'>'
         + '<span style="flex:1; min-width:0;">'+escapeHtml(it.n)+(it.qty?' <span style="color:var(--sub);">×'+it.qty+'</span>':"")
         + (isHave?' <span style="font-size:12px;">（已在清單）</span>':"")
-        + (it.note?'<span style="display:block; font-size:12px; color:var(--sub);">'+escapeHtml(it.note)+'</span>':"")+'</span>';
+        + (it.note?'<span style="display:block; font-size:12px; color:var(--sub);">'+escapeHtml(it.note)+'</span>':"")+'</span>'
+        + (sec.key==="mine" ? '<button type="button" class="pk-mine-del" title="從我的清單移除" style="flex:none; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:16px; cursor:pointer;">✕</button>' : "");
       row.querySelector("input").addEventListener("change", updatePackLibCount);
+      const delBtn = row.querySelector(".pk-mine-del");
+      if(delBtn) delBtn.addEventListener("click", (ev)=>{ ev.preventDefault(); ev.stopPropagation(); deletePackMineItem(it.mi); });
       det.appendChild(row);
     });
     body.appendChild(det);
   });
   updatePackLibCount();
-  document.getElementById("packLibMask").classList.add("show");
 }
 function _packLibPicked(){
   const out = [], seen = new Set();
@@ -4550,6 +4579,51 @@ function updatePackLibCount(){
   const btn = document.getElementById("packLibAdd");
   btn.textContent = n ? "加入 "+n+" 項" : "加入";
   btn.disabled = (n===0);
+}
+// ---- 我的清單：刪除（只動帳號底下存的那份，不影響任何行程裡已加入的項目）----
+async function _savePackMine(arr){
+  if(!(auth && auth.currentUser)) throw new Error("not signed in");
+  const ref = db.collection("users").doc(auth.currentUser.uid);
+  await ref.set(arr.length
+    ? { packTemplate:{ items:arr, updatedAt:Date.now() } }
+    : { packTemplate: firebase.firestore.FieldValue.delete() }, { merge:true });
+}
+function _packLibRerender(keepChecks){
+  const keep = new Set();
+  if(keepChecks) document.querySelectorAll("#packLibBody input[type=checkbox]:checked:not(:disabled)").forEach(cb=>{
+    const sec = _packLibSecs[+cb.dataset.s], it = sec && sec.items[+cb.dataset.i];
+    if(it) keep.add(sec.key+"|"+it.n);
+  });
+  renderPackLib();
+  if(keepChecks){
+    document.querySelectorAll("#packLibBody input[type=checkbox]:not(:disabled)").forEach(cb=>{
+      const sec = _packLibSecs[+cb.dataset.s], it = sec.items[+cb.dataset.i];
+      cb.checked = keep.has(sec.key+"|"+it.n);
+    });
+    updatePackLibCount();
+  }
+}
+async function deletePackMineItem(mi){
+  const ctx = _packLibCtx; if(!ctx || !ctx.mine[mi]) return;
+  const name = ctx.mine[mi].name;
+  const next = ctx.mine.filter((_,i)=>i!==mi);
+  try{
+    await _savePackMine(next);
+    ctx.mine = next;
+    _packLibRerender(next.length>0);
+    travelToast("已從我的清單移除「"+name+"」");
+  }catch(e){ console.error("delete my list item failed", e); travelToast(failMsg("移除", e)); }
+}
+async function clearPackMine(){
+  const ctx = _packLibCtx; if(!ctx || !ctx.mine.length) return;
+  const ok = await askConfirm("清除我的清單", "會刪除你存的「我的清單」（"+ctx.mine.length+" 項）。\n不會影響任何行程裡已經加入的項目。", "清除");
+  if(!ok) return;
+  try{
+    await _savePackMine([]);
+    ctx.mine = [];
+    _packLibRerender(false);
+    travelToast("已清除我的清單");
+  }catch(e){ console.error("clear my list failed", e); travelToast(failMsg("清除", e)); }
 }
 async function addPackLibPicked(){
   const picked = _packLibPicked();
