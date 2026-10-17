@@ -230,7 +230,7 @@
   .spot-meta{font-size:13px; color:var(--sub); margin:0 0 5px;}
   .spot-note{font-size:12.5px; color:var(--sub); white-space:pre-wrap; word-break:break-word; margin:0 0 5px;}
   .spot-expense{font-size:13px; color:var(--green); font-weight:600;}
-  .spot-actions{display:flex; flex-direction:row; gap:6px; justify-content:flex-end; margin-top:8px; padding-top:8px; border-top:1px solid var(--line);}
+  .spot-actions{display:flex; flex-direction:row; gap:10px; justify-content:flex-end; margin-top:8px; padding-top:8px; border-top:1px solid var(--line);}
   .pack-card-compact{transition:padding 0.15s;}
   .pack-actions-hidden{display:none; margin-top:0; padding-top:0; border-top:none;}
   .pack-actions-show{display:flex !important; margin-top:8px !important; padding-top:8px !important; border-top:1px solid var(--line) !important;}
@@ -242,7 +242,7 @@
     content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     min-width:40px; min-height:40px; width:100%; height:100%;
   }
-  .spot-actions button{width:27px; height:27px; border-radius:7px; border:none; background:var(--bg); color:var(--sub); font-size:12px;}
+  .spot-actions button{width:36px; height:36px; border-radius:9px; border:none; background:var(--bg); color:var(--sub); font-size:15px;}
   .spot-actions button.del{color:var(--accent);}
 
   /* transport connector */
@@ -1265,7 +1265,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-93";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-98";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -1434,11 +1434,17 @@ async function verifyCustomer(email){
   }
   if(sub.status==="disabled") return { ok:false, msg:"此帳號已停用，請聯繫客服" };
   try{ rtdb.ref(SUBS_PATH+key+"/lastSeen").set(now); }catch(e){}
-  var expMs = sub.expiry ? Date.parse(sub.expiry+"T23:59:59") : 0;
+  var subExpiry = sub.expiry;
+  if(sub.plan==="trial"){
+    // 試用到期日以「開始試用的時間」為準，不信任自己寫的到期日，避免被改成很久以後
+    var st0 = Number(sub.trialStartedAt||sub.createdAt||0);
+    if(st0>0){ var cap = _ymdTs(st0 + TRAVEL_TRIAL_DAYS*86400000); if(!subExpiry || cap < subExpiry) subExpiry = cap; }
+  }
+  var expMs = subExpiry ? Date.parse(subExpiry+"T23:59:59") : 0;
   var expired = expMs && now>expMs;
   var effPlan = expired ? "free" : (sub.plan||"free");
-  savePlanCache(email, effPlan, sub.expiry);
-  return { ok:true, plan:effPlan, expiry:sub.expiry, expired:!!expired,
+  savePlanCache(email, effPlan, subExpiry);
+  return { ok:true, plan:effPlan, expiry:subExpiry, expired:!!expired,
            tripsCreated: Number(sub.tripsCreated||0),
            trialStartedAt: Number(sub.trialStartedAt||0) };
 }
@@ -4439,18 +4445,18 @@ const PACK_LIB = {
     _pk("行前辦理","查目的地天氣"), _pk("行前辦理","下載 Papago 翻譯","文字、語音、相機翻譯"),
     _pk("證件","護照","效期需 6 個月以上"), _pk("證件","機票／登機資訊"), _pk("證件","訂房憑證"), _pk("證件","旅遊保險單"),
     _pk("證件","重要證件備份","手機拍照存一份"), _pk("證件","健保卡"), _pk("證件","駕照","要租車才需要"), _pk("證件","緊急聯絡資料"),
-    _pk("金錢","當地現金"), _pk("金錢","信用卡","多張備用，分開放"), _pk("金錢","少量台幣","回程備用"), _pk("金錢","零錢包"),
-    _pk("衣物","換洗衣物"), _pk("衣物","內衣"), _pk("衣物","內褲"), _pk("衣物","襪子"), _pk("衣物","睡衣"), _pk("衣物","好走的鞋"), _pk("衣物","室內拖鞋"), _pk("衣物","室外拖鞋"), _pk("衣物","口罩"), _pk("衣物","太陽眼鏡"),
-    _pk("盥洗保養","牙刷牙膏","飯店可能不提供牙刷"), _pk("盥洗保養","洗面乳"), _pk("盥洗保養","沐浴乳"), _pk("盥洗保養","洗髮精"),
+    _pk("金錢","當地現金"), _pk("金錢","信用卡","多張備用，分開放"), _pk("金錢","少量台幣","回程備用"), _pk("金錢","錢包"), _pk("金錢","零錢包"),
+    _pk("衣物","換洗衣物"), _pk("衣物","褲子"), _pk("衣物","帽子"), _pk("衣物","內衣"), _pk("衣物","內褲"), _pk("衣物","襪子"), _pk("衣物","睡衣"), _pk("衣物","好走的鞋"), _pk("衣物","室內拖鞋"), _pk("衣物","室外拖鞋"), _pk("衣物","口罩"), _pk("衣物","太陽眼鏡"),
+    _pk("盥洗保養","牙刷牙膏","飯店可能不提供牙刷"), _pk("盥洗保養","牙線"), _pk("盥洗保養","漱口水"), _pk("盥洗保養","洗面乳"), _pk("盥洗保養","沐浴乳"), _pk("盥洗保養","洗髮精"),
     _pk("盥洗保養","毛巾"), _pk("盥洗保養","保養品"), _pk("盥洗保養","化妝用品"), _pk("盥洗保養","卸妝用品"),
     _pk("盥洗保養","隱形眼鏡與藥水"), _pk("盥洗保養","刮鬍刀"), _pk("盥洗保養","生理用品"), _pk("盥洗保養","梳子"), _pk("盥洗保養","吹風機"), _pk("盥洗保養","乳液"), _pk("盥洗保養","護唇膏"), _pk("盥洗保養","指甲剪"), _pk("盥洗保養","棉花棒"), _pk("盥洗保養","洗衣精","小包裝"), _pk("盥洗保養","備用眼鏡"),
     _pk("藥品","感冒退燒藥"), _pk("藥品","胃腸藥"), _pk("藥品","頭痛藥"), _pk("藥品","喉嚨噴劑"), _pk("藥品","喉糖"), _pk("藥品","暈車暈船藥"), _pk("藥品","過敏藥"), _pk("藥品","眼藥水"), _pk("藥品","蚊蟲叮咬藥膏"), _pk("藥品","OK 繃"),
     _pk("藥品","個人必要藥品／慢性病處方藥","建議帶中／英文診斷證明；請確認航空公司及目的地規定"),
-    _pk("電子用品","手機充電線"), _pk("電子用品","充電插頭"), _pk("電子用品","轉接頭","日本插頭同台灣，通常不用；大陸多為兩孔或三孔"), _pk("電子用品","行動電源","登機要隨身；請確認航空公司最新規定"), _pk("電子用品","耳機"),
+    _pk("電子用品","手機"), _pk("電子用品","手機充電線"), _pk("電子用品","充電插頭"), _pk("電子用品","轉接頭","日本插頭同台灣，通常不用；大陸多為兩孔或三孔"), _pk("電子用品","行動電源","登機要隨身；請確認航空公司最新規定"), _pk("電子用品","耳機"),
     _pk("電子用品","相機與記憶卡"), _pk("電子用品","自拍棒"), _pk("電子用品","手電筒"),
-    _pk("行李收納","行李鎖"), _pk("行李收納","行李帶"), _pk("行李收納","行李秤"), _pk("行李收納","壓縮袋"), _pk("行李收納","防水袋"),
+    _pk("行李收納","行李箱"), _pk("行李收納","隨身背包"), _pk("行李收納","行李鎖"), _pk("行李收納","行李帶"), _pk("行李收納","行李秤"), _pk("行李收納","壓縮袋"), _pk("行李收納","防水袋"),
     _pk("行李收納","塑膠袋"), _pk("行李收納","夾鏈袋"), _pk("行李收納","洗衣袋"), _pk("行李收納","隨身小包","放護照、手機、錢"), _pk("行李收納","環保購物袋"),
-    _pk("其他用品","家裡鑰匙"), _pk("其他用品","保溫瓶"), _pk("其他用品","摺疊水杯"), _pk("其他用品","摺疊傘"), _pk("其他用品","酒精噴瓶"), _pk("其他用品","小剪刀","要託運，不能帶上機；請確認航空公司規定"),
+    _pk("其他用品","家裡鑰匙"), _pk("其他用品","保溫瓶"), _pk("其他用品","摺疊水杯"), _pk("其他用品","摺疊傘"), _pk("其他用品","雨衣"), _pk("其他用品","酒精噴瓶"), _pk("其他用品","小剪刀","要託運，不能帶上機；請確認航空公司規定"),
     _pk("其他用品","原子筆","填入境卡用"), _pk("其他用品","衛生紙"), _pk("其他用品","濕紙巾"), _pk("其他用品","眼罩"), _pk("其他用品","頸枕")
   ],
   country: {
@@ -4469,14 +4475,16 @@ const PACK_LIB = {
   },
   seasons: [
     { id:"springfall", label:"🌸🍂 春秋", months:[3,4,5,9,10,11], items:[ _pk("衣物","薄外套","早晚溫差較大"), _pk("衣物","長袖上衣") ] },
-    { id:"summer", label:"☀️ 夏", months:[6,7,8], items:[ _pk("盥洗保養","防曬乳"), _pk("衣物","帽子"), _pk("衣物","薄外套","室內冷氣通常很強"), _pk("藥品","防蚊液"), _pk("衣物","排汗衣"), _pk("電子用品","手持風扇") ] },
+    { id:"summer", label:"☀️ 夏", months:[6,7,8], items:[ _pk("盥洗保養","防曬乳"), _pk("衣物","薄外套","室內冷氣通常很強"), _pk("藥品","防蚊液"), _pk("衣物","排汗衣"), _pk("電子用品","手持風扇") ] },
     { id:"winter", label:"❄️ 冬", months:[12,1,2], items:[ _pk("衣物","羽絨外套","冬季體感常比溫度低，注意保暖"), _pk("衣物","圍巾"), _pk("衣物","手套"), _pk("衣物","毛帽"),
       _pk("衣物","發熱衣"), _pk("衣物","保暖襪"), _pk("其他用品","暖暖包") ] }
   ],
   acts: [
     { id:"beach", label:"🏖️ 海邊或溫泉", items:[ _pk("衣物","泳衣"), _pk("盥洗保養","浴巾"), _pk("行李收納","防水手機袋"), _pk("衣物","沙灘拖鞋"), _pk("盥洗保養","溫泉小毛巾") ] },
     { id:"hike",  label:"⛰️ 登山或戶外", items:[ _pk("衣物","登山鞋"), _pk("衣物","排汗衣"), _pk("行李收納","登山背包"), _pk("行李收納","背包防雨套"),
-      _pk("其他用品","護膝"), _pk("電子用品","頭燈"), _pk("衣物","防風防水外套") ] }
+      _pk("其他用品","護膝"), _pk("電子用品","頭燈"), _pk("衣物","防風防水外套") ] },
+    { id:"work",  label:"💼 出差或工作", items:[ _pk("電子用品","筆電"), _pk("電子用品","筆電充電器"), _pk("電子用品","平板"), _pk("電子用品","滑鼠"),
+      _pk("其他用品","名片"), _pk("其他用品","公司文件"), _pk("其他用品","簡報筆"), _pk("衣物","正式服裝","西裝、襯衫") ] }
   ]
 };
 
@@ -5480,6 +5488,7 @@ function appHandleBack(){
     SUBS_APPS.forEach(function(a){
       var d=S.data[a.id]; if(!d) return;
       Object.keys(d).forEach(function(k){
+        if(k===eKey('mp65p@hotmail.com')) return;   // 管理員自己不列入客戶名單
         if(!map[k]) map[k]={ key:k, email:'', apps:{} };
         var s=d[k]||{};
         if(!map[k].email) map[k].email = s.email || k;
