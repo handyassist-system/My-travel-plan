@@ -1308,7 +1308,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-116";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-118";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2886,8 +2886,7 @@ function openSpotModal(spot){
   }
   document.getElementById("fExpFields").style.display = "block";
   // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
-  document.getElementById("fExpCard").style.display = hasExpense ? "" : "none";
-  document.getElementById("fExpToggle").style.display = hasExpense ? "none" : "";
+  setExpOpen("f", hasExpense);
   // 更多選項：已有備註或照片時自動展開，避免讓人以為資料不見了
   const hasMore = !!(spot && (spot.memo || spot.photo));
   document.getElementById("fMoreFields").style.display = "block";
@@ -2970,11 +2969,21 @@ document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
   });
 });
 function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; }
+function setExpOpen(p, open){
+  document.getElementById(p+"ExpCard").style.display = open ? "" : "none";
+  const b = document.getElementById(p+"ExpToggle");
+  b.style.display = "";
+  b.textContent = open ? "－ 收起花費" : "＋ 記錄這裡的花費";
+}
 document.getElementById("fExpCat").addEventListener("change", ()=>{ fExpCatTouched = true; });
 document.getElementById("fExpToggle").addEventListener("click", ()=>{
-  document.getElementById("fExpCard").style.display = "";
+  const card = document.getElementById("fExpCard");
+  if(card.style.display !== "none"){
+    if(Number(fExpAmount.value) > 0){ travelToast("已填寫金額，無法收起；請先清除金額"); return; }
+    setExpOpen("f", false); return;
+  }
+  setExpOpen("f", true);
   document.getElementById("fExpFields").style.display = "block";
-  document.getElementById("fExpToggle").style.display = "none";
 });
 document.getElementById("spotClose").addEventListener("click", closeSpotModal);
 document.getElementById("spotCancel").addEventListener("click", closeSpotModal);
@@ -3332,8 +3341,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   const hasExpense = !!(it && it.expense && it.expense.amount);
   document.getElementById("tExpFields").style.display = "block";
   // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
-  document.getElementById("tExpCard").style.display = hasExpense ? "" : "none";
-  document.getElementById("tExpToggle").style.display = hasExpense ? "none" : "";
+  setExpOpen("t", hasExpense);
 
   let isLeading = isLeadingOverride || false;
   if(it){
@@ -3471,9 +3479,13 @@ function closeTransportModal(){ transModalMask.classList.remove("show"); }
 document.getElementById("transClose").addEventListener("click", closeTransportModal);
 document.getElementById("transCancel").addEventListener("click", closeTransportModal);
 document.getElementById("tExpToggle").addEventListener("click", ()=>{
-  document.getElementById("tExpCard").style.display = "";
+  const card = document.getElementById("tExpCard");
+  if(card.style.display !== "none"){
+    if(Number(tExpAmount.value) > 0){ travelToast("已填寫金額，無法收起；請先清除金額"); return; }
+    setExpOpen("t", false); return;
+  }
+  setExpOpen("t", true);
   document.getElementById("tExpFields").style.display = "block";
-  document.getElementById("tExpToggle").style.display = "none";
 });
 document.getElementById("transDelete").addEventListener("click", async ()=>{
   if(!pendingTransport.id) return;
@@ -3928,7 +3940,12 @@ function renderExpense(){
     p.style.cursor = "pointer";
     p.addEventListener("click", ()=>{
       const h = [...document.querySelectorAll("#expList .exp-grp")].find(e=>e.dataset.grp===c);
-      if(h) h.scrollIntoView({behavior:"smooth", block:"start"});
+      if(h){
+        // 上方有固定的標題列，要扣掉它的高度，否則分組標題會被蓋住
+        const hd = document.querySelector("header");
+        const off = (hd ? hd.getBoundingClientRect().bottom : 0) + 8;
+        window.scrollTo({ top: Math.max(0, h.getBoundingClientRect().top + window.scrollY - off), behavior:"smooth" });
+      }
     });
     catWrap.appendChild(p);
   });
