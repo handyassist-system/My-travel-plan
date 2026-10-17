@@ -1277,7 +1277,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-102";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-103";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4745,6 +4745,52 @@ async function clearPackMine(){
     travelToast("已清除我的清單");
   }catch(e){ console.error("clear my list failed", e); travelToast(failMsg("清除", e)); }
 }
+// 項目庫的固定順序（分類＋名稱 → 序號）。新加入的項目依這個順序插到對應位置，原本的項目不會被移動
+function _packLibOrderMap(){
+  const m = new Map(); let n = 0;
+  const add = list => list.forEach(x=>{ const k = x.c+"|"+x.n; if(!m.has(k)) m.set(k, n++); });
+  add(PACK_LIB.core);
+  Object.keys(PACK_LIB.country).forEach(k=>add(PACK_LIB.country[k].items));
+  PACK_LIB.seasons.forEach(sn=>add(sn.items));
+  PACK_LIB.acts.forEach(a=>add(a.items));
+  return m;
+}
+// 算出每個新項目的排序值：放在「項目庫裡排在它前面、而且已在清單的那一項」後面；找不到前一項就放在後一項前面；都沒有就接在分類最後
+function _packInsertOrders(picked){
+  const lib = _packLibOrderMap(), now = Date.now();
+  const orders = new Array(picked.length);
+  const byCat = {};
+  picked.forEach((it, pi)=>{ (byCat[it.c] = byCat[it.c] || []).push({ it, pi, n: lib.has(it.c+"|"+it.n) ? lib.get(it.c+"|"+it.n) : null }); });
+  const append = [];            // 找不到位置的，之後依挑選順序接在最後面
+  Object.keys(byCat).forEach(cat=>{
+    const E = items.filter(i=>i.tripId===activeTripId && i.type==="packing" && packCatOf(i)===cat)
+      .sort((a,b)=>a.order-b.order).map(i=>({ order:i.order, n: lib.has(cat+"|"+i.name) ? lib.get(cat+"|"+i.name) : null }));
+    const gaps = new Map();       // 起點key -> { lo, hi, list[] }
+    byCat[cat].sort((a,b)=>(a.n===null)-(b.n===null) || (a.n-b.n)).forEach(o=>{
+      let lo = null, hi = null;
+      if(o.n!==null){
+        let pos = -1;
+        for(let k=0;k<E.length;k++){ if(E[k].n!==null && E[k].n < o.n) pos = k; }
+        if(pos>=0){ lo = E[pos].order; hi = (pos+1<E.length) ? E[pos+1].order : null; }
+        else {
+          const k = E.findIndex(e=>e.n!==null && e.n > o.n);
+          if(k>=0){ hi = E[k].order; lo = (k>0) ? E[k-1].order : hi - 1; }
+        }
+      }
+      if(lo===null){ append.push(o.pi); return; }      // 找不到位置：接在最後面（跟以前一樣）
+      const key = lo+"|"+hi;
+      if(!gaps.has(key)) gaps.set(key, { lo, hi, list:[] });
+      gaps.get(key).list.push(o);
+    });
+    gaps.forEach(g=>{
+      const hi = (g.hi===null) ? g.lo + g.list.length + 1 : g.hi;
+      if(hi - g.lo < 0.001 * (g.list.length+1)){ g.list.forEach(o=>append.push(o.pi)); return; }   // 空隙太小：接在最後面
+      g.list.forEach((o,j)=>{ orders[o.pi] = g.lo + (hi - g.lo) * (j+1) / (g.list.length+1); });
+    });
+  });
+  append.sort((a,b)=>a-b).forEach((pi,k)=>{ orders[pi] = now + k; });
+  return orders;
+}
 async function addPackLibPicked(){
   const picked = _packLibPicked();
   if(!picked.length) return;
@@ -4752,10 +4798,11 @@ async function addPackLibPicked(){
   btn.disabled = true;
   try{
     const batch = db.batch();
+    const newOrders = _packInsertOrders(picked);
     picked.forEach((it, idx)=>{
       const ref = db.collection(COLLECTION).doc();
       const data = { type:"packing", tripId: activeTripId, category: it.c, name: it.n, note: it.note||"",
-        checked:false, order: Date.now()+idx, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        checked:false, order: newOrders[idx], createdAt: firebase.firestore.FieldValue.serverTimestamp() };
       if(it.qty) data.qty = it.qty;
       batch.set(ref, data);
     });
