@@ -153,13 +153,13 @@
     font-size:12px; color:#fff; background:var(--seal); border-radius:50%; margin-right:5px;}
   .day-date-label{padding:0 20px; font-size:14px; color:var(--sub); margin-top:-2px;}
   #itinSticky{position:sticky; top:var(--hdrH,106px); z-index:9; background:var(--paper);}   /* 天數列：往下捲時固定在標題列下方（備忘錄在標題列裡，也跟著固定） */
-  #itinSticky #dayTabs{padding:6px 20px 4px; gap:8px;}   /* 天數按鈕縮小：上下留白、按鈕內距變小（字級不小於 12px），日期放在「第幾天」下面 */
+  #itinSticky #dayTabs{padding:8px 20px 0; gap:8px;}   /* 天數上方、天數與備忘錄之間、備忘錄下方，間隔都是 8px */   /* 天數按鈕縮小：上下留白、按鈕內距變小（字級不小於 12px），日期放在「第幾天」下面 */
   #itinSticky .tab{display:flex; flex-direction:column; align-items:center; line-height:1.25; padding:3px 14px; font-size:14px; border-radius:10px;}
   #itinSticky .tab.active{box-shadow:0 2px 6px rgba(44,134,173,0.25);}
   #itinSticky .tab .tab-date{font-size:12px; font-weight:400; opacity:.85;}
   #itinSticky .tab.add-day{justify-content:center;}
   #dayDateLabel{display:none;}
-  #itineraryView .day-date-row{justify-content:flex-end; margin-top:0; padding-bottom:4px;}   /* 日期已放進天數按鈕，這一行只剩「換天」（靠右，跟著天數列一起固定） */
+  #itineraryView .day-date-row{justify-content:flex-end; margin-top:8px; padding-bottom:8px;}   /* 日期已放進天數按鈕，這一行只剩「換天」（靠右，跟著天數列一起固定） */
   .day-date-row{display:flex; align-items:center; justify-content:space-between; padding:0 20px; margin-top:-2px;}
   .day-date-row .day-date-label{padding:0;}
   .header-trip-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;}
@@ -216,7 +216,7 @@
   .tab.add-day{color:var(--seal); border:1.5px dashed var(--seal); background:transparent; font-family:inherit; font-weight:600;}
 
   /* ---------- List ---------- */
-  #list{flex:1; padding:10px 20px 190px; display:flex; flex-direction:column; gap:0;}
+  #list{flex:1; padding:0 20px 190px; display:flex; flex-direction:column; gap:0;}
   .empty{text-align:center; color:var(--sub); padding:60px 20px; font-size:14px; line-height:1.7;}
   .empty .emoji{font-size:36px; display:block; margin-bottom:10px;}
 
@@ -1322,7 +1322,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-131";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-132";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
