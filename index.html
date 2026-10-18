@@ -1325,7 +1325,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-141";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-142";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3006,11 +3006,10 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
   say("🔄 搜尋中...");
   try{
     const svc = new google.maps.places.PlacesService(document.createElement("div"));
-    svc.textSearch({ query: address }, (results, status)=>{
-      const okStatus = google.maps.places.PlacesServiceStatus.OK;
-      if(status !== okStatus || !results || !results.length){ say("查不到，請直接輸入名稱", "var(--seal)"); return; }
-      const seen = new Set(); const picks = [];
-      results.forEach(r=>{ if(r && r.name && !seen.has(r.name) && picks.length<5){ seen.add(r.name); picks.push(r); } });
+    const okStatus = google.maps.places.PlacesServiceStatus.OK;
+    const BAD_TYPES = ["route","street_address","premise","subpremise","political","locality","sublocality","neighborhood","postal_code","country","administrative_area_level_1","administrative_area_level_2","administrative_area_level_3"];
+    const isPlaceLike = r => r && r.name && !(r.types && r.types.length && r.types.every(t=>BAD_TYPES.includes(t)));
+    const show = (picks)=>{
       say("");
       const head = document.createElement("div");
       head.style.cssText = "padding:8px 14px; font-size:12px; color:var(--sub);";
@@ -3020,11 +3019,12 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
         const row = document.createElement("div");
         row.style.cssText = "padding:11px 14px; border-top:1px solid var(--line); cursor:pointer;";
         const n = document.createElement("div"); n.style.cssText = "font-size:15px; font-weight:600;"; n.textContent = p.name;
-        const a = document.createElement("div"); a.style.cssText = "font-size:12px; color:var(--sub);"; a.textContent = p.formatted_address || "";
+        const a = document.createElement("div"); a.style.cssText = "font-size:12px; color:var(--sub);"; a.textContent = p.formatted_address || p.vicinity || "";
         row.appendChild(n); row.appendChild(a);
         row.addEventListener("click", ()=>{
           fName.value = p.name;
-          if(p.formatted_address && !fNote.value.trim()){ fNote.value = p.formatted_address; }
+          const addr = p.formatted_address || p.vicinity || "";
+          if(addr && !fNote.value.trim()){ fNote.value = addr; }
           fSelectedLatLng = (p.geometry && p.geometry.location) ? { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } : fSelectedLatLng;
           const guess = guessCategoryFromPlaceTypes(p.types);
           const hint = document.getElementById("fCatSuggestHint");
@@ -3037,6 +3037,33 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
         listEl.appendChild(row);
       });
       listEl.style.display = "block";
+    };
+    const pickList = (results)=>{
+      const seen = new Set(); const picks = [];
+      (results||[]).forEach(r=>{ if(isPlaceLike(r) && !seen.has(r.name) && picks.length<6){ seen.add(r.name); picks.push(r); } });
+      return picks;
+    };
+    // 第 2 步：用座標找附近約 80 公尺內的店家／酒店／景點；沒有再退回文字搜尋
+    const textFallback = ()=>{
+      svc.textSearch({ query: address }, (results, status)=>{
+        const picks = (status === okStatus) ? pickList(results) : [];
+        if(!picks.length){ say("查不到，請直接輸入名稱", "var(--seal)"); return; }
+        show(picks);
+      });
+    };
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address }, (gres, gstatus)=>{
+      if(gstatus === "OK" && gres && gres[0] && gres[0].geometry){
+        const loc = gres[0].geometry.location;
+        svc.nearbySearch({ location: loc, radius: 80 }, (results, status)=>{
+          const picks = (status === okStatus) ? pickList(results) : [];
+          if(picks.length){
+            const d = r => (r.geometry && r.geometry.location) ? haversineKm(loc.lat(), loc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) : 99;
+            picks.sort((a,b)=>d(a)-d(b));
+            show(picks);
+          } else { textFallback(); }
+        });
+      } else { textFallback(); }
     });
   }catch(e){ console.error("address find failed", e); say("查不到，請直接輸入名稱", "var(--seal)"); }
 });

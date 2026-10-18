@@ -1,4 +1,4 @@
-// build 1009-141 app 都改這行，瀏覽器才會偵測到新版並顯示「有新版本可用」）
+// build 1009-142 app 都改這行，瀏覽器才會偵測到新版並顯示「有新版本可用」）
 /* 旅遊計畫 Service Worker — 網路優先，離線才用快取 */
 var CACHE = 'travel-cache-v2';
 var CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
