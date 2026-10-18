@@ -785,6 +785,9 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h">📍 地點</div>
     <div class="field"><label>名稱（可搜尋自動帶入）</label><input id="fName" type="text" placeholder="輸入地點名稱..."></div>
     <p id="fCatSuggestHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
+    <button type="button" id="fAddrFindBtn" style="padding:8px 14px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin:-4px 0 10px;">🔎 用這個地址找名稱</button>
+    <p id="fAddrFindStatus" style="font-size:12px; margin:-2px 0 12px; display:none;"></p>
+    <div id="fAddrFindList" style="display:none; border:1px solid var(--line); border-radius:12px; margin:0 0 14px; overflow:hidden; background:var(--bg);"></div>
     <p id="placesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
@@ -885,7 +888,7 @@ header #mapBtn, header #settingsBtn{
         <label>這段交通的出發時間</label>
         <input id="tManualDepartTime" type="time">
       </div>
-      <div class="field"><label>預估時間（分鐘）</label><input id="tDuration" type="number" placeholder="請輸入分鐘數"><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
+      <div class="field"><label>預估時間</label><input id="tDuration" type="hidden"><div id="tDurRow" style="display:flex; align-items:center; gap:6px;"><input id="tDurH" type="number" min="0" inputmode="numeric" placeholder="0" style="min-width:0; flex:1; padding:12px 2px; text-align:center;"><span style="font-size:14px; color:var(--sub); flex:none;">小時</span><input id="tDurM" type="number" min="0" inputmode="numeric" placeholder="0" style="min-width:0; flex:1; padding:12px 2px; text-align:center;"><span style="font-size:14px; color:var(--sub); flex:none;">分</span></div><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
     </div>
     <div class="field" id="tArriveWrap" style="display:none;">
       <label>抵達時間（自動計算）</label>
@@ -1322,7 +1325,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-132";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-139";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2084,7 +2087,7 @@ bottomNav.querySelectorAll(".nav-btn").forEach(btn=>{
 // 地圖搬到頂部：它是「看位置」不是「填資料」，底部留給每天要做的四件事
 (function(){
   var mb=document.getElementById("mapBtn");
-  if(mb) mb.addEventListener("click", function(){ if(needAdvanced("地圖")) return; currentTab="map"; renderAll(); });
+  if(mb) mb.addEventListener("click", function(){ if(needAdvanced("地圖")) return; if(currentTab==="itinerary" && currentDay && days.includes(currentDay)) mapDayFilter = currentDay; currentTab="map"; renderAll(); });
 })();
 
 function renderAll(){
@@ -2258,7 +2261,7 @@ function renderDayTabs(){
     const el = document.createElement("div");
     el.className = "tab" + (d===currentDay ? " active":"");
     el.textContent = (isDayLocked(d) ? "🔒 " : "") + dayLabel(d);
-    { const _dt = computeDateForDay(d).replace(/（.*?）/,""); if(_dt){ const sp = document.createElement("span"); sp.className = "tab-date"; sp.textContent = "(" + _dt + ")"; el.appendChild(sp); } }
+    { const _dt = computeDateForDay(d).replace(/（(.*?)）/," 週$1"); if(_dt){ const sp = document.createElement("span"); sp.className = "tab-date"; sp.textContent = "(" + _dt + ")"; el.appendChild(sp); } }
     el.addEventListener("click", ()=>{ currentDay=d; renderItinerary(); });
     wrap.appendChild(el);
     if(d===currentDay) activeTabEl = el;
@@ -2630,13 +2633,21 @@ function syncSpotExpCat(){
   const sel = document.getElementById("fExpCat");
   if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
 }
+// 停留時間預設值（依類別自動帶入，使用者可自行修改；改過就不再被覆蓋）
+const SPOT_STAY_DEFAULT = {景點:60, 餐廳:60, 小吃:30, 購物:60};
+let fStayTouched = true;
+function syncSpotStay(){
+  if(fStayTouched) return;
+  document.getElementById("fStayMinutes").value = SPOT_STAY_DEFAULT[selectedSpotCat] || "";
+}
+document.getElementById("fStayMinutes").addEventListener("input", ()=>{ fStayTouched = true; });
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
   getAllSpotCategories().forEach(cat=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (cat===selectedSpotCat ? " active" : "");
     chip.textContent = (CATEGORY_ICON[cat] || "📌") + " " + cat;
-    chip.addEventListener("click", ()=>{ selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat(); });
+    chip.addEventListener("click", ()=>{ selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat(); syncSpotStay(); });
     fCategoryChips.appendChild(chip);
   });
 }
@@ -2811,6 +2822,7 @@ function initAutocomplete(){
             selectedSpotCat = guess;
             renderSpotCatChips();
             syncSpotExpCat();
+            syncSpotStay();
             hint.textContent = `已自動判斷類型為「${guess}」，可自行修改`;
             hint.style.display = "block";
           } else {
@@ -2873,6 +2885,7 @@ function computeOrder(day){
 }
 
 function openSpotModal(spot){
+  { const _l=document.getElementById("fAddrFindList"), _s=document.getElementById("fAddrFindStatus"); if(_l){ _l.style.display="none"; _l.innerHTML=""; } if(_s){ _s.style.display="none"; } }
   editingSpotId = spot ? spot.id : null;
   fSelectedLatLng = (spot && spot.lat!=null && spot.lng!=null) ? { lat: spot.lat, lng: spot.lng } : null;
   document.getElementById("fGeocodeStatus").style.display = "none";
@@ -2901,6 +2914,8 @@ function openSpotModal(spot){
   document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
+  fStayTouched = !!spot;   // 新增才自動帶；編輯既有景點維持原值
+  syncSpotStay();
   renderSpotCatChips();
   fName.value = spot ? spot.name : "";
   fNote.value = spot ? (spot.note||"") : "";
@@ -2979,6 +2994,53 @@ function computeSpotOrderByChoice(choice, spot){
   }
   return null;
 }
+// 用地址找名稱：把「地址欄（沒填就用名稱欄）」的文字拿去搜尋，列出候選地點讓使用者點選
+document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
+  const statusEl = document.getElementById("fAddrFindStatus");
+  const listEl = document.getElementById("fAddrFindList");
+  const say = (t, color)=>{ statusEl.textContent = t; statusEl.style.color = color || "var(--sub)"; statusEl.style.display = t ? "block" : "none"; };
+  listEl.style.display = "none"; listEl.innerHTML = "";
+  const address = (fNote.value.trim() || fName.value.trim());
+  if(!address){ say("請先在地址欄或名稱欄填入地址", "var(--seal)"); return; }
+  if(!(window.google && google.maps && google.maps.places)){ say("地圖服務尚未連線，請確認網路後再試", "var(--seal)"); return; }
+  say("🔄 搜尋中...");
+  try{
+    const svc = new google.maps.places.PlacesService(document.createElement("div"));
+    svc.textSearch({ query: address }, (results, status)=>{
+      const okStatus = google.maps.places.PlacesServiceStatus.OK;
+      if(status !== okStatus || !results || !results.length){ say("查不到，請直接輸入名稱", "var(--seal)"); return; }
+      const seen = new Set(); const picks = [];
+      results.forEach(r=>{ if(r && r.name && !seen.has(r.name) && picks.length<5){ seen.add(r.name); picks.push(r); } });
+      say("");
+      const head = document.createElement("div");
+      head.style.cssText = "padding:8px 14px; font-size:12px; color:var(--sub);";
+      head.textContent = `找到 ${picks.length} 個，請點選你要的地點`;
+      listEl.appendChild(head);
+      picks.forEach(p=>{
+        const row = document.createElement("div");
+        row.style.cssText = "padding:11px 14px; border-top:1px solid var(--line); cursor:pointer;";
+        const n = document.createElement("div"); n.style.cssText = "font-size:15px; font-weight:600;"; n.textContent = p.name;
+        const a = document.createElement("div"); a.style.cssText = "font-size:12px; color:var(--sub);"; a.textContent = p.formatted_address || "";
+        row.appendChild(n); row.appendChild(a);
+        row.addEventListener("click", ()=>{
+          fName.value = p.name;
+          if(p.formatted_address && !fNote.value.trim()){ fNote.value = p.formatted_address; }
+          fSelectedLatLng = (p.geometry && p.geometry.location) ? { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } : fSelectedLatLng;
+          const guess = guessCategoryFromPlaceTypes(p.types);
+          const hint = document.getElementById("fCatSuggestHint");
+          if(guess){
+            selectedSpotCat = guess; renderSpotCatChips(); syncSpotExpCat(); syncSpotStay();
+            hint.textContent = `已自動判斷類型為「${guess}」，可自行修改`; hint.style.display = "block";
+          } else { hint.style.display = "none"; }
+          listEl.style.display = "none"; listEl.innerHTML = "";
+        });
+        listEl.appendChild(row);
+      });
+      listEl.style.display = "block";
+    });
+  }catch(e){ console.error("address find failed", e); say("查不到，請直接輸入名稱", "var(--seal)"); }
+});
+
 document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
   const statusEl = document.getElementById("fGeocodeStatus");
   const address = (fNote.value.trim() || fName.value.trim());
@@ -3126,6 +3188,30 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
 const transModalMask = document.getElementById("transModalMask");
 const transChips = document.getElementById("transChips");
 const tDuration = document.getElementById("tDuration");
+// 預估時間：畫面用「小時＋分」兩格輸入，內部仍以分鐘存在隱藏欄位 #tDuration（其他程式照舊讀寫它）
+const tDurH = document.getElementById("tDurH"), tDurM = document.getElementById("tDurM");
+(function(){
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  function refreshDurUI(){
+    const n = Math.round(Number(desc.get.call(tDuration)) || 0);
+    tDurH.value = n ? Math.floor(n/60) : ""; tDurM.value = n ? (n % 60) : "";
+    if(n && n < 60) tDurH.value = "";
+  }
+  Object.defineProperty(tDuration, "value", {
+    get(){ return desc.get.call(tDuration); },
+    set(v){ desc.set.call(tDuration, v); refreshDurUI(); }
+  });
+  function fromUI(){
+    const h = Math.max(0, Math.floor(Number(tDurH.value)||0)), m = Math.max(0, Math.floor(Number(tDurM.value)||0));
+    const total = h*60 + m;
+    desc.set.call(tDuration, total ? String(total) : "");
+    tDuration.dispatchEvent(new Event("input", {bubbles:true}));
+  }
+  [tDurH, tDurM].forEach(el=>{
+    el.addEventListener("input", fromUI);
+    el.addEventListener("change", ()=>{ fromUI(); refreshDurUI(); });   // 分鐘超過 59 時自動進位成小時
+  });
+})();
 const tExpAmount = document.getElementById("tExpAmount");
 const tExpPayer = document.getElementById("tExpPayer");
 const tPayerWrap = document.getElementById("tPayerWrap");
@@ -3208,7 +3294,11 @@ function estimateDurationMinutes(mode, km){
     const speedKmh = 28;
     const routingFactor = 1.5;
     const stationBuffer = 10; // walking into/out of the station + waiting
-    return Math.max(3, Math.round((km*routingFactor) / speedKmh * 60) + stationBuffer);
+    // 15 公里內維持原算法；超過的部分多半是郊區快線，改用較快速度（每小時 55 公里、路程係數 1.3）
+    const NEAR_KM = 15, FAR_SPEED_KMH = 55, FAR_FACTOR = 1.3;
+    const nearPart = Math.min(km, NEAR_KM), farPart = Math.max(0, km - NEAR_KM);
+    const mins = (nearPart*routingFactor) / speedKmh * 60 + (farPart*FAR_FACTOR) / FAR_SPEED_KMH * 60;
+    return Math.max(3, Math.round(mins) + stationBuffer);
   }
   return null;
 }
@@ -3250,6 +3340,7 @@ const SHANGHAI_METRO_STATIONS = [
   {name:"七寶站", lat:31.1526, lng:121.3583},
   {name:"莘莊站", lat:31.1122, lng:121.3813},
   {name:"迪士尼站", lat:31.1440, lng:121.6626},
+  {name:"朱家角站（17號線）", lat:31.1053, lng:121.0551},
 ];
 function findNearestMetroStation(lat, lng){
   if(lat==null || lng==null) return null;
@@ -3453,7 +3544,6 @@ function updateDurationSourceNote(){
     note.textContent = "✏️ 自訂時間";
     note.style.color = "var(--sub)";
   }
-  if(Number(tDuration.value) >= 60) note.textContent += "（= " + fmtMin(tDuration.value) + "）";
   note.style.display = "block";
 }
 function applyDistanceEstimateIfEmpty(){
@@ -3484,13 +3574,17 @@ function updateStationHint(){
   }
 }
 
+// 站到景點的步行時間（直線距離×1.3÷4.5km/h，與步行交通的估算一致）；走太遠時提醒可考慮計程車
+const WALK_FAR_MINUTES = 15;
+function walkMinFromKm(km){ return Math.max(1, Math.round((km*1.3)/4.5*60)); }
 function updateStationHintChina(el){
   const parts = [];
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
-  if(p && p.lat!=null){ const s = findNearestMetroStation(p.lat, p.lng); if(s) parts.push(`出發點附近：${s.name}`); }
-  if(n && n.lat!=null){ const s = findNearestMetroStation(n.lat, n.lng); if(s) parts.push(`抵達點附近：${s.name}`); }
+  let far = false;
+  if(p && p.lat!=null){ const s = findNearestMetroStation(p.lat, p.lng); if(s){ const w = walkMinFromKm(s.distanceKm); if(w>=WALK_FAR_MINUTES) far = true; parts.push(`出發點附近：${s.name}（步行約${w}分）`); } }
+  if(n && n.lat!=null){ const s = findNearestMetroStation(n.lat, n.lng); if(s){ const w = walkMinFromKm(s.distanceKm); if(w>=WALK_FAR_MINUTES) far = true; parts.push(`抵達點附近：${s.name}（步行約${w}分）`); } }
   if(parts.length){
-    el.innerHTML = "🚇 " + parts.join("　") + "<br><span style='color:var(--sub); font-weight:400;'>僅供參考</span>";
+    el.innerHTML = "🚇 " + parts.join("<br>") + (far ? "<br><b>⚠️ 站離景點較遠，可考慮改搭計程車</b>" : "") + "<br><span style='color:var(--sub); font-weight:400;'>僅供參考</span>";
     el.style.display = "block";
   } else {
     el.style.display = "none";
@@ -3503,12 +3597,13 @@ function updateStationHintJapan(el){
   const parts = [];
   const ps = findNearestJRStation(p.lat, p.lng);
   const ns = findNearestJRStation(n.lat, n.lng);
-  if(ps) parts.push(`出發點附近：${ps.name}（約${ps.distanceKm.toFixed(1)}km）`);
-  if(ns) parts.push(`抵達點附近：${ns.name}（約${ns.distanceKm.toFixed(1)}km）`);
+  let farJp = false;
+  if(ps){ const w = walkMinFromKm(ps.distanceKm); if(w>=WALK_FAR_MINUTES) farJp = true; parts.push(`出發點附近：${ps.name}（約${ps.distanceKm.toFixed(1)}km，步行約${w}分）`); }
+  if(ns){ const w = walkMinFromKm(ns.distanceKm); if(w>=WALK_FAR_MINUTES) farJp = true; parts.push(`抵達點附近：${ns.name}（約${ns.distanceKm.toFixed(1)}km，步行約${w}分）`); }
   const url = `https://www.google.com/maps/dir/?api=1&origin=${p.lat},${p.lng}&destination=${n.lat},${n.lng}&travelmode=transit`;
   const link = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--seal); text-decoration:underline; font-weight:600;">在Google地圖查看電車路線／JR Pass適用線路</a>`;
   if(parts.length){
-    el.innerHTML = "🚃 " + parts.join("　") + `<br>${link}`
+    el.innerHTML = "🚃 " + parts.join("　") + (farJp ? "<br><b>⚠️ 站離景點較遠，可考慮改搭計程車</b>" : "") + `<br>${link}`
       + `<br><span style="color:var(--sub); font-weight:400; font-size:12px;">車站位置為概略，僅供參考</span>`;
   } else {
     el.innerHTML = "🚃 附近 1.5 公里內找不到 JR 站，請用下方選單選擇，或點連結查詢"
