@@ -152,6 +152,14 @@
   .trip-sel::before{content:"章"; display:inline-block; width:16px; height:16px; line-height:16px;
     font-size:12px; color:#fff; background:var(--seal); border-radius:50%; margin-right:5px;}
   .day-date-label{padding:0 20px; font-size:14px; color:var(--sub); margin-top:-2px;}
+  #itinSticky{position:sticky; top:var(--hdrH,106px); z-index:9; background:var(--paper);}   /* 天數列：往下捲時固定在標題列下方（備忘錄在標題列裡，也跟著固定） */
+  #itinSticky #dayTabs{padding:6px 20px 4px; gap:8px;}   /* 天數按鈕縮小：上下留白、按鈕內距變小（字級不小於 12px），日期放在「第幾天」下面 */
+  #itinSticky .tab{display:flex; flex-direction:column; align-items:center; line-height:1.25; padding:3px 14px; font-size:14px; border-radius:10px;}
+  #itinSticky .tab.active{box-shadow:0 2px 6px rgba(44,134,173,0.25);}
+  #itinSticky .tab .tab-date{font-size:12px; font-weight:400; opacity:.85;}
+  #itinSticky .tab.add-day{justify-content:center;}
+  #dayDateLabel{display:none;}
+  #itineraryView .day-date-row{justify-content:flex-end; margin-top:0; padding-bottom:4px;}   /* 日期已放進天數按鈕，這一行只剩「換天」（靠右，跟著天數列一起固定） */
   .day-date-row{display:flex; align-items:center; justify-content:space-between; padding:0 20px; margin-top:-2px;}
   .day-date-row .day-date-label{padding:0;}
   .header-trip-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;}
@@ -600,6 +608,7 @@ header #mapBtn, header #settingsBtn{
     </header>
 
     <div id="itineraryView">
+      <div id="itinSticky">
       <div id="dayTabs"></div>
       <div class="day-date-row">
         <div id="dayDateLabel" class="day-date-label"></div>
@@ -607,6 +616,7 @@ header #mapBtn, header #settingsBtn{
           <button id="memoFab" class="memo-pill" type="button" style="display:none;">📍 備忘錄 <span class="pk-n" id="pocketCount">0</span></button>
           <button id="swapDayShortcut" class="icon-pill-btn" style="display:none;">⇄ 換天</button>
         </div>
+      </div>
       </div>
       <div id="list"></div>
     </div>
@@ -1296,7 +1306,7 @@ function applyPlanLocks(){
   document.body.classList.toggle("read-only", !edit);
   var memo=document.getElementById("memoFab");
   if(fab) fab.dataset.locked = edit ? "" : "1";
-  if(memo) memo.style.display = edit ? "" : "none";   // 升級後要恢復，不能指派回自己
+  if(memo) memo.style.display = (edit && currentTab==="itinerary") ? "" : "none";   // 升級後要恢復，不能指派回自己
   renderVerTag();
 }
 
@@ -1312,7 +1322,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-120";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-131";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2052,6 +2062,15 @@ function computeDateForDay(day){
   return `${d.getMonth()+1}/${d.getDate()}（${weekdays[d.getDay()]}）`;
 }
 
+// 標題列高度會隨字級／畫面寬度變，量出來給固定的天數列當位置
+(function(){
+  var hd = document.querySelector("header"); if(!hd) return;
+  var set = function(){ var h = hd.offsetHeight; if(h > 0) document.documentElement.style.setProperty("--hdrH", h + "px"); };
+  set();
+  window.__setHdrH = set;
+  try{ new ResizeObserver(set).observe(hd, { box:"border-box" }); }catch(e){}
+  window.addEventListener("resize", set); window.addEventListener("orientationchange", set);
+})();
 // ---------- Bottom nav ----------
 bottomNav.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
@@ -2076,6 +2095,10 @@ function renderAll(){
   document.getElementById("flightView").style.display = currentTab==="flight" ? "block":"none";
   document.getElementById("packingView").style.display = currentTab==="packing" ? "block":"none";
   document.getElementById("mapView").style.display = currentTab==="map" ? "block":"none";
+  if(window.__setHdrH) window.__setHdrH();   // 固定的天數列要貼著標題列，每次重繪都重新量一次高度
+  // 換分頁（含頂部地圖鈕、返回鍵）一律從最上面開始看，不停在上一頁捲到的位置
+  if(window.__lastRenderedTab !== undefined && window.__lastRenderedTab !== currentTab){ try{ window.scrollTo(0,0); }catch(e){} }
+  window.__lastRenderedTab = currentTab;
 
   const trip = getActiveTrip();
   document.getElementById("tripSelName").textContent = trip ? trip.name : "—";
@@ -2085,7 +2108,7 @@ function renderAll(){
   const _fabHidden = (!trip || currentTab==="expense" || currentTab==="flight" || currentTab==="map")
                      || (!_canEditNow && currentTab!=="packing");
   fab.style.display = _fabHidden ? "none":"flex";
-  document.getElementById("memoFab").style.display = (trip && _canEditNow) ? "flex" : "none";   // 備忘錄入口
+  document.getElementById("memoFab").style.display = (trip && _canEditNow && currentTab==="itinerary") ? "flex" : "none";   // 備忘錄入口（在標題列，只在行程頁顯示）
   document.getElementById("pocketCount").textContent = String(trip ? items.filter(i=>i.tripId===activeTripId && i.type==="holding").length : 0);
 
   const titles = { itinerary:"📅 行程", expense:"💰 花費彙整", flight:"✈️ 航班", packing:"📋 行李與採買清單", map:"🗺️ 地圖" };
@@ -2235,6 +2258,7 @@ function renderDayTabs(){
     const el = document.createElement("div");
     el.className = "tab" + (d===currentDay ? " active":"");
     el.textContent = (isDayLocked(d) ? "🔒 " : "") + dayLabel(d);
+    { const _dt = computeDateForDay(d).replace(/（.*?）/,""); if(_dt){ const sp = document.createElement("span"); sp.className = "tab-date"; sp.textContent = "(" + _dt + ")"; el.appendChild(sp); } }
     el.addEventListener("click", ()=>{ currentDay=d; renderItinerary(); });
     wrap.appendChild(el);
     if(d===currentDay) activeTabEl = el;
@@ -3650,7 +3674,8 @@ function openCopySpotPicker(spot){
   populateCopyDaySelect(false);
   copyDayModalMask.classList.add("show");
 }
-document.getElementById("swapDayShortcut").addEventListener("click", ()=>{
+document.getElementById("swapDayShortcut").addEventListener("click", (ev)=>{
+  ev.stopPropagation();   // 防止點擊往上傳到外層
   copyContext = { mode:"swap" };
   document.getElementById("copyDayTitle").textContent = `「${dayLabel(currentDay)}」要跟哪一天互換？`;
   document.getElementById("copyDayConfirm").textContent = "交換";
@@ -4511,7 +4536,8 @@ fab.addEventListener("click", ()=>{
   if(!canEdit()){ showUpgradeNeeded(); return; }
   if(currentTab==="itinerary") openSpotModal(null);
 });
-document.getElementById("memoFab").addEventListener("click", ()=>{
+document.getElementById("memoFab").addEventListener("click", (ev)=>{
+  ev.stopPropagation();   // 防止點擊往上傳到外層
   if(!canEdit()){ showUpgradeNeeded(); return; }
   renderHolding();
   showHoldList();
