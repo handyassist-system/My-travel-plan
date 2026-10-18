@@ -1325,7 +1325,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-139";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-141";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2914,8 +2914,8 @@ function openSpotModal(spot){
   document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
-  fStayTouched = !!spot;   // 新增才自動帶；編輯既有景點維持原值
-  syncSpotStay();
+  fStayTouched = !!(spot && spot.stayMinutes);   // 已有停留時間就維持原值；新增或還沒填的，選類型時自動帶預設
+  if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
   renderSpotCatChips();
   fName.value = spot ? spot.name : "";
   fNote.value = spot ? (spot.note||"") : "";
@@ -4003,7 +4003,8 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
   const holdItem = items.find(i=>i.id===assigningHoldId);
   const category = (holdItem && holdItem.category) || "其他";
   try{
-    await db.collection(COLLECTION).doc(assigningHoldId).update({ type:"spot", day, order, category, time:"", expense:{amount:0,category:"",payer:"",currency:primaryCurrencyForTrip()} });
+    const _stay = (holdItem && holdItem.stayMinutes) ? holdItem.stayMinutes : (SPOT_STAY_DEFAULT[category] || 0);   // 備忘錄排進行程：依類別帶預設停留
+    await db.collection(COLLECTION).doc(assigningHoldId).update({ type:"spot", day, order, category, stayMinutes:_stay, time:"", expense:{amount:0,category:"",payer:"",currency:primaryCurrencyForTrip()} });
     assignModalMask.classList.remove("show");
   }catch(e){ console.error(e); travelToast(failMsg("排入", e)); }
 });
