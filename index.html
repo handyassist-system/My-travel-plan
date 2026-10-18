@@ -653,6 +653,10 @@ header #mapBtn, header #settingsBtn{
         <div class="field"><label>從家到機場（分鐘）</label><input id="fsOutHomeToAirport" type="number" inputmode="numeric" placeholder="60"></div>
         <div class="field"><label>報到需提前（分鐘）</label><input id="fsOutCheckin" type="number" inputmode="numeric" placeholder="120"></div>
       </div>
+      <div class="row2">
+        <div class="field"><label>入境與領行李（分鐘）</label><input id="fsOutImmigration" type="number" inputmode="numeric" placeholder="60"></div>
+        <div class="field"></div>
+      </div>
       <p class="fs-hint" id="fsOutHint"></p>
 
       </div>
@@ -1308,7 +1312,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-118";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-120";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2296,6 +2300,13 @@ function effectiveItems(day){
 }
 
 function timeToMinutes(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
+// 第一天離開機場的時間＝去程班機抵達 ＋ 入境與領行李時間（未填預設 60 分）；沒有填抵達時間則為 ""
+function outLeaveAirportTime(){
+  const s = flightSettings || {};
+  if(!s.outArriveTime) return "";
+  const m = Number(s.outImmigrationBuffer) > 0 ? Number(s.outImmigrationBuffer) : 60;
+  return addMinutesToTime(s.outArriveTime, m);
+}
 
 // Single source of truth for the day's schedule: only the FIRST spot's stored
 // time is an anchor; every following spot/transport time is derived from it.
@@ -2303,7 +2314,8 @@ function computeDerivedTimes(day){
   const arr = effectiveItems(day);
   const map = {};
   const s = flightSettings || {};
-  const defaultAnchorForDay = (day===days[0] && s.outArriveTime) ? addMinutesToTime(s.outArriveTime, 30) : null;
+  const defaultAnchorForDay = (day===days[0] && s.outArriveTime) ? outLeaveAirportTime() : null;
+  const flightDay1 = !!defaultAnchorForDay;   // 第一天有航班：起點一律由班機抵達算出，不採用地點自己舊存的出發時間
   let clock = null;
   let sawFirstSpot = false;
   arr.forEach((it, idx)=>{
@@ -2322,8 +2334,13 @@ function computeDerivedTimes(day){
         // day (leaving the airport on day1, leaving the hotel on other days).
         // If no transport segment precedes it, arrival == that anchor (0
         // travel time assumed).
-        const anchor = it.departTime || defaultAnchorForDay || "";
+        const anchor = flightDay1 ? defaultAnchorForDay : (it.departTime || defaultAnchorForDay || "");
         arrival = anchor;
+        if(flightDay1){
+          // 機場到第一個地點（還沒另外存交通）：加上建議的交通時間
+          let sug = null; try{ sug = airportLegSuggest(airportCode("arrive"), it, "before"); }catch(e){}
+          if(sug && sug.mins) arrival = addMinutesToTime(anchor, sug.mins);
+        }
       } else {
         arrival = clock!==null ? clock : "";
       }
@@ -2335,7 +2352,7 @@ function computeDerivedTimes(day){
       if(idx===0){
         // Leading transport (e.g. "+接機交通") has no previous spot to
         // inherit a time from, so it needs its own manual anchor too.
-        depart = it.manualDepartTime || defaultAnchorForDay || "";
+        depart = flightDay1 ? defaultAnchorForDay : (it.manualDepartTime || defaultAnchorForDay || "");
       } else {
         depart = clock || "";
       }
@@ -2483,7 +2500,8 @@ function buildSpotCard(it, d){
   const exp = it.expense && it.expense.amount ? `<div class="spot-expense">💰 ${escapeHtml(it.expense.category||'')} ${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</div>` : "";
   const metaParts = [];
   if(!["景點","餐廳","小吃","飯店","購物"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
-  if(d.isFirst && it.departTime) metaParts.push(`🚪${it.departTime}出發`);
+  const _fd1 = (it.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
+  if(d.isFirst && it.departTime && !_fd1) metaParts.push(`🚪${it.departTime}出發`);
   if(d.arrival && it.stayMinutes) metaParts.push(`停留${escapeHtml(fmtMin(it.stayMinutes))}・${escapeHtml(String(d.leave))}離開`);
   card.innerHTML = `
     <div class="spot-main">
@@ -2838,7 +2856,7 @@ function openSpotModal(spot){
   const arr = dayItems(currentDay);
   const hasFlightAnchor = (currentDay===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
   const isFirstPosition = spot ? (arr.length>0 && arr[0].id===spot.id) : (arr.length===0);
-  const defaultAnchor = hasFlightAnchor ? addMinutesToTime(flightSettings.outArriveTime, 30) : "";
+  const defaultAnchor = hasFlightAnchor ? outLeaveAirportTime() : "";
   const timeHint = document.getElementById("fTimeHint");
 
   fTime.disabled = true;
@@ -2853,10 +2871,10 @@ function openSpotModal(spot){
 
   const departWrap = document.getElementById("fDepartWrap");
   departWrap.style.display = isFirstPosition ? "block" : "none";
-  document.getElementById("fDepartLabel").textContent = hasFlightAnchor
-    ? "今天幾點從飯店出發（已預設為抵達後 30 分鐘）"
-    : "今天幾點從飯店出發（選填）";
-  document.getElementById("fDepartTime").value = spot ? (spot.departTime||"") : defaultAnchor;
+  document.getElementById("fDepartLabel").textContent = "今天幾點從飯店出發（選填）";
+  // 第一天有填去程班機：這個地點的時間由「班機抵達＋入境時間＋交通」自動算出，不需要填出發時間
+  if(hasFlightAnchor && isFirstPosition) departWrap.style.display = "none";
+  document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
   renderSpotCatChips();
@@ -3369,7 +3387,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   const manualWrap = document.getElementById("tManualDepartWrap");
   if(isLeading){
     const s = flightSettings || {};
-    const defaultAnchor = (currentDay===days[0] && s.outArriveTime) ? addMinutesToTime(s.outArriveTime, 30) : "";
+    const defaultAnchor = (currentDay===days[0] && s.outArriveTime) ? outLeaveAirportTime() : "";
     document.getElementById("tManualDepartTime").value = it ? (it.manualDepartTime||"") : defaultAnchor;
     manualWrap.style.display = "block";
     document.getElementById("tDepartFollowWrap").style.display = "none";
@@ -4266,7 +4284,7 @@ function initFlightFormOnce(){
 
   const ids = ["fsOutAirline","fsOutFlightNo","fsOutFrom","fsOutTo",
     "fsOutDepartTime","fsOutArriveTime","fsRetAirline","fsRetFlightNo","fsRetFrom","fsRetTo",
-    "fsRetDepartTime","fsRetArriveTime","fsOutHomeToAirport","fsOutCheckin","fsRetHomeToAirport","fsRetCheckin","fsExpense","fsExpPayer","fsExpDate","fsExpNote"];
+    "fsRetDepartTime","fsRetArriveTime","fsOutHomeToAirport","fsOutCheckin","fsRetHomeToAirport","fsRetCheckin","fsOutImmigration","fsExpense","fsExpPayer","fsExpDate","fsExpNote"];
   ids.forEach(id=>{
     document.getElementById(id).addEventListener("change", scheduleSaveFlight);
     document.getElementById(id).addEventListener("input", updateFlightHints);
@@ -4288,6 +4306,7 @@ async function saveFlightSettings(){
     retDepartTime: g("fsRetDepartTime"), retArriveTime: g("fsRetArriveTime"),
     outHomeToAirport: g("fsOutHomeToAirport") ? Number(g("fsOutHomeToAirport")) : 0,
     outCheckinBuffer: g("fsOutCheckin") ? Number(g("fsOutCheckin")) : 0,
+    outImmigrationBuffer: g("fsOutImmigration") ? Number(g("fsOutImmigration")) : 0,
     retHomeToAirport: g("fsRetHomeToAirport") ? Number(g("fsRetHomeToAirport")) : 0,
     retCheckinBuffer: g("fsRetCheckin") ? Number(g("fsRetCheckin")) : 0,
     expense: g("fsExpense") ? Number(g("fsExpense")) : 0,
@@ -4334,6 +4353,7 @@ function renderFlightForm(){
   // 舊資料只有一組「家到機場／報到提前」，去程回程都先沿用
   setv("fsOutHomeToAirport", s.outHomeToAirport || s.homeToAirport); setv("fsOutCheckin", s.outCheckinBuffer || s.checkinBuffer);
   setv("fsRetHomeToAirport", s.retHomeToAirport || s.homeToAirport); setv("fsRetCheckin", s.retCheckinBuffer || s.checkinBuffer);
+  setv("fsOutImmigration", s.outImmigrationBuffer);
   updateFlightHints();
   setv("fsExpense", s.expense);
   setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
@@ -4443,17 +4463,31 @@ function buildAirportStopCard(kind){
   ensureAirportGeo(code);
   const g = airportGeo[code];
   const leg = flightLegFromSettings(dir);
-  let time, ic, sub;
+  let time, ic, sub, lateWarn = false;
   if(kind==="arrive"){
-    time = s.outArriveTime || "--:--"; ic = "🛬"; sub = "抵達機場（入境、領行李後出發）";
+    time = s.outArriveTime || "--:--"; ic = "🛬"; sub = outLeaveAirportTime() ? ("抵達機場，入境、領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（入境、領行李後出發）";
   } else {
     time = leg ? leg.arrive : "--:--"; ic = "🛫";
     sub = s.retDepartTime ? ("請在 " + (leg ? leg.arrive : "") + " 前抵達報到，" + s.retDepartTime + " 起飛") : "回程機場";
+    // 左邊的時間＝依行程預估抵達機場的時間（最後地點離開＋交通）；算不出來就顯示最晚抵達時間
+    try{
+      const _day = days[days.length-1], _arr = effectiveItems(_day), _d = computeDerivedTimes(_day), _last = _arr[_arr.length-1];
+      let est = "";
+      if(_last && _last.type==="transport" && _d[_last.id] && _d[_last.id].arrive) est = _d[_last.id].arrive;
+      else if(_last && _last.type==="spot" && _d[_last.id] && _d[_last.id].leave){
+        const sg = airportLegSuggest(code, _last, "after");
+        if(sg && sg.mins) est = addMinutesToTime(_d[_last.id].leave, sg.mins);
+      }
+      if(est){
+        time = est;
+        if(leg && timeToMinutes(est) > timeToMinutes(leg.arrive)){ lateWarn = true; sub += "　⚠️ 預估晚於最晚抵達時間"; }
+      }
+    }catch(e){}
   }
   const flightLine = (s[dir+"Airline"]||"") + " " + (s[dir+"FlightNo"]||"") + "　" + apN(s[dir+"From"]) + " " + (s[dir+"DepartTime"]||"--:--") + " → " + apN(s[dir+"To"]) + " " + (s[dir+"ArriveTime"]||"--:--");
   const legLine = leg ? flightLegText(leg, kind==="arrive" ? "家" : "飯店") : "";
   const div = document.createElement("div"); div.className = "airport-stop";
-  div.innerHTML = `<div class="as-time">${escapeHtml(time)}</div><div class="as-ic">${ic}</div><div class="as-body"><p class="as-name">${escapeHtml(apN(code)+"機場")}</p><p class="as-sub">${escapeHtml(sub)}</p>`
+  div.innerHTML = `<div class="as-time"${lateWarn ? ' style="color:var(--danger);"' : ''}>${escapeHtml(time)}</div><div class="as-ic">${ic}</div><div class="as-body"><p class="as-name">${escapeHtml(apN(code)+"機場")}</p><p class="as-sub">${escapeHtml(sub)}</p>`
     + `<div class="as-flight">✈ ${escapeHtml(flightLine.trim())}${legLine ? `<span class="as-leg">${escapeHtml(legLine)}</span>` : ""}</div>`
     + (g && g.addr ? `<a class="as-addr" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${g.lat},${g.lng}">📍 ${escapeHtml(g.addr)}</a>` : "")
     + `</div>`;
@@ -5266,7 +5300,7 @@ function buildShareText(){
       } else if(it.type==="spot"){
         const d = derived[it.id] || {};
         const isFirstSpot = spotIndex===0;
-        const displayTime = isFirstSpot ? (it.departTime || d.arrival || "") : (d.arrival || "");
+        const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
         const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
         rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
         pendingTransportLabel = null;
@@ -5346,7 +5380,7 @@ function buildShareHtml(){
       } else if(it.type==="spot"){
         const d = derived[it.id] || {};
         const isFirstSpot = spotIndex===0;
-        const displayTime = isFirstSpot ? (it.departTime || d.arrival || "") : (d.arrival || "");
+        const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
         const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
         rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
         pendingTransportLabel = null;
