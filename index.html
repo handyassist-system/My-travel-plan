@@ -1409,7 +1409,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-153";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-154";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4713,7 +4713,7 @@ function renderFlightForm(){
   const s = flightSettings || {};
   { const tw = isTaiwanTrip();   // 台灣：文字改成去回程（飛機或高鐵）
     document.getElementById("fsFootNote").textContent = tw ? "修改後自動儲存，去程、回程會顯示在第 1 天與最後一天的機場或車站卡" : "修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡";
-    document.getElementById("flightOnboardTxt").textContent = tw ? "✅ 行程建好了！接著填去程、回程的資料，沒有的話可以直接按最下面的「完成」。" : "✅ 行程建好了！接著填航班資料，沒有航班可以直接按最下面的「完成」。"; }
+    document.getElementById("flightOnboardTxt").textContent = tw ? "✅ 行程建好了！要搭飛機或高鐵，在去程、回程點一下再填；自駕可以直接按最下面的「完成」。" : "✅ 行程建好了！接著填航班資料，沒有航班可以直接按最下面的「完成」。"; }
   _fsMode = { out:legMode("out"), ret:legMode("ret") };
   fillFlightSelects("out"); fillFlightSelects("ret");
   const setv = (id,v)=>{ document.getElementById(id).value = v || ""; };
@@ -4759,8 +4759,12 @@ function timeBefore(t, mins){
 // 台灣行程的去程／回程可以各自選：flight 飛機（預設，舊資料都是）、hsr 高鐵、none 不填。日本、大陸一律是飛機。
 function legMode(dir){
   if(!isTaiwanTrip()) return "flight";
-  const m = (flightSettings || {})[dir+"Mode"];
-  return (m==="hsr" || m==="none") ? m : "flight";
+  const st = flightSettings || {};
+  const m = st[dir+"Mode"];
+  if(m==="hsr" || m==="none" || m==="flight") return m;
+  // 還沒選過：這一趟完全沒有資料＝不填（台灣多半自駕）；已經有飛機資料的舊行程維持飛機
+  const hasData = !!(st[dir+"FlightNo"] || st[dir+"From"] || st[dir+"DepartTime"] || st[dir+"ArriveTime"]);
+  return hasData ? "flight" : "none";
 }
 function legShown(dir){ const s = flightSettings || {}; return legMode(dir)!=="none" && !!(s[dir+"FlightNo"] || s[dir+"From"]); }
 function ticketLabel(modes){   // 花費頁、航班頁的「票」怎麼稱呼（modes：表單上的選擇；沒給就用已存的資料）
