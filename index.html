@@ -1200,6 +1200,28 @@ const HOLDING = "_holding";
 const TRANSPORT_ICON = { jr:"🚃", subway:"🚇", taxi:"🚕", walk:"🚶", train:"🚄", drive:"🚗" };
 const TRANSPORT_LABEL_BASE = { jr:"JR", subway:"地鐵/公車", taxi:"計程車", walk:"步行", train:"高鐵/新幹線", drive:"自駕" };
 function isTaiwanTrip(){ const t = getActiveTrip(); return !!(t && t.region==="taiwan"); }
+// 輸入框的範例文字：依行程地區顯示當地的例子（日本／大陸／台灣）
+const REGION_EXAMPLES = {
+  japan:  { addr:"東京都台東區淺草2-3-1", trip:"東京五日遊", gift:"東京香蕉蛋糕" },
+  china:  { addr:"上海市黃浦區中山東一路", trip:"上海五日遊", gift:"鮮肉月餅" },
+  taiwan: { addr:"台北市信義區市府路45號", trip:"台南兩日遊", gift:"鳳梨酥" }
+};
+function regionExample(key, region){
+  const t = getActiveTrip();
+  const r = region || (t && t.region) || "china";
+  return (REGION_EXAMPLES[r] || REGION_EXAMPLES.china)[key];
+}
+// 「兌換」類別只有出國才需要；台灣行程把它從類別選單拿掉（舊資料已經是兌換的，編輯時仍會補回）
+function syncExchangeOption(sel){
+  if(!sel) return;
+  const has = sel.querySelector('option[value="兌換"]:not([data-extra])');
+  if(isTaiwanTrip()){ if(has) has.remove(); return; }
+  if(!has){
+    const o = document.createElement("option"); o.value = "兌換"; o.textContent = "💱 兌換（不計入總額）";
+    const other = sel.querySelector('option[value="其他"]');
+    sel.insertBefore(o, other || null);
+  }
+}
 // 台灣行程的交通名稱：捷運／公車、高鐵／台鐵（其他地區維持原名）
 const TRANSPORT_LABEL = new Proxy({}, {
   get(_, mode){
@@ -1364,7 +1386,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-149";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-150";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2763,7 +2785,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   selectEl.innerHTML = "";
   let poolNote = wrapEl.querySelector(".pool-note");
   if(!poolNote){ poolNote = document.createElement("p"); poolNote.className = "pool-note"; poolNote.style.cssText = "font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;"; poolNote.textContent = "選「公費現金」代表用共同現金支付，不算個人代墊。"; wrapEl.appendChild(poolNote); }
-  poolNote.style.display = (members.length>=2 && !noPool) ? "" : "none";
+  poolNote.style.display = (members.length>=2 && !noPool && !isTaiwanTrip()) ? "" : "none";
   members.forEach(m=>{
     const opt = document.createElement("option");
     opt.value = m; opt.textContent = m;
@@ -2771,7 +2793,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
     selectEl.appendChild(opt);
   });
   // 多人時多一個「公費現金」：用換來的現金付的，不算任何人墊款（兌換那筆已經平分過了）
-  if(members.length>=2 && !noPool){
+  if(members.length>=2 && !noPool && (!isTaiwanTrip() || currentValue===POOL_PAYER)){   // 台灣沒有換匯，不提供公費現金（舊資料已選的照常顯示）
     const po = document.createElement("option");
     po.value = POOL_PAYER; po.textContent = POOL_PAYER + "（用換來的現金付）";
     if(currentValue===POOL_PAYER) po.selected = true;
@@ -2961,6 +2983,7 @@ function openSpotModal(spot){
   renderSpotCatChips();
   fName.value = spot ? spot.name : "";
   fNote.value = spot ? (spot.note||"") : "";
+  fNote.placeholder = "例：" + regionExample("addr");
   document.getElementById("fMemo").value = spot ? (spot.memo||"") : "";
   setSpotPhotoPreview(spot ? (spot.photo||"") : "");
   document.getElementById("fPhotoStatus").style.display = "none";
@@ -4127,6 +4150,7 @@ function renderExpense(){
   const rateKey = rateStorageKeyFor(primary);
   const rate = Number(localStorage.getItem(rateKey)) || defaultRateFor(primary);
   document.getElementById("rateInput").value = rate;
+  { const rr = document.querySelector(".exp-rate"); if(rr) rr.style.display = isTaiwanTrip() ? "none" : ""; }   // 台灣只有台幣，不需要匯率
   document.getElementById("rateFromLabel").textContent = currencySymbol(primary);
   const toggle = document.getElementById("expCurrencyToggle");
   toggle.innerHTML = "";
@@ -4357,7 +4381,7 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
     html += `<div style="font-size:13px;color:var(--sub);margin-top:8px;">目前沒有需要互相結清的金額</div>`;
   }
   const rateNote = `以 ${sym} 計算；匯率 1${currencySymbol(primary)} = ${rate} NT$（存在這支手機，換裝置可能不同）`;
-  html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(rateNote)}`;
+  html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(isTaiwanTrip() ? ("以 "+sym+" 計算") : rateNote)}`;
   if(exchCount>0 || poolCount>0) html += `<br>兌換由付款人先墊、全員平分；選「${POOL_PAYER}」的花費不再重複計算。換來的現金沒花完，請另外結清。`;
   if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
   if(gone>0) html += `<br>⚠️ 有 ${gone} 筆花費的付款人（${escapeHtml([...goneNames].join('、'))}）已不在成員名單，未納入結算；請把他加回成員或改付款人`;
@@ -4413,6 +4437,7 @@ function openExpenseModal(it){
   const eCatSel = document.getElementById("eCategory");
   // 新增只提供上面幾類；編輯舊資料時，若它的類別不在清單裡（例如舊的「衣物」「住宿」），暫時補回，避免存檔時被悄悄改掉
   [...eCatSel.querySelectorAll("option[data-extra]")].forEach(o=>o.remove());
+  syncExchangeOption(eCatSel);
   if(e.category && ![...eCatSel.options].some(o=>o.value===e.category)){
     const xo = document.createElement("option"); xo.value = e.category; xo.dataset.extra = "1";
     xo.textContent = (EXP_CAT_ICON[e.category]||"📌") + " " + e.category; eCatSel.appendChild(xo);
@@ -4576,6 +4601,7 @@ function renderFlightForm(){
   setv("fsOutHomeToAirport", s.outHomeToAirport || s.homeToAirport); setv("fsOutCheckin", s.outCheckinBuffer || s.checkinBuffer);
   setv("fsRetHomeToAirport", s.retHomeToAirport || s.homeToAirport); setv("fsRetCheckin", s.retCheckinBuffer || s.checkinBuffer);
   setv("fsOutImmigration", s.outImmigrationBuffer);
+  { const ir = document.getElementById("fsOutImmigration").closest(".row2"); if(ir) ir.style.display = isTw ? "none" : ""; }   // 台灣國內線沒有入境手續
   updateFlightHints();
   setv("fsExpense", s.expense);
   setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
@@ -4688,7 +4714,9 @@ function buildAirportStopCard(kind){
   const leg = flightLegFromSettings(dir);
   let time, ic, sub, lateWarn = false;
   if(kind==="arrive"){
-    time = s.outArriveTime || "--:--"; ic = "🛬"; sub = outLeaveAirportTime() ? ("抵達機場，入境、領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（入境、領行李後出發）";
+    time = s.outArriveTime || "--:--"; ic = "🛬";
+    if(isTaiwanTrip()) sub = outLeaveAirportTime() ? ("抵達機場，領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（領行李後出發）";
+    else sub = outLeaveAirportTime() ? ("抵達機場，入境、領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（入境、領行李後出發）";
   } else {
     time = leg ? leg.arrive : "--:--"; ic = "🛫";
     sub = s.retDepartTime ? ("請在 " + (leg ? leg.arrive : "") + " 前抵達報到，" + s.retDepartTime + " 起飛") : "回程機場";
@@ -4784,7 +4812,7 @@ function renderPackCatChips(){
   const _gift = SOUVENIR_CATS.includes(selectedPackCat);
   document.getElementById("packWhoWrap").style.display = _gift ? "block" : "none";
   document.getElementById("packNameLabel").textContent = _gift ? "項目名稱（選填，想好再填）" : "項目名稱";
-  packName.placeholder = _gift ? "例：鮮肉月餅" : "例：感冒藥";
+  packName.placeholder = _gift ? ("例：" + regionExample("gift")) : "例：感冒藥";
   document.getElementById("packPhotoWrap").style.display = _gift ? "block" : "none";
   document.getElementById("sovExpCard").style.display = _gift ? "block" : "none";
 }
@@ -4807,7 +4835,7 @@ function refreshPackExpUI(){
   document.getElementById("pFlightNote").style.display = isFlight ? "block" : "none";
   document.getElementById("pExpFields").style.display = isFlight ? "none" : "block";
   document.getElementById("pExpHint").style.display = isFlight ? "none" : "block";
-  if(!_packExpCatTouched && d!=="flight") sel.value = d;
+  if(!_packExpCatTouched && d!=="flight" && [...sel.options].some(o=>o.value===d)) sel.value = d;
 }
 document.getElementById("pExpCat").addEventListener("change", ()=>{ _packExpCatTouched = true; });
 document.getElementById("packName").addEventListener("input", refreshPackExpUI);
@@ -4888,8 +4916,10 @@ function openPackModal(item){
   document.getElementById("pExpAmount").value = pe.amount || "";
   {
     const sel = document.getElementById("pExpCat");
+    sel.querySelectorAll("option[data-extra]").forEach(o=>o.remove());
+    syncExchangeOption(sel);
     const cur = pe.category || "";
-    if(cur && ![...sel.options].some(o=>o.value===cur)){ const o=document.createElement("option"); o.value=cur; o.textContent=cur; sel.appendChild(o); }
+    if(cur && ![...sel.options].some(o=>o.value===cur)){ const o=document.createElement("option"); o.value=cur; o.textContent=cur; o.dataset.extra="1"; sel.appendChild(o); }
     _packExpHadAmount = !!pe.amount;
     _packExpCatTouched = !!cur;                 // 已有類別就照舊，不再自動猜
     if(cur) sel.value = cur;
@@ -5058,6 +5088,14 @@ async function openPackLib(){
     }
   }catch(e){ console.warn("load my packing list failed", e); }
 }
+// 台灣國內旅遊：通用清單拿掉出國才需要的項目（護照、換匯、漫遊、海外刷卡、入境卡…），並避免和台灣專屬清單重複
+const PACK_CORE_SKIP_TW = new Set(["換當地現金","辦網路（SIM 卡或 eSIM）","辦理網路漫遊","確認信用卡可海外刷卡","下載 Papago 翻譯","護照","當地現金","少量台幣","轉接頭","原子筆","健保卡","駕照"]);
+function packCoreFor(region){
+  if(region!=="taiwan") return PACK_LIB.core;
+  return PACK_LIB.core.filter(x=>!PACK_CORE_SKIP_TW.has(x.n))
+    .map(x=> /^個人必要藥品/.test(x.n) ? Object.assign({}, x, { note:"出發前確認藥量足夠，建議隨身攜帶" })
+           : (x.n==="隨身小包" ? Object.assign({}, x, { note:"放證件、手機、錢" }) : x));
+}
 let _packLibCtx = null;
 // 第 1 步：先勾條件（季節、活動、我的清單）；第 2 步：依條件組出清單，確認後才加入行程
 function renderPackLibStep1(){
@@ -5099,7 +5137,7 @@ function renderPackLib(){
   const secs = [];
   if(mine.length && useMine) secs.push({ key:"mine", title:"⭐ 我的清單", open:true, pre:true,
     items: mine.map((x,mi)=>({ c:normPackCat(x.category), n:x.name, note:x.note||"", qty:x.qty||0, mi })) });
-  secs.push({ key:"core", title:"📋 通用清單", open:true, pre:true, items:PACK_LIB.core });
+  secs.push({ key:"core", title:"📋 通用清單", open:true, pre:true, items:packCoreFor(region) });
   const ctry = PACK_LIB.country[region];
   secs.push({ key:"country", title:ctry.label+" 專屬", open:true, pre:true, items:ctry.items });
   PACK_LIB.seasons.filter(sn=>seasonSel.has(sn.id)).forEach(sn=>{ secs.push({ key:sn.id, title:sn.label, open:true, pre:true, items:sn.items }); });
@@ -5791,6 +5829,7 @@ function openTripModal(trip){
   document.getElementById("trNotes").value = trip ? (trip.notes||"") : "";
   const region = trip ? (trip.region||"japan") : "japan";
   document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.toggle("active", c.dataset.v===region));
+  document.getElementById("trName").placeholder = "例：" + regionExample("trip", region);
   trMembersTemp = trip && trip.members ? [...trip.members] : [];
   renderMemberChips();
   tripListMask.classList.remove("show");
@@ -5800,6 +5839,7 @@ document.querySelectorAll("#trRegionChips .chip").forEach(chip=>{
   chip.addEventListener("click", ()=>{
     document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.remove("active"));
     chip.classList.add("active");
+    document.getElementById("trName").placeholder = "例：" + regionExample("trip", chip.dataset.v);
   });
 });
 function renderMemberChips(){
