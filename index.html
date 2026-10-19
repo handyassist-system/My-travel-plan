@@ -1116,7 +1116,27 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>日期（選填，付款日）</label><input id="pExpDate" type="date"></div>
       </div>
     </div>
+    <div class="sec-card" id="sovExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
+      <p style="font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;">買了再填；金額留空就不會列入花費。</p>
+      <div class="field"><label>金額</label><input id="sExpAmount" type="number" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label>幣別</label><div class="chip-row" id="sCurrencyChips"></div>
+        <p id="sRateNote" style="display:none; font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;"></p></div>
+      <div class="field"><label style="display:flex; align-items:center; gap:8px; font-size:14px;"><input id="sProxy" type="checkbox" style="width:18px; height:18px;"> 這是幫人代買的</label>
+        <p id="sProxyHint" style="display:none; font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">代購不計入旅費總額、也不參與分帳，只用來記錄向對方收多少錢；付款人請選個人。</p></div>
+      <div id="sPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
+      <div class="field" id="sPayerWrap" style="display:none;"><label>付款人</label><select id="sExpPayer"></select></div>
+      <div class="field" id="sShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="sShareChips"></div></div>
+    </div>
     <div class="field"><label>備註（選填）</label><textarea id="packNote" placeholder="品牌、給誰的..."></textarea></div>
+    <div class="field" id="packPhotoWrap" style="display:none;"><label>照片（選填，例如想買的商品、包裝）</label>
+      <input id="packPhotoInput" type="file" accept="image/*" style="display:none;">
+      <div id="packPhotoPreviewWrap" style="display:none; position:relative; width:100%; max-width:220px; margin-bottom:8px;">
+        <img id="packPhotoPreview" style="width:100%; border-radius:12px; display:block;">
+        <button type="button" id="packPhotoRemove" style="position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%; border:none; background:var(--seal); color:#fff; font-size:14px;">✕</button>
+      </div>
+      <button type="button" id="packPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
+      <p id="packPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="packCancel">取消</button>
       <button class="btn btn-primary" id="packSave">儲存</button>
@@ -1344,7 +1364,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-147";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-149";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2735,7 +2755,7 @@ fName.addEventListener("input", ()=>{ fSelectedLatLng = null; });
 document.getElementById("hName").addEventListener("input", ()=>{ hSelectedLatLng = null; });
 
 const POOL_PAYER = "公費現金";
-function populatePayerSelect(selectEl, wrapEl, currentValue){
+function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   const trip = getActiveTrip();
   const members = trip && trip.members ? trip.members : [];
   if(members.length===0){ wrapEl.style.display = "none"; selectEl.innerHTML = ""; return; }
@@ -2743,7 +2763,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue){
   selectEl.innerHTML = "";
   let poolNote = wrapEl.querySelector(".pool-note");
   if(!poolNote){ poolNote = document.createElement("p"); poolNote.className = "pool-note"; poolNote.style.cssText = "font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;"; poolNote.textContent = "選「公費現金」代表用共同現金支付，不算個人代墊。"; wrapEl.appendChild(poolNote); }
-  poolNote.style.display = members.length>=2 ? "" : "none";
+  poolNote.style.display = (members.length>=2 && !noPool) ? "" : "none";
   members.forEach(m=>{
     const opt = document.createElement("option");
     opt.value = m; opt.textContent = m;
@@ -2751,7 +2771,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue){
     selectEl.appendChild(opt);
   });
   // 多人時多一個「公費現金」：用換來的現金付的，不算任何人墊款（兌換那筆已經平分過了）
-  if(members.length>=2){
+  if(members.length>=2 && !noPool){
     const po = document.createElement("option");
     po.value = POOL_PAYER; po.textContent = POOL_PAYER + "（用換來的現金付）";
     if(currentValue===POOL_PAYER) po.selected = true;
@@ -4088,7 +4108,7 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
 // ================= EXPENSE =================
 let expDisplayCurrency = localStorage.getItem("expDisplayCurrency") || "";
 
-const EXP_CAT_ICON = { "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
+const EXP_CAT_ICON = { "代購":"🧳", "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
 function renderExpense(){
   if(!getActiveTrip()){
     const listWrap = document.getElementById("expList");
@@ -4131,7 +4151,10 @@ function renderExpense(){
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
   // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付，只在明細最後面另外列出；但結算會算（付款人先墊、平分）
   const isExch = i => (i.expense.category||"")==="兌換";
-  const counted = all.filter(i=>!isExch(i));
+  const isProxy = i => (i.expense.category||"")==="代購";   // 幫人代買：只記要收多少，不計入總額、分類、各人已付與結算
+  const counted = all.filter(i=>!isExch(i) && !isProxy(i));
+  const proxyList = all.filter(isProxy);
+  const proxySum = proxyList.reduce((s,i)=>s+converted(i),0);
   const exchList = all.filter(isExch);
   const exchSum = exchList.reduce((s,i)=>s+converted(i),0);
   const total = counted.reduce((s,i)=>s+converted(i),0);
@@ -4198,6 +4221,7 @@ function renderExpense(){
   const ordered = [];
   const groupMeta = [...catRank];
   if(exchList.length) groupMeta.push({ c:"兌換", n:exchList.length, amt:exchSum, exch:true });
+  if(proxyList.length) groupMeta.push({ c:"代購", n:proxyList.length, amt:proxySum, exch:true });
   groupMeta.forEach(x=> sorted.forEach(i=>{ if(expCatOf(i)===x.c) ordered.push(i); }));
   let lastGrp = null;
   ordered.forEach(i=>{
@@ -4215,7 +4239,7 @@ function renderExpense(){
     row.className = "exp-item";
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
-    const dayTxt = i.type==="expense" ? (i.date || "行程外") : ((i.expense && i.expense.date) ? i.expense.date : (i.type==="packing" ? "行前" : dayLabel(i.day)));
+    const dayTxt = i.type==="expense" ? (i.date || "行程外") : ((i.expense && i.expense.date) ? i.expense.date : (i.type==="packing" ? (SOUVENIR_CATS.includes(i.category) ? ((i.category||"") + ((i.expense.category==="代購" && i.who) ? " · 給"+i.who : "")) : "行前") : dayLabel(i.day)));
     const payTxt = (i.expense.payer) ? (i.expense.payer===POOL_PAYER ? (" · " + POOL_PAYER) : (" · " + i.expense.payer + "付")) : "";
     // 金額：粗體＝目前顯示幣別（加起來等於小計和總額）；原幣別不同時，下面用小灰字保留當初記的金額
     const origCur = i.expense.currency || primaryCurrencyForTrip();
@@ -4761,6 +4785,8 @@ function renderPackCatChips(){
   document.getElementById("packWhoWrap").style.display = _gift ? "block" : "none";
   document.getElementById("packNameLabel").textContent = _gift ? "項目名稱（選填，想好再填）" : "項目名稱";
   packName.placeholder = _gift ? "例：鮮肉月餅" : "例：感冒藥";
+  document.getElementById("packPhotoWrap").style.display = _gift ? "block" : "none";
+  document.getElementById("sovExpCard").style.display = _gift ? "block" : "none";
 }
 
 // 依項目名稱猜花費類別（使用者可改）；機票回傳 "flight"＝請到航班輸入
@@ -4786,6 +4812,66 @@ function refreshPackExpUI(){
 document.getElementById("pExpCat").addEventListener("change", ()=>{ _packExpCatTouched = true; });
 document.getElementById("packName").addEventListener("input", refreshPackExpUI);
 
+// 伴手禮・紀念品的照片：沿用地點照片的壓縮方式（寬 500px、單張、存在項目資料裡）
+let currentPackPhoto = "";
+function setPackPhotoPreview(dataUrl){
+  currentPackPhoto = dataUrl || "";
+  document.getElementById("packPhotoPreviewWrap").style.display = currentPackPhoto ? "block" : "none";
+  document.getElementById("packPhotoPickBtn").style.display = currentPackPhoto ? "none" : "block";
+  if(currentPackPhoto) document.getElementById("packPhotoPreview").src = currentPackPhoto;
+}
+document.getElementById("packPhotoPickBtn").addEventListener("click", ()=>document.getElementById("packPhotoInput").click());
+document.getElementById("packPhotoRemove").addEventListener("click", ()=>setPackPhotoPreview(""));
+document.getElementById("packPhotoInput").addEventListener("change", async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById("packPhotoStatus");
+  status.style.display = "block"; status.textContent = "處理中...";
+  try{
+    const dataUrl = await compressImageFile(file, 500);
+    if(dataUrl.length > 700000){ status.textContent = "圖片壓縮後仍太大，請換一張較小的圖片"; e.target.value = ""; return; }
+    setPackPhotoPreview(dataUrl);
+    status.style.display = "none";
+  }catch(err){
+    console.error("compress image failed", err);
+    status.textContent = "圖片無法處理，請換一張圖片";
+  }
+  e.target.value = "";
+});
+// ---- 伴手禮／紀念品／其他購物的花費：自己買＝類別「購物」（計入花費）；幫人代買＝類別「代購」（不計入總額與結算，只記要收多少）----
+function approxTwd(amount, cur){            // 參考用：用花費頁的匯率換成台幣；已是台幣就回傳 null
+  cur = cur || primaryCurrencyForTrip();
+  if(cur==="TWD") return null;
+  const rate = Number(localStorage.getItem(rateStorageKeyFor(cur))) || defaultRateFor(cur);
+  return Math.round(Number(amount) * rate);
+}
+function sovAmountText(exp){                // 例：¥320（約 NT$ 67）；台幣只顯示 NT$ 320
+  const cur = exp.currency || primaryCurrencyForTrip();
+  const base = currencySymbol(cur) + Number(exp.amount).toLocaleString();
+  const t = approxTwd(exp.amount, cur);
+  return t===null ? base : `${base}（約 NT$ ${t.toLocaleString()}）`;
+}
+function refreshSovUI(){
+  const proxy = document.getElementById("sProxy").checked;
+  document.getElementById("sProxyHint").style.display = proxy ? "block" : "none";
+  const payerSel = document.getElementById("sExpPayer");
+  const keep = payerSel.value;
+  populatePayerSelect(payerSel, document.getElementById("sPayerWrap"), (proxy && keep===POOL_PAYER) ? "" : keep, proxy);
+  document.getElementById("sShareWrap").style.display = (proxy || (getActiveTrip().members||[]).length<2) ? "none" : "block";
+  document.getElementById("sPaySub").style.display = (document.getElementById("sPayerWrap").style.display!=="none") ? "block" : "none";
+  const amt = Number(document.getElementById("sExpAmount").value);
+  const cur = getCurrencyChip(document.getElementById("sCurrencyChips"));
+  const t = amt>0 ? approxTwd(amt, cur) : null;
+  const note = document.getElementById("sRateNote");
+  if(t===null){ note.style.display = "none"; }
+  else{
+    const rate = Number(localStorage.getItem(rateStorageKeyFor(cur))) || defaultRateFor(cur);
+    note.style.display = "block";
+    note.textContent = `約 NT$ ${t.toLocaleString()}（匯率 1${currencySymbol(cur)} = ${rate}，僅供參考；匯率可到花費頁調整）`;
+  }
+}
+document.getElementById("sProxy").addEventListener("change", refreshSovUI);
+document.getElementById("sExpAmount").addEventListener("input", refreshSovUI);
 function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
@@ -4793,6 +4879,8 @@ function openPackModal(item){
   renderPackCatChips();
   packName.value = item ? (item.nameAuto ? "" : item.name) : "";   // 系統自動產生的名稱不放進欄位，讓使用者想好再填
   document.getElementById("packWho").value = item ? (item.who||"") : "";
+  setPackPhotoPreview(item ? (item.photo||"") : "");
+  document.getElementById("packPhotoStatus").style.display = "none";
   renderPackCatChips();
   packNote.value = item ? (item.note||"") : "";
   document.getElementById("packQty").value = (item && item.qty) ? item.qty : "";
@@ -4812,6 +4900,14 @@ function openPackModal(item){
   renderShareChipsIn("pShareWrap", "pShareChips", pe.sharedBy);
   document.getElementById("pPaySub").style.display = (document.getElementById("pPayerWrap").style.display!=="none") ? "block" : "none";
   document.getElementById("pExpDate").value = pe.date || "";
+  // 伴手禮類的花費欄位
+  const isSov = SOUVENIR_CATS.includes(selectedPackCat);
+  document.getElementById("sExpAmount").value = (isSov && pe.amount) ? pe.amount : "";
+  document.getElementById("sProxy").checked = !!(isSov && pe.category==="代購");
+  setCurrencyChip(document.getElementById("sCurrencyChips"), isSov ? pe.currency : "", refreshSovUI);
+  populatePayerSelect(document.getElementById("sExpPayer"), document.getElementById("sPayerWrap"), isSov ? (pe.payer||"") : "", document.getElementById("sProxy").checked);
+  renderShareChipsIn("sShareWrap", "sShareChips", isSov ? pe.sharedBy : null);
+  refreshSovUI();
   packModalMask.classList.add("show");
 }
 document.getElementById("packClose").addEventListener("click", ()=>{ packModalMask.classList.remove("show"); });
@@ -4826,7 +4922,10 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   if(!name && _gift && who){ name = "給" + who + "的禮物"; nameAuto = true; }   // 只填送給誰：名稱先自動帶，標示待決定
   if(!name){ (_gift ? document.getElementById("packWho") : packName).focus(); return; }
   if(selectedPackCat==="行前辦理" && shareNonePicked("pShareChips")){ travelToast("請至少選一位分攤對象"); return; }
-  const data = { type:"packing", tripId: activeTripId, category: selectedPackCat, name, note: packNote.value.trim(), who, nameAuto };
+  const sAmt = Number(document.getElementById("sExpAmount").value) || 0;
+  const sProxy = document.getElementById("sProxy").checked;
+  if(_gift && sAmt>0 && !sProxy && shareNonePicked("sShareChips")){ travelToast("請至少選一位分攤對象"); return; }
+  const data = { type:"packing", tripId: activeTripId, category: selectedPackCat, name, note: packNote.value.trim(), who, nameAuto, photo: _gift ? currentPackPhoto : "" };
   const qtyV = parseInt(document.getElementById("packQty").value, 10);
   if(qtyV > 0) data.qty = qtyV;
   else if(editingPackId) data.qty = firebase.firestore.FieldValue.delete();   // 編輯時清空數量
@@ -4834,7 +4933,9 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   const pAmt = document.getElementById("pExpAmount").value;
   data.expense = (selectedPackCat==="行前辦理")
     ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")), sharedBy: readSharedByIn("pShareChips"), date: document.getElementById("pExpDate").value || "" }
-    : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
+    : (_gift && sAmt>0)
+      ? { amount: sAmt, category: sProxy ? "代購" : "購物", payer: document.getElementById("sExpPayer").value||"", currency: getCurrencyChip(document.getElementById("sCurrencyChips")), sharedBy: sProxy ? [] : readSharedByIn("sShareChips") }
+      : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
       await db.collection(COLLECTION).doc(editingPackId).update(data);
@@ -5353,6 +5454,17 @@ function renderPacking(){
     return;
   }
 
+  if(packingViewMode==="souvenir"){
+    const proxies = arr.filter(i=>i.expense && i.expense.category==="代購" && i.expense.amount);
+    if(proxies.length){
+      let twd = 0;
+      proxies.forEach(i=>{ const cur = i.expense.currency || primaryCurrencyForTrip(); const t = approxTwd(i.expense.amount, cur); twd += (t===null ? Number(i.expense.amount) : t); });
+      const bar = document.createElement("div");
+      bar.style.cssText = "background:var(--seal-soft); border-radius:12px; padding:10px 12px; margin:0 0 12px; font-size:14px; line-height:1.6;";
+      bar.innerHTML = `🧳 代購合計 約 NT$ ${Math.round(twd).toLocaleString()}（${proxies.length} 筆）<br><span style="font-size:12px; color:var(--sub);">依花費頁匯率換算，僅供參考；收款以實際為準</span>`;
+      wrap.appendChild(bar);
+    }
+  }
   let cats = packingViewMode==="souvenir" ? SOUVENIR_CATS.filter(c=>arr.some(i=>i.category===c)) : sortPackingCategories(getAllPackingCategories().filter(c=>arr.some(i=>packCatOf(i)===c)));
 
   if(packingViewMode==="checklist" && cats.length>1){
@@ -5404,7 +5516,9 @@ function renderPacking(){
           <div class="spot-body">
             <p class="spot-name" style="font-size:15px; ${it.checked?'text-decoration:line-through; color:var(--sub);':''}">${escapeHtml(it.name)}${it.qty ? ` <span style="color:var(--sub); font-weight:600;">×${escapeHtml(String(it.qty))}</span>` : ""}</p>
             ${it.who ? `<p class="spot-note">👤 給 ${escapeHtml(it.who)}${it.nameAuto ? "・待決定" : ""}</p>` : ""}
+            ${(SOUVENIR_CATS.includes(it.category) && it.expense && it.expense.amount) ? `<p class="spot-note">💰 ${escapeHtml(sovAmountText(it.expense))}${it.expense.category==="代購" ? "・代購" : ""}</p>` : ""}
             ${it.note ? `<p class="spot-note">${escapeHtml(it.note)}</p>` : ""}
+            ${it.photo ? `<img src="${it.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; margin:4px 0 0; display:block;">` : ""}
           </div>
         </div>
         <div class="spot-actions pack-actions-hidden">
