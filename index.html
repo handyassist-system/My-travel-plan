@@ -1409,7 +1409,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-154";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-155";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3101,7 +3101,17 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
     const svc = new google.maps.places.PlacesService(document.createElement("div"));
     const okStatus = google.maps.places.PlacesServiceStatus.OK;
     const BAD_TYPES = ["route","street_address","premise","subpremise","political","locality","sublocality","neighborhood","postal_code","country","administrative_area_level_1","administrative_area_level_2","administrative_area_level_3"];
-    const isPlaceLike = r => r && r.name && !(r.types && r.types.length && r.types.every(t=>BAD_TYPES.includes(t)));
+    // Google 有時把「地址」當成地點名稱回傳（類型還標成店家）：名稱長得像地址的一律不當店名
+    const looksLikeAddress = n => {
+      n = String(n||"").trim();
+      if(/^\d{3,6}\s*(臺灣|台灣)?\s*\S*[縣市]/.test(n)) return true;                     // 110台北市…
+      if(/(縣|市|區|鄉|鎮|村|里)/.test(n) && /\d+(之\d+)?號(\s*\d*[樓Ff之])?$/.test(n)) return true;          // 台北市信義區市府路45號
+      if(/(路|街|道|巷|弄|段)/.test(n) && /\d+(之\d+)?號(\s*\d*[樓Ff之])?$/.test(n)) return true;            // 中山東一路18號
+      if(/^\d+[\s,-]*[A-Za-z0-9 .'-]*\b(road|rd|street|st|avenue|ave|lane|ln|blvd|no\.?)\b/i.test(n)) return true;   // 45 Shifu Rd
+      if(/^no\.?\s*\d+/i.test(n)) return true;                                              // No. 45, Shifu Rd.
+      return false;
+    };
+    const isPlaceLike = r => r && r.name && !looksLikeAddress(r.name) && !(r.types && r.types.length && r.types.every(t=>BAD_TYPES.includes(t)));
     const show = (picks)=>{
       say("");
       const head = document.createElement("div");
@@ -3140,7 +3150,7 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
     const textFallback = ()=>{
       svc.textSearch({ query: address }, (results, status)=>{
         const picks = (status === okStatus) ? pickList(results) : [];
-        if(!picks.length){ say("查不到，請直接輸入名稱", "var(--seal)"); return; }
+        if(!picks.length){ say("查不到這個地址的店名（可能沒有登記店名），請直接輸入名稱", "var(--seal)"); return; }
         show(picks);
       });
     };
