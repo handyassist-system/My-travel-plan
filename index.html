@@ -646,7 +646,8 @@ header #mapBtn, header #settingsBtn{
       <div id="flightFormBody">
       <p style="font-size:12px; color:var(--sub); margin:0 0 10px;">日期依行程設定，不需另外填寫</p>
 
-      <div class="sec-card"><div class="sec-h">✈️ 去程</div>
+      <div class="sec-card" id="fsOutCard"><div class="sec-h" id="fsOutTitle">✈️ 去程</div>
+      <div class="chip-row" id="fsOutModeChips" style="display:none; margin:0 0 10px;"></div>
       <div class="row2">
         <div class="field"><label>航空公司</label><select id="fsOutAirline"></select></div>
         <div class="field"><label>班機號碼</label><input id="fsOutFlightNo" type="text" placeholder="如 MU5041"></div>
@@ -671,7 +672,8 @@ header #mapBtn, header #settingsBtn{
 
       </div>
 
-      <div class="sec-card"><div class="sec-h">✈️ 回程</div>
+      <div class="sec-card" id="fsRetCard"><div class="sec-h" id="fsRetTitle">✈️ 回程</div>
+      <div class="chip-row" id="fsRetModeChips" style="display:none; margin:0 0 10px;"></div>
       <div class="row2">
         <div class="field"><label>航空公司</label><select id="fsRetAirline"></select></div>
         <div class="field"><label>班機號碼</label><input id="fsRetFlightNo" type="text" placeholder="如 MU5042"></div>
@@ -692,7 +694,7 @@ header #mapBtn, header #settingsBtn{
 
       </div>
 
-      <div class="sec-card"><div class="sec-h">🎫 機票花費（選填）</div>
+      <div class="sec-card"><div class="sec-h" id="fsExpTitle">🎫 機票花費（選填）</div>
       <div class="field"><label>金額</label><input id="fsExpense" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label>
         <div class="chip-row" id="fsCurrencyChips"></div>
@@ -1272,8 +1274,17 @@ function getAirportsForTrip(){
 // Backward-compatible alias used by existing lookups (e.g. AIRPORTS[code] in
 // flight cards / share text) — always resolves against whichever region the
 // active trip is in, falling back to the China set.
+// 台灣高鐵 12 站（座標為概略位置，只用來估算車站到景點的交通時間）；代碼用 "HSR:站名"，和機場代碼放在同一組欄位
+const HSR_STATIONS = [
+  {n:"南港",lat:25.0521,lng:121.6070},{n:"台北",lat:25.0478,lng:121.5170},{n:"板橋",lat:25.0144,lng:121.4637},
+  {n:"桃園",lat:25.0128,lng:121.2146},{n:"新竹",lat:24.8077,lng:121.0408},{n:"苗栗",lat:24.6053,lng:120.8250},
+  {n:"台中",lat:24.1123,lng:120.6159},{n:"彰化",lat:23.8744,lng:120.5726},{n:"雲林",lat:23.7365,lng:120.4161},
+  {n:"嘉義",lat:23.4595,lng:120.3230},{n:"台南",lat:22.9250,lng:120.2856},{n:"左營",lat:22.6870,lng:120.3076}
+];
+const hsrCode = n => "HSR:" + n;
+const isHsrCode = c => typeof c==="string" && c.indexOf("HSR:")===0;
 const AIRPORTS = new Proxy({}, {
-  get(_, code){ return getAirportsForTrip()[code]; }
+  get(_, code){ if(isHsrCode(code)) return code.slice(4) + "站"; return getAirportsForTrip()[code]; }
 });
 const AIRLINES_CHINA = ["中華 CI","長榮 BR","星宇 JX","台灣虎航 IT","東方航空 MU","南方航空 CZ","國泰航空 CX","其他"];
 const AIRLINES_JAPAN = ["中華 CI","長榮 BR","星宇 JX","台灣虎航 IT","日本航空 JL","全日空 ANA","樂桃航空 MM","捷星日本 GK","其他"];
@@ -1386,7 +1397,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-150";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-151";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2175,7 +2186,10 @@ function renderAll(){
   document.getElementById("memoFab").style.display = (trip && _canEditNow && currentTab==="itinerary") ? "flex" : "none";   // 備忘錄入口（在標題列，只在行程頁顯示）
   document.getElementById("pocketCount").textContent = String(trip ? items.filter(i=>i.tripId===activeTripId && i.type==="holding").length : 0);
 
-  const titles = { itinerary:"📅 行程", expense:"💰 花費彙整", flight:"✈️ 航班", packing:"📋 行李與採買清單", map:"🗺️ 地圖" };
+  const _twNav = isTaiwanTrip();
+  const _fnav = document.querySelector('#bottomNav .nav-btn[data-tab="flight"]');
+  if(_fnav){ const want = _twNav ? '<span class="ic">🚄</span>去回程' : '<span class="ic">✈️</span>航班'; if(_fnav.innerHTML!==want) _fnav.innerHTML = want; }
+  const titles = { itinerary:"📅 行程", expense:"💰 花費彙整", flight:(_twNav ? "🚄 去回程" : "✈️ 航班"), packing:"📋 行李與採買清單", map:"🗺️ 地圖" };
   // 只改標題文字，不要用 textContent —— 版本號是這個 h1 的子元素，整個覆蓋會把它清掉
   var _t=document.getElementById("pageTitle");
   if(_t){
@@ -2392,7 +2406,7 @@ function timeToMinutes(t){ if(!t) return null; const [h,m]=t.split(":").map(Numb
 function outLeaveAirportTime(){
   const s = flightSettings || {};
   if(!s.outArriveTime) return "";
-  const m = Number(s.outImmigrationBuffer) > 0 ? Number(s.outImmigrationBuffer) : (isTaiwanTrip() ? 0 : 60);   // 台灣國內線沒有入境手續
+  const m = legMode("out")==="hsr" ? 0 : (Number(s.outImmigrationBuffer) > 0 ? Number(s.outImmigrationBuffer) : (isTaiwanTrip() ? 0 : 60));   // 台灣國內線沒有入境手續
   return addMinutesToTime(s.outArriveTime, m);
 }
 
@@ -2468,7 +2482,9 @@ function buildFlightWarning(derived){
     if(estArrival && timeToMinutes(estArrival) > deadlineMin){
       const div = document.createElement("div");
       div.className = "warn-banner";
-      div.innerHTML = `⚠️ 預估 ${estArrival} 才會離開最後一站，已超過建議出發去機場時間（${deadline}），可能來不及搭機`;
+      div.innerHTML = legMode("ret")==="hsr"
+        ? `⚠️ 預估 ${estArrival} 才會離開最後一站，已超過建議出發去車站時間（${deadline}），可能來不及搭車`
+        : `⚠️ 預估 ${estArrival} 才會離開最後一站，已超過建議出發去機場時間（${deadline}），可能來不及搭機`;
       return div;
     }
   }
@@ -4170,7 +4186,7 @@ function renderExpense(){
 
   const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense"||i.type==="packing") && i.expense && i.expense.amount);
   if(flightSettings && flightSettings.expense){
-    all.push({ type:"flight", day:"航班", order:-1, name:"機票", expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" } });
+    all.push({ type:"flight", day:"航班", order:-1, name:ticketLabel(), expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" } });
   }
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
   // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付，只在明細最後面另外列出；但結算會算（付款人先墊、平分）
@@ -4518,6 +4534,70 @@ function populateAirlineSelect(sel){
 }
 
 let flightFormInit = false;
+let _fsMode = { out:"flight", ret:"flight" };   // 目前表單上去程／回程選的交通方式（台灣才有高鐵、不填）
+function fillFlightSelects(dir){   // 依交通方式放機場或高鐵站選項
+  const hsr = _fsMode[dir]==="hsr";
+  const D = dir==="out" ? "Out" : "Ret";
+  ["From","To"].forEach(k=>{
+    const sel = document.getElementById("fs"+D+k);
+    if(hsr){
+      sel.innerHTML = "";
+      HSR_STATIONS.forEach(st=>{ const o = document.createElement("option"); o.value = hsrCode(st.n); o.textContent = st.n + "站"; sel.appendChild(o); });
+    } else populateAirportSelect(sel);
+  });
+}
+function flightDefaultCode(dir, which){   // which: "From"|"To"；回傳目前交通方式的預設站／機場
+  const trip = getActiveTrip(); const isJapan = trip && trip.region==="japan"; const isTw = trip && trip.region==="taiwan";
+  if(_fsMode[dir]==="hsr") return hsrCode((dir==="out") === (which==="From") ? "台北" : "台中");
+  if(dir==="out") return which==="From" ? (isTw ? "TSA" : "TPE") : (isTw ? "KHH" : (isJapan ? "NRT" : "PVG"));
+  return which==="From" ? (isTw ? "KHH" : (isJapan ? "NRT" : "PVG")) : (isTw ? "TSA" : "TPE");
+}
+function applyFlightModeUI(){
+  const isTw = isTaiwanTrip();
+  const T = { FlightNo:["班機號碼","車次"], From:["出發機場","出發站"], To:["抵達機場","抵達站"], DepartTime:["起飛時間","發車時間"],
+              HomeToAirport:null, Checkin:["報到需提前（分鐘）","提前到站（分鐘）"] };
+  [["out","Out","家"],["ret","Ret","飯店"]].forEach(([dir,D,home])=>{
+    const m = _fsMode[dir], hsr = m==="hsr", none = m==="none";
+    const chips = document.getElementById("fs"+D+"ModeChips");
+    chips.style.display = isTw ? "flex" : "none";
+    chips.innerHTML = "";
+    [["flight","✈️ 飛機"],["hsr","🚄 高鐵"],["none","不填"]].forEach(([v,t])=>{
+      const c = document.createElement("div"); c.className = "chip" + (v===m ? " active" : ""); c.dataset.v = v; c.textContent = t;
+      c.addEventListener("click", ()=>{
+        if(_fsMode[dir]===v) return;
+        _fsMode[dir] = v; fillFlightSelects(dir);
+        document.getElementById("fs"+D+"From").value = flightDefaultCode(dir,"From");
+        document.getElementById("fs"+D+"To").value = flightDefaultCode(dir,"To");
+        applyFlightModeUI(); updateFlightHints(); renderFlightExpenseTitle(); scheduleSaveFlight();
+      });
+      chips.appendChild(c);
+    });
+    document.getElementById("fs"+D+"Title").textContent = (hsr ? "🚄 " : "✈️ ") + (dir==="out" ? "去程" : "回程");
+    const setLabel = (id, texts)=>{
+      const f = document.getElementById(id).closest(".field"), lb = f && f.querySelector("label"); if(!lb) return;
+      if(!lb.dataset.orig) lb.dataset.orig = lb.textContent;
+      lb.textContent = (hsr && texts) ? texts : lb.dataset.orig;
+    };
+    setLabel("fs"+D+"FlightNo", hsr ? T.FlightNo[1] : null); setLabel("fs"+D+"From", hsr ? T.From[1] : null); setLabel("fs"+D+"To", hsr ? T.To[1] : null);
+    setLabel("fs"+D+"DepartTime", hsr ? T.DepartTime[1] : null); setLabel("fs"+D+"Checkin", hsr ? T.Checkin[1] : null);
+    setLabel("fs"+D+"HomeToAirport", hsr ? ("從" + home + "到車站（分鐘）") : null);
+    const no = document.getElementById("fs"+D+"FlightNo");
+    if(!no.dataset.ph) no.dataset.ph = no.placeholder;
+    no.placeholder = hsr ? "如 0615" : no.dataset.ph;
+    const ck = document.getElementById("fs"+D+"Checkin"); if(!ck.dataset.ph) ck.dataset.ph = ck.placeholder; ck.placeholder = hsr ? String(HSR_DEFAULT_CHECKIN) : ck.dataset.ph;
+    const ht = document.getElementById("fs"+D+"HomeToAirport"); if(!ht.dataset.ph) ht.dataset.ph = ht.placeholder; ht.placeholder = hsr ? String(HSR_DEFAULT_TRAVEL) : ht.dataset.ph;
+    document.getElementById("fs"+D+"Airline").closest(".field").style.display = hsr ? "none" : "";
+    const card = document.getElementById("fs"+D+"Card");
+    card.querySelectorAll(".row2").forEach(r=>{
+      const immRow = r.contains(document.getElementById("fsOutImmigration"));
+      r.style.display = (none || (immRow && isTw)) ? "none" : "";
+    });
+    const hint = document.getElementById("fs"+D+"Hint"); if(hint) hint.style.display = none ? "none" : "";
+  });
+}
+function renderFlightExpenseTitle(){
+  const el = document.getElementById("fsExpTitle"); if(el) el.textContent = "🎫 " + ticketLabel(_fsMode) + "花費（選填）";
+}
 function initFlightFormOnce(){
   populateAirlineSelect(document.getElementById("fsOutAirline"));
   populateAirlineSelect(document.getElementById("fsRetAirline"));
@@ -4546,10 +4626,11 @@ async function saveFlightSettings(){
   if(!activeTripId) return;
   const g = id => document.getElementById(id).value;
   const data = {
-    outAirline: g("fsOutAirline"), outFlightNo: g("fsOutFlightNo"), outFrom: g("fsOutFrom"), outTo: g("fsOutTo"),
-    outDepartTime: g("fsOutDepartTime"), outArriveTime: g("fsOutArriveTime"),
-    retAirline: g("fsRetAirline"), retFlightNo: g("fsRetFlightNo"), retFrom: g("fsRetFrom"), retTo: g("fsRetTo"),
-    retDepartTime: g("fsRetDepartTime"), retArriveTime: g("fsRetArriveTime"),
+    outMode: _fsMode.out, retMode: _fsMode.ret,
+    outAirline: _fsMode.out==="hsr" ? "" : g("fsOutAirline"), outFlightNo: g("fsOutFlightNo"), outFrom: g("fsOutFrom"), outTo: g("fsOutTo"),
+    outDepartTime: _fsMode.out==="none" ? "" : g("fsOutDepartTime"), outArriveTime: _fsMode.out==="none" ? "" : g("fsOutArriveTime"),
+    retAirline: _fsMode.ret==="hsr" ? "" : g("fsRetAirline"), retFlightNo: g("fsRetFlightNo"), retFrom: g("fsRetFrom"), retTo: g("fsRetTo"),
+    retDepartTime: _fsMode.ret==="none" ? "" : g("fsRetDepartTime"), retArriveTime: _fsMode.ret==="none" ? "" : g("fsRetArriveTime"),
     outHomeToAirport: g("fsOutHomeToAirport") ? Number(g("fsOutHomeToAirport")) : 0,
     outCheckinBuffer: g("fsOutCheckin") ? Number(g("fsOutCheckin")) : 0,
     outImmigrationBuffer: g("fsOutImmigration") ? Number(g("fsOutImmigration")) : 0,
@@ -4590,18 +4671,24 @@ function renderFlightForm(){
   const isJapan = trip && trip.region==="japan";
   const isTw = trip && trip.region==="taiwan";
   const s = flightSettings || {};
+  _fsMode = { out:legMode("out"), ret:legMode("ret") };
+  fillFlightSelects("out"); fillFlightSelects("ret");
   const setv = (id,v)=>{ document.getElementById(id).value = v || ""; };
   setv("fsOutAirline", s.outAirline || "中華 CI"); setv("fsOutFlightNo", s.outFlightNo);
-  setv("fsOutFrom", s.outFrom || (isTw ? "TSA" : "TPE")); setv("fsOutTo", s.outTo || (isTw ? "KHH" : (isJapan ? "NRT" : "PVG")));
+  setv("fsOutFrom", s.outFrom || flightDefaultCode("out","From")); setv("fsOutTo", s.outTo || flightDefaultCode("out","To"));
   setv("fsOutDepartTime", s.outDepartTime); setv("fsOutArriveTime", s.outArriveTime);
   setv("fsRetAirline", s.retAirline || "中華 CI"); setv("fsRetFlightNo", s.retFlightNo);
-  setv("fsRetFrom", s.retFrom || (isTw ? "KHH" : (isJapan ? "NRT" : "PVG"))); setv("fsRetTo", s.retTo || (isTw ? "TSA" : "TPE"));
+  setv("fsRetFrom", s.retFrom || flightDefaultCode("ret","From")); setv("fsRetTo", s.retTo || flightDefaultCode("ret","To"));
+  ["fsOutFrom","fsOutTo","fsRetFrom","fsRetTo"].forEach(id=>{   // 已存的值不在目前選項裡（例如模式和代碼不一致）→ 改用預設
+    const el = document.getElementById(id); if(!el.value) el.value = flightDefaultCode(id.indexOf("Out")>0 ? "out" : "ret", id.slice(-2)==="To" ? "To" : "From");
+  });
   setv("fsRetDepartTime", s.retDepartTime); setv("fsRetArriveTime", s.retArriveTime);
   // 舊資料只有一組「家到機場／報到提前」，去程回程都先沿用
   setv("fsOutHomeToAirport", s.outHomeToAirport || s.homeToAirport); setv("fsOutCheckin", s.outCheckinBuffer || s.checkinBuffer);
   setv("fsRetHomeToAirport", s.retHomeToAirport || s.homeToAirport); setv("fsRetCheckin", s.retCheckinBuffer || s.checkinBuffer);
   setv("fsOutImmigration", s.outImmigrationBuffer);
-  { const ir = document.getElementById("fsOutImmigration").closest(".row2"); if(ir) ir.style.display = isTw ? "none" : ""; }   // 台灣國內線沒有入境手續
+  applyFlightModeUI();   // 台灣：交通方式切換、高鐵欄位、國內線不顯示入境手續
+  renderFlightExpenseTitle();
   updateFlightHints();
   setv("fsExpense", s.expense);
   setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
@@ -4619,31 +4706,47 @@ function timeBefore(t, mins){
   const raw = m - mins, w = ((raw%1440)+1440)%1440;
   return { t: String(Math.floor(w/60)).padStart(2,"0")+":"+String(w%60).padStart(2,"0"), prev: raw<0 };
 }
-function flightLeg(depart, travel, checkin){
+// 台灣行程的去程／回程可以各自選：flight 飛機（預設，舊資料都是）、hsr 高鐵、none 不填。日本、大陸一律是飛機。
+function legMode(dir){
+  if(!isTaiwanTrip()) return "flight";
+  const m = (flightSettings || {})[dir+"Mode"];
+  return (m==="hsr" || m==="none") ? m : "flight";
+}
+function legShown(dir){ const s = flightSettings || {}; return legMode(dir)!=="none" && !!(s[dir+"FlightNo"] || s[dir+"From"]); }
+function ticketLabel(modes){   // 花費頁、航班頁的「票」怎麼稱呼（modes：表單上的選擇；沒給就用已存的資料）
+  if(!isTaiwanTrip()) return "機票";
+  const m = modes || { out:legMode("out"), ret:legMode("ret") };
+  const list = [m.out, m.ret], h = list.filter(x=>x==="hsr").length, f = list.filter(x=>x==="flight").length;
+  return h===0 ? "機票" : (f===0 ? "車票" : "車票／機票");
+}
+const HSR_DEFAULT_TRAVEL = 30, HSR_DEFAULT_CHECKIN = 20;
+function flightLeg(depart, travel, checkin, hsr){
   if(!depart) return null;
-  const tv = Number(travel)>0 ? Number(travel) : FLIGHT_DEFAULT_TRAVEL;
-  const ck = Number(checkin)>0 ? Number(checkin) : FLIGHT_DEFAULT_CHECKIN;
+  const tv = Number(travel)>0 ? Number(travel) : (hsr ? HSR_DEFAULT_TRAVEL : FLIGHT_DEFAULT_TRAVEL);
+  const ck = Number(checkin)>0 ? Number(checkin) : (hsr ? HSR_DEFAULT_CHECKIN : FLIGHT_DEFAULT_CHECKIN);
   const arrive = timeBefore(depart, ck), leave = timeBefore(depart, ck+tv);
   if(!arrive || !leave) return null;
   return { arrive:arrive.t, arrivePrev:arrive.prev, leave:leave.t, leavePrev:leave.prev,
            usedDefault: !(Number(travel)>0) || !(Number(checkin)>0) };
 }
-function flightLegText(leg, from){
+function flightLegText(leg, from, hsr){
   const pv = p => p ? "前一天 " : "";
+  if(hsr) return "建議 " + pv(leg.arrivePrev) + leg.arrive + " 前到站，" + pv(leg.leavePrev) + leg.leave + " 前從" + from + "出發" + (leg.usedDefault ? "（依預設值估算，可自行調整）" : "");
   return "建議 " + pv(leg.arrivePrev) + leg.arrive + " 前抵達機場報到，" + pv(leg.leavePrev) + leg.leave + " 前從" + from + "出發" + (leg.usedDefault ? "（依預設值估算，可自行調整）" : "");
 }
 function flightLegFromSettings(dir){
   const s = flightSettings || {};
   const travel = Number(s[dir+"HomeToAirport"])>0 ? s[dir+"HomeToAirport"] : s.homeToAirport;
   const check = Number(s[dir+"CheckinBuffer"])>0 ? s[dir+"CheckinBuffer"] : s.checkinBuffer;
-  return flightLeg(s[dir+"DepartTime"], travel, check);
+  return flightLeg(s[dir+"DepartTime"], travel, check, legMode(dir)==="hsr");
 }
 function updateFlightHints(){
   const v = id => (document.getElementById(id)||{}).value || "";
   [["Out","家"],["Ret","飯店"]].forEach(function(x){
     const el = document.getElementById("fs"+x[0]+"Hint"); if(!el) return;
-    const leg = flightLeg(v("fs"+x[0]+"DepartTime"), v("fs"+x[0]+"HomeToAirport"), v("fs"+x[0]+"Checkin"));
-    el.textContent = leg ? flightLegText(leg, x[1]) : "填入起飛時間後，會自動算出建議的出門時間";
+    const hsr = _fsMode[x[0].toLowerCase()]==="hsr";
+    const leg = flightLeg(v("fs"+x[0]+"DepartTime"), v("fs"+x[0]+"HomeToAirport"), v("fs"+x[0]+"Checkin"), hsr);
+    el.textContent = leg ? flightLegText(leg, x[1], hsr) : (hsr ? "填入發車時間後，會自動算出建議的出門時間" : "填入起飛時間後，會自動算出建議的出門時間");
   });
 }
 // ---------- 機場站卡：由航班資料自動產生（航班資訊併在同一張卡，要改請到航班頁）----------
@@ -4651,12 +4754,17 @@ function updateFlightHints(){
 const AIRPORT_GEO_KEY = "tripAirportGeoV1";
 let airportGeo = {};
 try{ airportGeo = JSON.parse(localStorage.getItem(AIRPORT_GEO_KEY)||"{}") || {}; }catch(e){ airportGeo = {}; }
+HSR_STATIONS.forEach(st=>{ airportGeo[hsrCode(st.n)] = { addr:"高鐵" + st.n + "站", lat:st.lat, lng:st.lng }; });   // 高鐵站座標內建，不用查 Google
 const airportGeoTried = {};
 function airportCode(kind){
   const s = flightSettings || {};
   const trip = getActiveTrip(); const isJapan = trip && trip.region==="japan"; const isTw = trip && trip.region==="taiwan";
   const dflt = isTw ? "KHH" : (isJapan ? "NRT" : "PVG");
-  return kind==="arrive" ? (s.outTo || dflt) : (s.retFrom || dflt);
+  const code = kind==="arrive" ? (s.outTo || dflt) : (s.retFrom || dflt);
+  const hsr = legMode(kind==="arrive" ? "out" : "ret")==="hsr";
+  if(hsr && !isHsrCode(code)) return hsrCode("台中");     // 資料還沒存到高鐵站時的保底
+  if(!hsr && isHsrCode(code)) return dflt;
+  return code;
 }
 function ensureAirportGeo(code){
   if(!code || airportGeo[code] || airportGeoTried[code] || !canUseAdvanced()) return;
@@ -4706,7 +4814,8 @@ function refineAirportLegWithGoogle(sug, spot, position, onDone){
 function buildAirportStopCard(kind){
   const s = flightSettings || {};
   const dir = kind==="arrive" ? "out" : "ret";
-  if(!s[dir+"FlightNo"] && !s[dir+"From"]) return null;
+  if(!legShown(dir)) return null;
+  const hsr = legMode(dir)==="hsr";
   const apN = c => (AIRPORTS[c]||c||"");
   const code = airportCode(kind);
   ensureAirportGeo(code);
@@ -4714,12 +4823,14 @@ function buildAirportStopCard(kind){
   const leg = flightLegFromSettings(dir);
   let time, ic, sub, lateWarn = false;
   if(kind==="arrive"){
-    time = s.outArriveTime || "--:--"; ic = "🛬";
-    if(isTaiwanTrip()) sub = outLeaveAirportTime() ? ("抵達機場，領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（領行李後出發）";
+    time = s.outArriveTime || "--:--"; ic = hsr ? "🚉" : "🛬";
+    if(hsr) sub = outLeaveAirportTime() ? ("抵達車站，約 " + outLeaveAirportTime() + " 離開") : "抵達車站";
+    else if(isTaiwanTrip()) sub = outLeaveAirportTime() ? ("抵達機場，領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（領行李後出發）";
     else sub = outLeaveAirportTime() ? ("抵達機場，入境、領行李後約 " + outLeaveAirportTime() + " 離開") : "抵達機場（入境、領行李後出發）";
   } else {
-    time = leg ? leg.arrive : "--:--"; ic = "🛫";
-    sub = s.retDepartTime ? ("請在 " + (leg ? leg.arrive : "") + " 前抵達報到，" + s.retDepartTime + " 起飛") : "回程機場";
+    time = leg ? leg.arrive : "--:--"; ic = hsr ? "🚄" : "🛫";
+    if(hsr) sub = s.retDepartTime ? ("請在 " + (leg ? leg.arrive : "") + " 前到站，" + s.retDepartTime + " 發車") : "回程車站";
+    else sub = s.retDepartTime ? ("請在 " + (leg ? leg.arrive : "") + " 前抵達報到，" + s.retDepartTime + " 起飛") : "回程機場";
     // 左邊的時間＝依行程預估抵達機場的時間（最後地點離開＋交通）；算不出來就顯示最晚抵達時間
     try{
       const _day = days[days.length-1], _arr = effectiveItems(_day), _d = computeDerivedTimes(_day), _last = _arr[_arr.length-1];
@@ -4736,10 +4847,10 @@ function buildAirportStopCard(kind){
     }catch(e){}
   }
   const flightLine = (s[dir+"Airline"]||"") + " " + (s[dir+"FlightNo"]||"") + "　" + apN(s[dir+"From"]) + " " + (s[dir+"DepartTime"]||"--:--") + " → " + apN(s[dir+"To"]) + " " + (s[dir+"ArriveTime"]||"--:--");
-  const legLine = leg ? flightLegText(leg, kind==="arrive" ? "家" : "飯店") : "";
+  const legLine = leg ? flightLegText(leg, kind==="arrive" ? "家" : "飯店", hsr) : "";
   const div = document.createElement("div"); div.className = "airport-stop";
-  div.innerHTML = `<div class="as-time"${lateWarn ? ' style="color:var(--danger);"' : ''}>${escapeHtml(time)}</div><div class="as-ic">${ic}</div><div class="as-body"><p class="as-name">${escapeHtml(apN(code)+"機場")}</p><p class="as-sub">${escapeHtml(sub)}</p>`
-    + `<div class="as-flight">✈ ${escapeHtml(flightLine.trim())}${legLine ? `<span class="as-leg">${escapeHtml(legLine)}</span>` : ""}</div>`
+  div.innerHTML = `<div class="as-time"${lateWarn ? ' style="color:var(--danger);"' : ''}>${escapeHtml(time)}</div><div class="as-ic">${ic}</div><div class="as-body"><p class="as-name">${escapeHtml(hsr ? ("高鐵" + apN(code)) : (apN(code)+"機場"))}</p><p class="as-sub">${escapeHtml(sub)}</p>`
+    + `<div class="as-flight">${hsr ? "🚄" : "✈"} ${escapeHtml(flightLine.trim())}${legLine ? `<span class="as-leg">${escapeHtml(legLine)}</span>` : ""}</div>`
     + (g && g.addr ? `<a class="as-addr" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${g.lat},${g.lng}">📍 ${escapeHtml(g.addr)}</a>` : "")
     + `</div>`;
   return div;
@@ -5645,9 +5756,9 @@ function buildShareText(){
   const lines = [];
   lines.push(trip ? trip.name : "行程");
 
-  if(s.outFlightNo || s.outFrom){
+  if(legShown("out")){
     lines.push("");
-    lines.push("✈️ 去程航班");
+    lines.push(legMode("out")==="hsr" ? "🚄 去程高鐵" : "✈️ 去程航班");
     lines.push(`${s.outAirline||""} ${s.outFlightNo||""}　${AIRPORTS[s.outFrom]||s.outFrom||""} ${s.outDepartTime||"--:--"} → ${AIRPORTS[s.outTo]||s.outTo||""} ${s.outArriveTime||"--:--"}`.trim());
   }
 
@@ -5699,9 +5810,9 @@ function buildShareText(){
     lines.push(""); lines.push("（第 "+(FREE_MAX_DAYS+1)+" 天起需升級完整版才能查看）");
   }
 
-  if(s.retFlightNo || s.retFrom){
+  if(legShown("ret")){
     lines.push("");
-    lines.push("✈️ 回程航班");
+    lines.push(legMode("ret")==="hsr" ? "🚄 回程高鐵" : "✈️ 回程航班");
     lines.push(`${s.retAirline||""} ${s.retFlightNo||""}　${AIRPORTS[s.retFrom]||s.retFrom||""} ${s.retDepartTime||"--:--"} → ${AIRPORTS[s.retTo]||s.retTo||""} ${s.retArriveTime||"--:--"}`.trim());
   }
 
@@ -5722,16 +5833,16 @@ function buildShareHtml(){
     html += `<p style="background:#F5F6F8; border-radius:8px; padding:8px 12px; color:#444; font-size:13px; white-space:pre-wrap;">📝 ${esc(trip.notes)}</p>`;
   }
 
-  if(s.outFlightNo || s.outFrom || s.retFlightNo || s.retFrom){
+  if(legShown("out") || legShown("ret")){
     html += `<table style="width:100%; border-collapse:collapse; margin:10px 0 20px;"><tr>`;
-    if(s.outFlightNo || s.outFrom){
+    if(legShown("out")){
       html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
-        <b>✈️ 去程</b><br>${esc(s.outAirline||"")} ${esc(s.outFlightNo||"")}<br>${esc(AIRPORTS[s.outFrom]||s.outFrom||"")} ${esc(s.outDepartTime||"--:--")} → ${esc(AIRPORTS[s.outTo]||s.outTo||"")} ${esc(s.outArriveTime||"--:--")}
+        <b>${legMode("out")==="hsr" ? "🚄" : "✈️"} 去程</b><br>${esc(s.outAirline||"")} ${esc(s.outFlightNo||"")}<br>${esc(AIRPORTS[s.outFrom]||s.outFrom||"")} ${esc(s.outDepartTime||"--:--")} → ${esc(AIRPORTS[s.outTo]||s.outTo||"")} ${esc(s.outArriveTime||"--:--")}
       </td><td style="width:12px;"></td>`;
     }
-    if(s.retFlightNo || s.retFrom){
+    if(legShown("ret")){
       html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
-        <b>✈️ 回程</b><br>${esc(s.retAirline||"")} ${esc(s.retFlightNo||"")}<br>${esc(AIRPORTS[s.retFrom]||s.retFrom||"")} ${esc(s.retDepartTime||"--:--")} → ${esc(AIRPORTS[s.retTo]||s.retTo||"")} ${esc(s.retArriveTime||"--:--")}
+        <b>${legMode("ret")==="hsr" ? "🚄" : "✈️"} 回程</b><br>${esc(s.retAirline||"")} ${esc(s.retFlightNo||"")}<br>${esc(AIRPORTS[s.retFrom]||s.retFrom||"")} ${esc(s.retDepartTime||"--:--")} → ${esc(AIRPORTS[s.retTo]||s.retTo||"")} ${esc(s.retArriveTime||"--:--")}
       </td>`;
     }
     html += `</tr></table>`;
