@@ -641,7 +641,7 @@ header #mapBtn, header #settingsBtn{
     <div id="flightView" style="display:none; padding:14px 20px 30px;">
       <div id="flightNoTripCTA" style="display:none;"></div>
       <div id="flightOnboard" style="display:none; background:var(--seal-soft); border-radius:12px; padding:12px 14px; margin:0 0 12px; font-size:13px; color:var(--seal); line-height:1.6;">
-        ✅ 行程建好了！接著填航班資料，沒有航班可以直接按最下面的「完成」。
+        <span id="flightOnboardTxt">✅ 行程建好了！接著填航班資料，沒有航班可以直接按最下面的「完成」。</span>
       </div>
       <div id="flightFormBody">
       <p style="font-size:12px; color:var(--sub); margin:0 0 10px;">日期依行程設定，不需另外填寫</p>
@@ -694,7 +694,7 @@ header #mapBtn, header #settingsBtn{
 
       </div>
 
-      <div class="sec-card"><div class="sec-h" id="fsExpTitle">🎫 機票花費（選填）</div>
+      <div class="sec-card" id="fsExpCard"><div class="sec-h" id="fsExpTitle">🎫 機票花費（選填）</div>
       <div class="field"><label>金額</label><input id="fsExpense" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label>
         <div class="chip-row" id="fsCurrencyChips"></div>
@@ -706,7 +706,19 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>日期（選填，付款日）</label><input id="fsExpDate" type="date"></div>
       <div class="field"><label>備註（選填）</label><textarea id="fsExpNote" placeholder="補充說明"></textarea></div>
 </div>
-      <p style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡</p>
+      <div class="sec-card" id="fsrExpCard" style="display:none;"><div class="sec-h" id="fsrExpTitle">🎫 機票花費（選填）</div>
+      <div class="field"><label>金額</label><input id="fsrExpense" type="number" placeholder="0"></div>
+      <div class="field"><label>幣別</label>
+        <div class="chip-row" id="fsrCurrencyChips"></div>
+      </div>
+      <div id="fsrPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
+      <div class="field" id="fsrPayerWrap" style="display:none;"><label>付款人</label><select id="fsrExpPayer"></select></div>
+      <div class="field" id="fsrShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fsrShareChips"></div></div>
+      <div class="exp-sub">📝 日期與備註</div>
+      <div class="field"><label>日期（選填，付款日）</label><input id="fsrExpDate" type="date"></div>
+      <div class="field"><label>備註（選填）</label><textarea id="fsrExpNote" placeholder="補充說明"></textarea></div>
+</div>
+      <p id="fsFootNote" style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡</p>
       <button id="flightOnboardDone" type="button" class="btn btn-primary" style="display:none; width:100%; margin-top:6px;">完成，開始排行程</button>
       </div>
     </div>
@@ -1397,7 +1409,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-151";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-153";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4185,8 +4197,11 @@ function renderExpense(){
   const sym = currencySymbol(expDisplayCurrency);
 
   const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense"||i.type==="packing") && i.expense && i.expense.amount);
+  if(isTaiwanTrip() && flightSettings && Number(flightSettings.retExpense) > 0){   // 台灣：回程的票另外一筆
+    all.push({ type:"flight", day:"航班", order:-1, name:"回程" + (legMode("ret")==="hsr" ? "車票" : "機票"), expense:{ amount:flightSettings.retExpense, category:"交通", payer: flightSettings.retExpensePayer||"", currency: flightSettings.retExpenseCurrency||primary, sharedBy: flightSettings.retExpenseSharedBy||[], date: flightSettings.retExpenseDate||"" } });
+  }
   if(flightSettings && flightSettings.expense){
-    all.push({ type:"flight", day:"航班", order:-1, name:ticketLabel(), expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" } });
+    all.push({ type:"flight", day:"航班", order:-1, name:(isTaiwanTrip() ? ("去程" + (legMode("out")==="hsr" ? "車票" : "機票")) : ticketLabel()), expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" } });
   }
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
   // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付，只在明細最後面另外列出；但結算會算（付款人先墊、平分）
@@ -4595,8 +4610,26 @@ function applyFlightModeUI(){
     const hint = document.getElementById("fs"+D+"Hint"); if(hint) hint.style.display = none ? "none" : "";
   });
 }
+// 費用欄位：日本、大陸＝整個行程一組「機票花費」；台灣＝去程、回程各一組，放在各自那一趟下面，標題跟著那一趟選的交通方式
 function renderFlightExpenseTitle(){
-  const el = document.getElementById("fsExpTitle"); if(el) el.textContent = "🎫 " + ticketLabel(_fsMode) + "花費（選填）";
+  const tw = isTaiwanTrip(), st = flightSettings || {};
+  const outCard = document.getElementById("fsExpCard"), retCard = document.getElementById("fsrExpCard");
+  if(!outCard || !retCard) return;
+  if(!tw){
+    document.getElementById("fsExpTitle").textContent = "🎫 機票花費（選填）";
+    document.getElementById("fsRetCard").after(outCard);
+    outCard.style.display = ""; retCard.style.display = "none";
+    return;
+  }
+  document.getElementById("fsOutCard").after(outCard);
+  document.getElementById("fsRetCard").after(retCard);
+  const fv = id => Number((document.getElementById(id)||{}).value) || 0;
+  [["out", outCard, "fsExpTitle", st.expense, "fsExpense"], ["ret", retCard, "fsrExpTitle", st.retExpense, "fsrExpense"]].forEach(([dir, card, titleId, saved, inputId])=>{
+    const m = _fsMode[dir];
+    document.getElementById(titleId).textContent = "🎫 " + (dir==="out" ? "去程" : "回程") + (m==="hsr" ? "車票" : "機票") + "花費（選填）";
+    // 這一趟選「不填」就沒有票要記；已經填過金額的資料照常顯示，才看得到、清得掉
+    card.style.display = (m==="none" && !(Number(saved) > 0) && !fv(inputId)) ? "none" : "";
+  });
 }
 function initFlightFormOnce(){
   populateAirlineSelect(document.getElementById("fsOutAirline"));
@@ -4610,7 +4643,7 @@ function initFlightFormOnce(){
 
   const ids = ["fsOutAirline","fsOutFlightNo","fsOutFrom","fsOutTo",
     "fsOutDepartTime","fsOutArriveTime","fsRetAirline","fsRetFlightNo","fsRetFrom","fsRetTo",
-    "fsRetDepartTime","fsRetArriveTime","fsOutHomeToAirport","fsOutCheckin","fsRetHomeToAirport","fsRetCheckin","fsOutImmigration","fsExpense","fsExpPayer","fsExpDate","fsExpNote"];
+    "fsRetDepartTime","fsRetArriveTime","fsOutHomeToAirport","fsOutCheckin","fsRetHomeToAirport","fsRetCheckin","fsOutImmigration","fsExpense","fsExpPayer","fsExpDate","fsExpNote","fsrExpense","fsrExpPayer","fsrExpDate","fsrExpNote"];
   ids.forEach(id=>{
     document.getElementById(id).addEventListener("change", scheduleSaveFlight);
     document.getElementById(id).addEventListener("input", updateFlightHints);
@@ -4641,7 +4674,14 @@ async function saveFlightSettings(){
     expensePayer: g("fsExpPayer") || "",
     expenseSharedBy: readSharedByIn("fsShareChips"),
     expenseDate: g("fsExpDate") || "",
-    expenseNote: g("fsExpNote").trim()
+    expenseNote: g("fsExpNote").trim(),
+    // 台灣：回程的票另外一組（去程用上面原本的欄位）
+    retExpense: g("fsrExpense") ? Number(g("fsrExpense")) : 0,
+    retExpenseCurrency: getCurrencyChip(document.getElementById("fsrCurrencyChips")),
+    retExpensePayer: g("fsrExpPayer") || "",
+    retExpenseSharedBy: readSharedByIn("fsrShareChips"),
+    retExpenseDate: g("fsrExpDate") || "",
+    retExpenseNote: g("fsrExpNote").trim()
   };
   try{
     await db.collection(COLLECTION).doc("flight_"+activeTripId).set(data, { merge:true });
@@ -4671,6 +4711,9 @@ function renderFlightForm(){
   const isJapan = trip && trip.region==="japan";
   const isTw = trip && trip.region==="taiwan";
   const s = flightSettings || {};
+  { const tw = isTaiwanTrip();   // 台灣：文字改成去回程（飛機或高鐵）
+    document.getElementById("fsFootNote").textContent = tw ? "修改後自動儲存，去程、回程會顯示在第 1 天與最後一天的機場或車站卡" : "修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡";
+    document.getElementById("flightOnboardTxt").textContent = tw ? "✅ 行程建好了！接著填去程、回程的資料，沒有的話可以直接按最下面的「完成」。" : "✅ 行程建好了！接著填航班資料，沒有航班可以直接按最下面的「完成」。"; }
   _fsMode = { out:legMode("out"), ret:legMode("ret") };
   fillFlightSelects("out"); fillFlightSelects("ret");
   const setv = (id,v)=>{ document.getElementById(id).value = v || ""; };
@@ -4696,6 +4739,13 @@ function renderFlightForm(){
   renderShareChipsIn("fsShareWrap", "fsShareChips", s.expenseSharedBy, scheduleSaveFlight);
   document.getElementById("fsPaySub").style.display = (document.getElementById("fsPayerWrap").style.display!=="none") ? "block" : "none";
   setv("fsExpDate", s.expenseDate); setv("fsExpNote", s.expenseNote);
+  setv("fsrExpense", s.retExpense);
+  setCurrencyChip(document.getElementById("fsrCurrencyChips"), s.retExpenseCurrency, scheduleSaveFlight);
+  populatePayerSelect(document.getElementById("fsrExpPayer"), document.getElementById("fsrPayerWrap"), s.retExpensePayer);
+  renderShareChipsIn("fsrShareWrap", "fsrShareChips", s.retExpenseSharedBy, scheduleSaveFlight);
+  document.getElementById("fsrPaySub").style.display = (document.getElementById("fsrPayerWrap").style.display!=="none") ? "block" : "none";
+  setv("fsrExpDate", s.retExpenseDate); setv("fsrExpNote", s.retExpenseNote);
+  renderFlightExpenseTitle();
 }
 
 // ---------- 航班倒推時間：到機場、出門 ----------
@@ -4716,7 +4766,7 @@ function legShown(dir){ const s = flightSettings || {}; return legMode(dir)!=="n
 function ticketLabel(modes){   // 花費頁、航班頁的「票」怎麼稱呼（modes：表單上的選擇；沒給就用已存的資料）
   if(!isTaiwanTrip()) return "機票";
   const m = modes || { out:legMode("out"), ret:legMode("ret") };
-  const list = [m.out, m.ret], h = list.filter(x=>x==="hsr").length, f = list.filter(x=>x==="flight").length;
+  const list = [m.out, m.ret], h = list.filter(x=>x==="hsr").length, f = list.filter(x=>x==="flight").length;   // 選「不填」的那趟不算
   return h===0 ? "機票" : (f===0 ? "車票" : "車票／機票");
 }
 const HSR_DEFAULT_TRAVEL = 30, HSR_DEFAULT_CHECKIN = 20;
