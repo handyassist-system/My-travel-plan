@@ -1409,7 +1409,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-157";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-158";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2728,7 +2728,9 @@ const SPOT_STAY_DEFAULT = {景點:60, 餐廳:60, 小吃:30, 咖啡廳:60, 飲料
 let fStayTouched = true;
 function syncSpotStay(){
   if(fStayTouched) return;
-  document.getElementById("fStayMinutes").value = SPOT_STAY_DEFAULT[selectedSpotCat] || "";
+  const d = SPOT_STAY_DEFAULT[selectedSpotCat];
+  if(d) document.getElementById("fStayMinutes").value = d;
+  else if(!editingSpotId) document.getElementById("fStayMinutes").value = "";   // 新增：沒有預設值的類型（飯店、其他）就清空；編輯舊地點：保留原本的值，不亂清
 }
 document.getElementById("fStayMinutes").addEventListener("input", ()=>{ fStayTouched = true; });
 function renderSpotCatChips(){
@@ -2737,7 +2739,12 @@ function renderSpotCatChips(){
     const chip = document.createElement("div");
     chip.className = "chip" + (cat===selectedSpotCat ? " active" : "");
     chip.textContent = (CATEGORY_ICON[cat] || "📌") + " " + cat;
-    chip.addEventListener("click", ()=>{ selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat(); syncSpotStay(); });
+    chip.addEventListener("click", ()=>{
+      const changed = (cat !== selectedSpotCat);
+      selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat();
+      // 換類型就依新類型更新停留時間（編輯舊地點也一樣）；點原本已選的類型，只有停留時間是空的才補。自己改過停留時間就不再自動動
+      if(changed || !document.getElementById("fStayMinutes").value) syncSpotStay();
+    });
     fCategoryChips.appendChild(chip);
   });
 }
@@ -3008,7 +3015,7 @@ function openSpotModal(spot){
   document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
-  fStayTouched = !!(spot && spot.stayMinutes);   // 已有停留時間就維持原值；新增或還沒填的，選類型時自動帶預設
+  fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
   if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
   renderSpotCatChips();
   fName.value = spot ? spot.name : "";
