@@ -1243,7 +1243,7 @@ const TRANSPORT_LABEL = new Proxy({}, {
     return TRANSPORT_LABEL_BASE[mode];
   }
 });
-const CATEGORY_ICON = { "景點":"🏛️", "餐廳":"🍜", "小吃":"🍢", "飯店":"🛏️", "購物":"🛍️", "其他":"📌" };
+const CATEGORY_ICON = { "景點":"🏛️", "餐廳":"🍜", "小吃":"🍢", "咖啡廳":"☕", "飲料":"🧋", "飯店":"🛏️", "購物":"🛍️", "超商":"🏪", "其他":"📌" };
 
 let items = [];       // all firestore docs (all trips)
 let trips = [];       // all trip docs
@@ -1409,7 +1409,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-155";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-157";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2615,7 +2615,7 @@ function buildSpotCard(it, d){
   card.className = "spot-card";
   const exp = it.expense && it.expense.amount ? `<div class="spot-expense">💰 ${escapeHtml(it.expense.category||'')} ${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</div>` : "";
   const metaParts = [];
-  if(!["景點","餐廳","小吃","飯店","購物"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
+  if(!["景點","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
   const _fd1 = (it.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
   if(d.isFirst && it.departTime && !_fd1) metaParts.push(`🚪${it.departTime}出發`);
   if(d.arrival && it.stayMinutes) metaParts.push(`停留${escapeHtml(fmtMin(it.stayMinutes))}・${escapeHtml(String(d.leave))}離開`);
@@ -2711,7 +2711,7 @@ function escapeHtml(str){
 // ---------- Spot modal ----------
 const spotModalMask = document.getElementById("spotModalMask");
 const fTime = document.getElementById("fTime");
-const SPOT_BASE_CATS = ["景點","餐廳","小吃","飯店","購物","其他"];
+const SPOT_BASE_CATS = ["景點","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商","其他"];
 let selectedSpotCat = "景點";
 
 function getAllSpotCategories(){
@@ -2724,7 +2724,7 @@ function syncSpotExpCat(){
   if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
 }
 // 停留時間預設值（依類別自動帶入，使用者可自行修改；改過就不再被覆蓋）
-const SPOT_STAY_DEFAULT = {景點:60, 餐廳:60, 小吃:30, 購物:60};
+const SPOT_STAY_DEFAULT = {景點:60, 餐廳:60, 小吃:30, 咖啡廳:60, 飲料:20, 購物:60, 超商:15};
 let fStayTouched = true;
 function syncSpotStay(){
   if(fStayTouched) return;
@@ -2798,7 +2798,7 @@ const fName = document.getElementById("fName");
 const fNote = document.getElementById("fNote");
 const fExpAmount = document.getElementById("fExpAmount");
 // 花費類別依地點類型自動帶入，不讓使用者另外選
-const SPOT_EXPENSE_CAT = { "景點":"門票", "餐廳":"餐飲", "小吃":"餐飲", "飯店":"住宿", "購物":"購物", "其他":"其他" };
+const SPOT_EXPENSE_CAT = { "景點":"門票", "餐廳":"餐飲", "小吃":"餐飲", "咖啡廳":"餐飲", "飲料":"餐飲", "飯店":"住宿", "購物":"購物", "超商":"購物", "其他":"其他" };
 const fExpPayer = document.getElementById("fExpPayer");
 const fPayerWrap = document.getElementById("fPayerWrap");
 fName.addEventListener("input", ()=>{ fSelectedLatLng = null; });
@@ -2890,6 +2890,8 @@ let hSelectedLatLng = null;
 function guessCategoryFromPlaceTypes(types){
   if(!types) return null;
   const t = types;
+  if(t.includes("cafe") && !t.includes("restaurant")) return "咖啡廳";   // 咖啡廳（Google 的 cafe 通常也帶 food，所以要先判斷）
+  if(t.includes("convenience_store")) return "超商";
   if(t.some(x=>["restaurant","cafe","bakery","bar","food"].includes(x))) return "餐廳";
   if(t.some(x=>["meal_takeaway"].includes(x))) return "小吃";
   if(t.some(x=>["lodging"].includes(x))) return "飯店";
