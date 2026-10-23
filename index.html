@@ -809,6 +809,9 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
     </div>
+    <div class="field" id="fMealWrap" style="display:none;"><label>餐別（選填）</label>
+      <div class="chip-row" id="fMealChips"></div>
+    </div>
     <div class="field"><label>地址（用來在地圖上定位）</label><textarea id="fNote" placeholder="例：東京都台東區淺草2-3-1"></textarea></div>
     <button type="button" id="fGeocodeBtn" style="width:100%; padding:10px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:12px; margin-bottom:6px;">📍 找不到地點？用地址定位</button>
     <p id="fGeocodeStatus" style="font-size:12px; margin:-2px 0 12px; display:none;"></p>
@@ -1417,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-168";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-172";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2642,6 +2645,7 @@ function buildSpotCard(it, d){
   const exp = it.expense && it.expense.amount ? `<div class="spot-expense">💰 ${escapeHtml(it.expense.category||'')} ${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</div>` : "";
   const metaParts = [];
   if(!["景點","拍照","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
+  { const _meal = spotMealLabel(it, "", false); if(_meal) metaParts.push(escapeHtml(_meal)); }   // 只顯示自己指定的餐別
   const _fd1 = (it.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
   if(d.isFirst && it.departTime && !_fd1) metaParts.push(`🚪${it.departTime}出發`);
   { const _stay = (d.stay!=null) ? d.stay : it.stayMinutes;
@@ -2754,6 +2758,29 @@ function syncSpotExpCat(){
   const sel = document.getElementById("fExpCat");
   if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
 }
+// 餐別：餐廳類景點可自己指定早餐／午餐／下午茶／晚餐（「自動」＝PDF 依抵達時間判斷早／午／晚餐；「不標示」＝不標）
+const MEAL_CATS = ["餐廳","小吃","咖啡廳","飲料"];
+const MEAL_OPTIONS = [["","自動"],["早餐","早餐"],["午餐","午餐"],["下午茶","下午茶"],["晚餐","晚餐"],["none","不標示"]];
+let selectedSpotMeal = "";
+function spotMealLabel(it, timeStr, auto){
+  if(!MEAL_CATS.includes(it.category) || it.meal==="none") return "";
+  if(it.meal) return it.meal;
+  if(!auto || !timeStr) return "";
+  const m = parseInt(timeStr.split(":")[0],10) + (parseInt(timeStr.split(":")[1],10)||0)/60;
+  return (m>=6 && m<10.5) ? "早餐" : (m>=11 && m<14.5) ? "午餐" : (m>=17 && m<20.5) ? "晚餐" : "";
+}
+function renderMealChips(){
+  const wrap = document.getElementById("fMealWrap"), box = document.getElementById("fMealChips");
+  wrap.style.display = MEAL_CATS.includes(selectedSpotCat) ? "block" : "none";
+  box.innerHTML = "";
+  MEAL_OPTIONS.forEach(([v,t])=>{
+    const chip = document.createElement("div");
+    chip.className = "chip" + (v===selectedSpotMeal ? " active" : "");
+    chip.textContent = t;
+    chip.addEventListener("click", ()=>{ selectedSpotMeal = v; renderMealChips(); });
+    box.appendChild(chip);
+  });
+}
 // 停留時間預設值（依類別自動帶入，使用者可自行修改；改過就不再被覆蓋）
 const SPOT_STAY_DEFAULT = {景點:45, 拍照:10, 餐廳:60, 小吃:30, 咖啡廳:60, 飲料:20, 購物:60, 超商:15};
 let fStayTouched = true;
@@ -2793,6 +2820,7 @@ function renderSpotCatChips(){
     });
     fCategoryChips.appendChild(chip);
   });
+  renderMealChips();
 }
 
 let currentSpotPhoto = "";
@@ -3064,6 +3092,7 @@ function openSpotModal(spot){
   document.getElementById("fPinLeave").value = spot ? (spot.pinLeave||"") : "";
   document.getElementById("fPinArriveWrap").style.display = (departWrap.style.display==="none") ? "block" : "none";   // 第一個地點已有「從飯店出發」時間，不重複問抵達
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
+  selectedSpotMeal = spot ? (spot.meal||"") : "";
   fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
   if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
   renderSpotCatChips();
@@ -3432,6 +3461,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     stayMinutes: document.getElementById("fStayMinutes").value ? Number(document.getElementById("fStayMinutes").value) : 0,
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
     pinLeave: document.getElementById("fPinLeave").value || "",
+    meal: MEAL_CATS.includes(selectedSpotCat) ? selectedSpotMeal : "",
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
@@ -6106,31 +6136,34 @@ function buildPdfBlocks(){
 
   days.forEach((day, di)=>{
     const dateLabel = computeDateForDay(day);
-    const dayHead = `<div class="day">第 ${di+1} 天${dateLabel ? "　"+esc(dateLabel) : ""}</div>`;
+    const dayBar = `<div class="day">第 ${di+1} 天${dateLabel ? "　"+esc(dateLabel) : ""}</div>`;
+    const dayHead = dayBar + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
     const hasSpot = arr.some(i=>i.type==="spot");
-    if(!hasSpot){ blocks.push(dayHead + `<div class="empty">尚未安排</div>`); return; }
+    if(!hasSpot){ blocks.push(dayBar + `<div class="empty">尚未安排</div>`); return; }
     let pendingTransport = "";
-    let spotIndex = 0, first = true;
+    let spotIndex = 0, first = true, lastSec = "";
     arr.forEach(it=>{
       if(it.type==="transport"){
-        pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}${it.duration ? "　約"+fmtMin(it.duration) : ""}`;
+        pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}` + (it.duration ? `<br>約 ${esc(fmtMin(it.duration))}` : "");
         return;
       }
       if(it.type!=="spot") return;
       const d = derived[it.id] || {};
       const isFirstSpot = spotIndex===0;
       const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
-      const stay = (d.stay) ? (d.arrival ? `停留 ${fmtMin(d.stay)}・${d.leave} 離開` : `停留 ${fmtMin(d.stay)}`) : "";
       const right = [];
-      if(stay) right.push(esc(stay));
       if(it.memo) right.push("📝 " + esc(it.memo).replace(/\n/g,"<br>"));
       if(it.photo) right.push(`<img src="${it.photo}" style="width:90px; border-radius:6px; margin-top:4px;">`);
       let unit = "";
       if(first) unit += dayHead;
-      if(pendingTransport) unit += `<div class="tr">${esc(pendingTransport)}</div>`;
-      unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${it.note ? `<div class="ad">${esc(it.note)}</div>` : ""}</div><div class="m">${right.join("<br>")}</div></div>`;
+      // 依抵達時間分段（上午／中午／下午／晚上）；餐廳類景點依時間標早餐／午餐／晚餐
+      const _h = displayTime ? parseInt(displayTime.split(":")[0],10) : null;
+      const _sec = _h==null ? "" : (_h<12 ? "上午" : (_h<14 ? "中午" : (_h<18 ? "下午" : "晚上")));
+      if(_sec && _sec!==lastSec){ unit += `<div class="sec">${_sec}</div>`; lastSec = _sec; }
+      const meal = spotMealLabel(it, displayTime, true);
+      unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}</div><div class="adr">${esc(it.note || "")}</div><div class="tc">${pendingTransport}</div><div class="m">${right.join("<br>")}</div></div>`;
       blocks.push(unit);
       first = false; pendingTransport = ""; spotIndex++;
     });
@@ -6140,14 +6173,18 @@ function buildPdfBlocks(){
 }
 const PDF_CSS = `
   .pg{box-sizing:border-box; width:${PDF_W}px; height:${PDF_H}px; background:#fff; color:#1f2d3a; font-family:${PDF_FONT}; padding:${PDF_PAD_TOP}px ${PDF_PAD_X}px 0; position:relative; overflow:hidden;}
-  .blk{width:${PDF_W-2*PDF_PAD_X}px;}
+  .blk{width:${PDF_W-2*PDF_PAD_X}px; display:flow-root;}   /* flow-root：區塊上下的外距算進高度，換頁才不會把內容擠出頁尾 */
   .h1{font-size:26px; font-weight:700; margin:0 0 4px;} .sub{color:#6b7885; font-size:14px; margin-bottom:12px;}
   .note{background:#F3F6F8; border-radius:10px; padding:10px 14px; font-size:14px; margin-bottom:12px; white-space:pre-wrap;}
   .fl{display:flex; gap:12px; margin:12px 0 6px;} .fl-card{flex:1; background:#EAF3F8; border-radius:10px; padding:11px 14px; font-size:14px; line-height:1.6;}
   .day{background:#2C86AD; color:#fff; border-radius:10px; padding:9px 16px; font-weight:700; font-size:16px; margin:18px 0 6px;}
   .row{display:flex; gap:12px; padding:10px 4px; border-bottom:1px solid #E6ECF0;}
-  .t{width:58px; flex:none; font-weight:700; font-size:15px;} .p{flex:1.3; min-width:0; word-break:break-word;} .p b{font-size:15px;}
-  .ad{color:#7a8794; font-size:12px; margin-top:2px; line-height:1.5;} .m{flex:1; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
+  .t{width:58px; flex:none; font-weight:700; font-size:15px;} .p{flex:1.05; min-width:0; word-break:break-word;} .p b{font-size:15px;}
+  .sec{margin:10px 0 0; padding:5px 12px; font-size:13px; font-weight:700; color:#2C86AD; background:#EAF3F8; border-radius:6px;}
+  .meal{display:inline-block; font-size:12px; font-weight:600; background:#FFF1D6; color:#8a5a00; border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:1px;}
+  .tc{flex:.78; min-width:0; font-size:12px; color:#2C86AD; line-height:1.5;}
+  .adr{flex:1.1; min-width:0; color:#6b7885; font-size:12px; line-height:1.5; word-break:break-word;} .m{flex:.95; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
+  .colh{display:flex; gap:12px; padding:6px 4px; border-bottom:2px solid #2C86AD; font-size:12px; color:#6b7885;} .colh .t{font-size:12px; font-weight:600;}
   .tr{margin:0 0 0 74px; padding:5px 0; font-size:12px; color:#2C86AD;}
   .empty{color:#9aa5b0; font-size:13px; padding:6px 4px 2px;} .ft{margin-top:20px; font-size:12px; color:#9aa5b0; text-align:center;}
   .pn{position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:12px; color:#9aa5b0;}`;
