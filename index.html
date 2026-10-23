@@ -905,7 +905,7 @@ header #mapBtn, header #settingsBtn{
     <p id="tGmapWrap" style="font-size:13px; margin:-4px 0 12px; display:none;"><a id="tGmapLink" href="#" target="_blank" rel="noopener" style="color:var(--seal); text-decoration:underline; font-weight:600;">🗺️ 在 Google 地圖查看實際路線與時間</a><span style="display:block; font-size:12px; color:var(--sub); margin-top:2px;">路線與時間僅供參考，請依當天實際狀況為準</span></p>
     </div>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
-    <div class="row2">
+    <div class="row2" style="flex-wrap:wrap;">
       <div class="field" id="tDepartFollowWrap">
         <label>出發時間（接上一站）</label>
         <div style="padding:12px 14px; border-radius:10px; background:var(--bg); border:1px solid var(--line); color:var(--ink); font-weight:600; font-size:15px;" id="tDepartDisplay">--:--</div>
@@ -914,7 +914,7 @@ header #mapBtn, header #settingsBtn{
         <label>這段交通的出發時間</label>
         <input id="tManualDepartTime" type="time">
       </div>
-      <div class="field"><label>預估時間</label><input id="tDuration" type="hidden"><div id="tDurRow" style="display:flex; align-items:center; gap:6px;"><select id="tDurH" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">小時</span><select id="tDurM" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">分</span></div><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
+      <div class="field" style="flex:1 1 100%;"><label>預估時間</label><input id="tDuration" type="hidden"><div id="tDurRow" style="display:flex; align-items:center; gap:6px;"><select id="tDurH" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">小時</span><select id="tDurM" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">分</span></div><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
     </div>
     <div class="field" id="tArriveWrap" style="display:none;">
       <label>抵達時間（自動計算）</label>
@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-178";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-179";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
