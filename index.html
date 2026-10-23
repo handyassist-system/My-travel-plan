@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-177";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-178";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3879,9 +3879,15 @@ let currentTransportNextSpot = null;
 let currentTransportIsLeading = false;
 
 let durationIsAutoEstimated = false;
+let durEmptyReason = "";
 function updateDurationSourceNote(){
   const note = document.getElementById("tDurationAutoNote");
-  if(!tDuration.value){ note.style.display = "none"; return; }
+  if(!tDuration.value){
+    // 算不出來時，直接在欄位下方說明原因，避免空白看起來像壞掉
+    if(durEmptyReason){ note.textContent = "ℹ️ " + durEmptyReason; note.style.color = "var(--sub)"; note.style.display = "block"; }
+    else note.style.display = "none";
+    return;
+  }
   if(durationIsAutoEstimated){
     const isRail = (selectedMode==="subway" || selectedMode==="jr");
     note.textContent = isRail
@@ -3895,16 +3901,18 @@ function updateDurationSourceNote(){
   note.style.display = "block";
 }
 function applyDistanceEstimateIfEmpty(){
+  durEmptyReason = "";
   if(tDuration.value && !durationIsAutoEstimated) return;
   const _hint = document.getElementById("tEstimateHint");
-  if(selectedMode==="train"){ _hint.textContent = "高鐵／新幹線不會自動估算，請自行輸入時間"; updateDurationSourceNote(); return; }
+  if(selectedMode==="train"){ _hint.textContent = "高鐵／新幹線不會自動估算，請自行輸入時間"; durEmptyReason = "高鐵／新幹線不會自動估算，請自行選時間"; if(durationIsAutoEstimated && tDuration.value){ tDuration.value = ""; } updateDurationSourceNote(); return; }
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
   if(!p || !n || p.lat==null || n.lat==null){
     // 兩端都有地點、但其中一個沒有位置：明講是哪一個，不要讓人以為系統壞了
     if(p && n){
       const miss = [p,n].filter(x=>x.lat==null).map(x=>x.name).filter(Boolean);
       _hint.textContent = "⚠️ " + (miss.length ? "「" + miss.join("」「") + "」" : "其中一個地點") + "沒有位置，無法自動估算，請自行輸入時間（可到該景點用「地址定位」補上位置）";
-    }
+      durEmptyReason = (miss.length ? "「" + miss.join("」「") + "」" : "其中一個地點") + "沒有位置，無法自動估算，請自行選時間";
+    } else durEmptyReason = "這段只有一端有地點，無法自動估算，請自行選時間";
     updateDurationSourceNote(); return;
   }
   if(!(_hint.textContent||"").startsWith("按「儲存」")) _hint.textContent = "依直線距離估算，僅供參考";
