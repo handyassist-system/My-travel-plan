@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-173";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-174";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -6177,7 +6177,9 @@ function buildPdfBlocks(){
       first = false; pendingTransport = ""; spotIndex++;
     });
   });
-  blocks.push(`<div class="ft">交通時間為系統估算，僅供參考　・　由 智在生活・旅遊計畫 產生</div>`);
+  const _n = new Date(), _p2 = n=>String(n).padStart(2,"0");
+  const _stamp = `${_n.getFullYear()}/${_p2(_n.getMonth()+1)}/${_p2(_n.getDate())} ${_p2(_n.getHours())}:${_p2(_n.getMinutes())}`;
+  blocks.push(`<div class="ft">交通時間為系統估算，僅供參考　・　由 智在生活・旅遊計畫 於 ${_stamp} 產生</div>`);
   return blocks;
 }
 const PDF_CSS = `
@@ -6271,7 +6273,8 @@ async function exportItineraryPdf(){
     const blob = makePdfFromJpegs(data, title);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = (title.replace(/[\\/:*?"<>|]/g,"_").trim() || "行程") + ".pdf";
+    a.href = url; const _d = new Date(), _q = n=>String(n).padStart(2,"0");
+    a.download = (title.replace(/[\\/:*?"<>|]/g,"_").trim() || "行程") + `_${_q(_d.getMonth()+1)}${_q(_d.getDate())}_${_q(_d.getHours())}${_q(_d.getMinutes())}.pdf`;   // 檔名帶產生時間，才不會點到舊檔
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url), 60000);
     travelToast("PDF 已產生，請到下載項目查看");
