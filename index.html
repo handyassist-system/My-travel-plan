@@ -220,6 +220,9 @@
   .empty{text-align:center; color:var(--sub); padding:60px 20px; font-size:14px; line-height:1.7;}
   .empty .emoji{font-size:36px; display:block; margin-bottom:10px;}
 
+  .spot-card.dragging{position:relative; z-index:50; box-shadow:0 10px 28px rgba(0,0,0,0.28); opacity:0.96; transition:none; touch-action:none;}
+  body.spot-dragging{user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
+  .drop-line{position:fixed; height:4px; border-radius:2px; background:var(--seal); z-index:60; pointer-events:none;}
   .spot-card{
     background:var(--card); border-radius:var(--radius-lg); padding:14px 16px 10px 14px;
     border:1px solid var(--line); box-shadow:0 1px 3px rgba(45,50,56,0.04);
@@ -811,9 +814,13 @@ header #mapBtn, header #settingsBtn{
     <p id="fGeocodeStatus" style="font-size:12px; margin:-2px 0 12px; display:none;"></p>
     </div>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
-    <div class="field" id="fPosWrap" style="display:none; margin-top:14px;"><label>放在哪裡</label><select id="fPosition"></select></div>
     <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點從飯店出發（選填）</label><input id="fDepartTime" type="time"></div>
-    <div class="field"><label>停留時間（分鐘）</label><input id="fStayMinutes" type="number" placeholder="例：90"></div>
+    <div class="field" id="fPinArriveWrap"><label>抵達時間（選填，不填由系統算）</label><input id="fPinArrive" type="time"></div>
+    <div class="field"><label>停留時間（選填）</label>
+      <div style="display:flex; align-items:center; gap:8px;"><select id="fStayH" style="flex:1;"></select><span style="font-size:14px;">小時</span><select id="fStayM" style="flex:1;"></select><span style="font-size:14px;">分</span></div>
+      <input id="fStayMinutes" type="hidden"></div>
+    <div class="field"><label>離開時間（選填，不填由系統算）</label><input id="fPinLeave" type="time"></div>
+    <p style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開填一個就好，都填以離開時間為準。全部可以不填，系統會自動估算。</p>
     </div>
     <button type="button" id="fMoreToggle" style="display:none; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（備註、照片）</button>
         <div style="display:none;">
@@ -904,7 +911,7 @@ header #mapBtn, header #settingsBtn{
         <label>這段交通的出發時間</label>
         <input id="tManualDepartTime" type="time">
       </div>
-      <div class="field"><label>預估時間</label><input id="tDuration" type="hidden"><div id="tDurRow" style="display:flex; align-items:center; gap:6px;"><input id="tDurH" type="number" min="0" inputmode="numeric" placeholder="0" style="min-width:0; flex:1; padding:12px 2px; text-align:center;"><span style="font-size:14px; color:var(--sub); flex:none;">小時</span><input id="tDurM" type="number" min="0" inputmode="numeric" placeholder="0" style="min-width:0; flex:1; padding:12px 2px; text-align:center;"><span style="font-size:14px; color:var(--sub); flex:none;">分</span></div><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
+      <div class="field"><label>預估時間</label><input id="tDuration" type="hidden"><div id="tDurRow" style="display:flex; align-items:center; gap:6px;"><select id="tDurH" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">小時</span><select id="tDurM" style="min-width:0; flex:1;"></select><span style="font-size:14px; color:var(--sub); flex:none;">分</span></div><p id="tDurationAutoNote" style="font-size:12px; margin:4px 0 0; display:none;"></p></div>
     </div>
     <div class="field" id="tArriveWrap" style="display:none;">
       <label>抵達時間（自動計算）</label>
@@ -1062,6 +1069,7 @@ header #mapBtn, header #settingsBtn{
       </div>
     </div>
     <div class="field"><label>備註（選填）</label><textarea id="trNotes" placeholder="任何想記的事，例如簽證資訊、住宿地址、特殊注意事項..."></textarea></div>
+    <div class="field" id="trBackfillWrap" style="display:none;"><button type="button" class="btn btn-ghost" id="trBackfillStay" style="width:100%;">補上舊景點的停留時間</button><p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.5;">只補「停留時間是空的」景點，依類別帶預設值；已經填過的不會動。</p></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="trCancel">取消</button>
       <button class="btn btn-primary" id="trSave">儲存</button>
@@ -1076,8 +1084,8 @@ header #mapBtn, header #settingsBtn{
     <h2>分享／匯出行程</h2>
     <button type="button" class="btn btn-primary" id="shareTextBtn" style="width:100%; margin-bottom:6px;">💬 傳給朋友（文字）</button>
     <p style="font-size:12px; color:var(--sub); margin:0 0 16px; text-align:center;">用 LINE 等 App 傳送行程文字</p>
-    <button type="button" class="btn btn-ghost" id="sharePdfBtn" style="width:100%; margin-bottom:6px;">🖨️ 存成 PDF</button>
-    <p style="font-size:12px; color:var(--sub); margin:0; text-align:center;">可列印或存成 PDF（完整版）</p>
+    <button type="button" class="btn btn-ghost" id="sharePdfBtn" style="width:100%; margin-bottom:6px;">📄 存成 PDF</button>
+    <p style="font-size:12px; color:var(--sub); margin:0; text-align:center;">下載行程 PDF（完整版）；要列印時，再從 PDF 檔案列印</p>
   </div>
 </div>
 
@@ -1409,7 +1417,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-159";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-165";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2380,6 +2388,7 @@ function renderDayTabs(){
   }, { passive:true });
   view.addEventListener("touchend", function(e){
     if(!ok) return; ok=false;
+    if(spotDrag || window.__spotDragUntil > Date.now()) return;   // 長按拖拉換位時不要當成左右滑動切天
     var t = e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
     if(Date.now()-st>700 || Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return;
     var i = days.indexOf(currentDay), n = i + (dx<0 ? 1 : -1);
@@ -2462,8 +2471,20 @@ function computeDerivedTimes(day){
       } else {
         arrival = clock!==null ? clock : "";
       }
-      const leave = (arrival && it.stayMinutes) ? addMinutesToTime(arrival, it.stayMinutes) : arrival;
-      map[it.id] = { arrival, leave, isFirst: isFirstSpot };
+      // 使用者自己指定的時間優先：指定抵達就用它；指定離開就用它（停留時間由抵達到離開算出）；都沒填才用停留時間推算
+      let warn = "", earliest = "";
+      if(it.pinArrive && (idx>0 || flightDay1)){
+        if(arrival && timeToMinutes(it.pinArrive) < timeToMinutes(arrival)){ warn = "late"; earliest = arrival; }
+        arrival = it.pinArrive;
+      }
+      let leave, stay = it.stayMinutes || 0;
+      if(arrival && it.pinLeave && timeToMinutes(it.pinLeave) >= timeToMinutes(arrival)){
+        leave = it.pinLeave; stay = timeToMinutes(leave) - timeToMinutes(arrival);
+      } else {
+        if(arrival && it.pinLeave) warn = warn || "leave";
+        leave = (arrival && it.stayMinutes) ? addMinutesToTime(arrival, it.stayMinutes) : arrival;
+      }
+      map[it.id] = { arrival, leave, isFirst: isFirstSpot, stay, warn, earliest };
       clock = leave || null;
     } else if(it.type==="transport"){
       let depart;
@@ -2617,12 +2638,16 @@ function buildSpotCard(it, d){
   d = d || { arrival: it.time||"", leave: it.time||"", isFirst:true };
   const card = document.createElement("div");
   card.className = "spot-card";
+  card.dataset.spotId = it.id;
   const exp = it.expense && it.expense.amount ? `<div class="spot-expense">💰 ${escapeHtml(it.expense.category||'')} ${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</div>` : "";
   const metaParts = [];
   if(!["景點","拍照","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
   const _fd1 = (it.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
   if(d.isFirst && it.departTime && !_fd1) metaParts.push(`🚪${it.departTime}出發`);
-  if(d.arrival && it.stayMinutes) metaParts.push(`停留${escapeHtml(fmtMin(it.stayMinutes))}・${escapeHtml(String(d.leave))}離開`);
+  { const _stay = (d.stay!=null) ? d.stay : it.stayMinutes;
+    if(_stay) metaParts.push(d.arrival ? `停留${escapeHtml(fmtMin(_stay))}・${escapeHtml(String(d.leave))}離開` : `停留${escapeHtml(fmtMin(_stay))}`); }
+  if(d.warn==="late") metaParts.push(`⚠️ 預估最快 ${escapeHtml(String(d.earliest))} 才到`);
+  else if(d.warn==="leave") metaParts.push("⚠️ 離開時間早於抵達時間，已忽略");
   card.innerHTML = `
     <div class="spot-main">
       <div class="spot-time${d.arrival ? "" : (d.isFirst ? " spot-time-missing" : " spot-time-blank")}">${d.arrival || (d.isFirst ? "待設定" : "--:--")}</div>
@@ -2649,6 +2674,8 @@ function buildSpotCard(it, d){
   card.querySelector(".up").addEventListener("click", ()=>moveSpot(it, -1));
   card.querySelector(".down").addEventListener("click", ()=>moveSpot(it, 1));
   card.querySelector(".copy").addEventListener("click", ()=>openCopySpotPicker(it));
+  attachSpotDrag(card, it);
+  const _im = card.querySelector(".spot-body img"); if(_im){ _im.style.cursor = "zoom-in"; _im.addEventListener("click", e=>{ e.stopPropagation(); openPhotoLightbox(it.photo); }); }
   return card;
 }
 
@@ -2728,7 +2755,7 @@ function syncSpotExpCat(){
   if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
 }
 // 停留時間預設值（依類別自動帶入，使用者可自行修改；改過就不再被覆蓋）
-const SPOT_STAY_DEFAULT = {景點:60, 拍照:10, 餐廳:60, 小吃:30, 咖啡廳:60, 飲料:20, 購物:60, 超商:15};
+const SPOT_STAY_DEFAULT = {景點:45, 拍照:10, 餐廳:60, 小吃:30, 咖啡廳:60, 飲料:20, 購物:60, 超商:15};
 let fStayTouched = true;
 function syncSpotStay(){
   if(fStayTouched) return;
@@ -2737,6 +2764,21 @@ function syncSpotStay(){
   else if(!editingSpotId) document.getElementById("fStayMinutes").value = "";   // 新增：沒有預設值的類型（飯店、其他）就清空；編輯舊地點：保留原本的值，不亂清
 }
 document.getElementById("fStayMinutes").addEventListener("input", ()=>{ fStayTouched = true; });
+// 停留時間：小時／分鐘兩個滾輪（#fStayMinutes 改成隱藏欄位，仍存「總分鐘數」，其他程式照舊讀寫它）
+(function(){
+  const h = document.getElementById("fStayH"), m = document.getElementById("fStayM"), hid = document.getElementById("fStayMinutes");
+  for(let i=0;i<=12;i++) h.add(new Option(String(i), String(i)));
+  for(let i=0;i<60;i+=5) m.add(new Option(String(i), String(i)));
+  let val = "";
+  const ensure = (sel, n)=>{ if(![...sel.options].some(o=>Number(o.value)===n)){ sel.add(new Option(String(n), String(n))); const arr=[...sel.options].sort((a,b)=>a.value-b.value); arr.forEach(o=>sel.add(o)); } };
+  const render = ()=>{ const n = Number(val)||0, hh = Math.floor(n/60), mm = n%60; ensure(h,hh); ensure(m,mm); h.value = String(hh); m.value = String(mm); };
+  Object.defineProperty(hid, "value", { configurable:true,
+    get(){ return val; },
+    set(v){ const n = Number(v)||0; val = n>0 ? String(n) : ""; render(); } });
+  const fromSel = ()=>{ const n = Number(h.value)*60 + Number(m.value); val = n>0 ? String(n) : ""; fStayTouched = true; };
+  h.addEventListener("change", fromSel); m.addEventListener("change", fromSel);
+  render();
+})();
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
   getAllSpotCategories().forEach(cat=>{
@@ -2919,7 +2961,7 @@ function initAutocomplete(){
         const p = placeAutocomplete.getPlace();
         if(p && p.name){
           fName.value = p.name;
-          if(p.formatted_address && !fNote.value){ fNote.value = p.formatted_address; }
+          if(p.formatted_address){ fNote.value = p.formatted_address; }   // 重新選了 Google 地點：地址跟著換成這個地點的，不留舊的（含自己輸入的）
           fSelectedLatLng = (p.geometry && p.geometry.location) ? { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } : null;
           const guess = guessCategoryFromPlaceTypes(p.types);
           const hint = document.getElementById("fCatSuggestHint");
@@ -2942,7 +2984,7 @@ function initAutocomplete(){
         const hNoteInput = document.getElementById("hNote");
         if(p && p.name){
           hNameInput.value = p.name;
-          if(p.formatted_address && !hNoteInput.value && selectedHoldType==="spot"){ hNoteInput.value = p.formatted_address; }
+          if(p.formatted_address && selectedHoldType==="spot"){ hNoteInput.value = p.formatted_address; }
           hSelectedLatLng = (p.geometry && p.geometry.location) ? { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } : null;
           const guess = guessCategoryFromPlaceTypes(p.types);
           if(guess && selectedHoldType==="spot"){
@@ -3018,6 +3060,9 @@ function openSpotModal(spot){
   if(hasFlightAnchor && isFirstPosition) departWrap.style.display = "none";
   document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
   document.getElementById("fStayMinutes").value = spot ? (spot.stayMinutes||"") : "";
+  document.getElementById("fPinArrive").value = spot ? (spot.pinArrive||"") : "";
+  document.getElementById("fPinLeave").value = spot ? (spot.pinLeave||"") : "";
+  document.getElementById("fPinArriveWrap").style.display = (departWrap.style.display==="none") ? "block" : "none";   // 第一個地點已有「從飯店出發」時間，不重複問抵達
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
   fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
   if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
@@ -3054,7 +3099,6 @@ function openSpotModal(spot){
   const hasMore = !!(spot && (spot.memo || spot.photo));
   document.getElementById("fMoreFields").style.display = "block";
   document.getElementById("fMoreToggle").style.display = "none";
-  populateSpotPositionSelect(spot);
   spotModalMask.classList.add("show");
   checkPlacesStatus();
 }
@@ -3062,22 +3106,100 @@ document.getElementById("fMoreToggle").addEventListener("click", ()=>{
   document.getElementById("fMoreFields").style.display = "block";
   document.getElementById("fMoreToggle").style.display = "none";
 });
-// 「放在哪裡」：最前面／某地點之後／最後面（編輯時多一個「維持目前位置」）
-function populateSpotPositionSelect(spot){
-  const sel = document.getElementById("fPosition");
-  const wrap = document.getElementById("fPosWrap");
-  sel.innerHTML = "";
-  const others = dayItems(currentDay).filter(i=>i.type==="spot" && (!spot || i.id!==spot.id));
-  if(others.length===0){ wrap.style.display = "none"; return; }
-  const add = (v,t)=>{ const o=document.createElement("option"); o.value=v; o.textContent=t; sel.appendChild(o); };
-  if(spot) add("keep","維持目前位置");
-  add("first","最前面");
-  others.slice(0,-1).forEach(o=>add("after:"+o.id, "「"+o.name+"」之後"));
-  add("last","最後面");
-  sel.value = spot ? "keep" : "last";
-  wrap.style.display = "block";
-}
 // 依選擇算出新的 order；回傳 null＝不動
+// 縮圖點開看大圖（點任一處或 ✕ 關閉）
+function openPhotoLightbox(src){
+  if(!src) return;
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed; inset:0; z-index:20000; background:rgba(10,18,24,0.88); display:flex; align-items:center; justify-content:center; padding:16px;";
+  ov.innerHTML = `<img src="${src}" style="max-width:100%; max-height:86vh; object-fit:contain; border-radius:10px;"><div style="position:absolute; top:calc(12px + env(safe-area-inset-top)); right:14px; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.18); color:#fff; font-size:22px; display:flex; align-items:center; justify-content:center;">✕</div>`;
+  ov.addEventListener("click", ()=>ov.remove());
+  document.body.appendChild(ov);
+}
+// ===== 長按卡片拖拉換位（長按約 0.5 秒後拖動，放開即換位；▲▼ 仍可用）=====
+let spotDrag = null;
+function attachSpotDrag(card, it){
+  let timer = null, sx = 0, sy = 0;
+  const start = (x,y,touch)=>{ sx=x; sy=y; clearTimeout(timer); timer = setTimeout(()=>{ timer=null; beginSpotDrag(card, it, x, y, touch); }, 450); };
+  const cancel = ()=>{ clearTimeout(timer); timer = null; };
+  card.addEventListener("touchstart", e=>{ if(e.touches.length!==1 || e.target.closest(".spot-actions")) return; start(e.touches[0].clientX, e.touches[0].clientY, true); }, { passive:true });
+  card.addEventListener("touchmove", e=>{ if(spotDrag) return; const t=e.touches[0]; if(timer && Math.hypot(t.clientX-sx, t.clientY-sy) > 10) cancel(); }, { passive:true });
+  card.addEventListener("touchend", cancel); card.addEventListener("touchcancel", cancel);
+  card.addEventListener("mousedown", e=>{ if(e.button!==0 || e.target.closest(".spot-actions")) return; start(e.clientX, e.clientY, false); });
+  card.addEventListener("mousemove", e=>{ if(spotDrag) return; if(timer && Math.hypot(e.clientX-sx, e.clientY-sy) > 10) cancel(); });
+  card.addEventListener("mouseup", cancel); card.addEventListener("mouseleave", ()=>{ if(!spotDrag) cancel(); });
+}
+function beginSpotDrag(card, it, x, y, touch){
+  if(spotDrag) return;
+  const list = document.getElementById("list");
+  const cards = [...list.querySelectorAll(".spot-card[data-spot-id]")];
+  if(cards.length < 2 || !cards.includes(card)) return;
+  try{ window.getSelection().removeAllRanges(); }catch(_){}
+  const line = document.createElement("div"); line.className = "drop-line"; document.body.appendChild(line);
+  spotDrag = { it, card, cards, srcIdx: cards.indexOf(card), startY: y, curY: y, startScroll: window.scrollY, k: cards.indexOf(card), line, raf: 0 };
+  card.classList.add("dragging"); document.body.classList.add("spot-dragging");
+  try{ if(navigator.vibrate) navigator.vibrate(30); }catch(_){}
+  const move = e=>{ const p = e.touches ? e.touches[0] : e; spotDrag.curY = p.clientY; if(e.cancelable) e.preventDefault(); };
+  const end = ()=>finishSpotDrag(move, end);
+  const noMenu = e=>e.preventDefault();
+  spotDrag.cleanup = ()=>{
+    document.removeEventListener("touchmove", move); document.removeEventListener("mousemove", move);
+    document.removeEventListener("touchend", end); document.removeEventListener("touchcancel", end); document.removeEventListener("mouseup", end);
+    document.removeEventListener("contextmenu", noMenu);
+  };
+  document.addEventListener("touchmove", move, { passive:false }); document.addEventListener("mousemove", move);
+  document.addEventListener("touchend", end); document.addEventListener("touchcancel", end); document.addEventListener("mouseup", end);
+  document.addEventListener("contextmenu", noMenu);
+  const loop = ()=>{
+    if(!spotDrag) return;
+    const d = spotDrag;
+    if(d.curY < 90) window.scrollBy(0, -12); else if(d.curY > window.innerHeight - 90) window.scrollBy(0, 12);
+    d.card.style.transform = `translateY(${d.curY - d.startY + (window.scrollY - d.startScroll)}px)`;
+    const others = d.cards.filter(c=>c!==d.card), rects = others.map(c=>c.getBoundingClientRect());
+    let k = 0; rects.forEach(rc=>{ if(rc.top + rc.height/2 < d.curY) k++; });
+    d.k = k;
+    const lr = list.getBoundingClientRect();
+    const ly = k===0 ? rects[0].top - 5 : (k>=rects.length ? rects[rects.length-1].bottom + 3 : (rects[k-1].bottom + rects[k].top)/2 - 2);
+    d.line.style.cssText = `left:${lr.left}px; width:${lr.width}px; top:${ly}px; display:${k===d.srcIdx ? "none" : "block"};`;
+    d.raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+async function finishSpotDrag(){
+  const d = spotDrag; if(!d) return;
+  cancelAnimationFrame(d.raf); d.cleanup();
+  d.card.classList.remove("dragging"); d.card.style.transform = ""; d.line.remove(); document.body.classList.remove("spot-dragging");
+  window.__spotDragUntil = Date.now() + 500;
+  spotDrag = null;
+  if(d.k === d.srcIdx) return;
+  const others = d.cards.filter(c=>c!==d.card).map(c=>items.find(i=>i.id===c.dataset.spotId)).filter(Boolean);
+  await reorderSpotTo(d.it, d.k, others);
+}
+// 把 spot 放到「其餘地點」的第 k 個位置（0＝最前面）；出發時間跟著「第一個位置」走
+async function reorderSpotTo(spot, k, others){
+  const day = spot.day;
+  const choice = k===0 ? "first" : "after:" + others[k-1].id;
+  const newOrder = computeSpotOrderByChoice(choice, spot);
+  if(newOrder==null) return;
+  const spotsOf = ()=>dayItems(day).filter(i=>i.type==="spot");
+  const oldFirst = spotsOf()[0];
+  const updates = new Map(); updates.set(spot.id, { order:newOrder });
+  spot.order = newOrder;
+  const newFirst = spotsOf()[0];
+  if(oldFirst && newFirst && oldFirst.id !== newFirst.id){
+    const dep = oldFirst.departTime || "";
+    updates.set(newFirst.id, Object.assign(updates.get(newFirst.id)||{}, { departTime: dep }));
+    updates.set(oldFirst.id, Object.assign(updates.get(oldFirst.id)||{}, { departTime: "" }));
+    newFirst.departTime = dep; oldFirst.departTime = "";
+  }
+  renderAll();
+  try{
+    const batch = db.batch();
+    updates.forEach((u,id)=>batch.update(db.collection(COLLECTION).doc(id), u));
+    recalcAdjacentTaxiWalkTransports(day, batch);
+    await batch.commit();
+  }catch(e){ console.error("drag reorder failed", e); travelToast(failMsg("移動", e)); }
+}
 function computeSpotOrderByChoice(choice, spot){
   const seq = dayItems(currentDay).filter(i=>!spot || i.id!==spot.id);
   if(choice==="keep") return null;
@@ -3122,6 +3244,9 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
       if(/(路|街|道|巷|弄|段)/.test(n) && /\d+(之\d+)?號(\s*\d*[樓Ff之])?$/.test(n)) return true;            // 中山東一路18號
       if(/^\d+[\s,-]*[A-Za-z0-9 .'-]*\b(road|rd|street|st|avenue|ave|lane|ln|blvd|no\.?)\b/i.test(n)) return true;   // 45 Shifu Rd
       if(/^no\.?\s*\d+/i.test(n)) return true;                                              // No. 45, Shifu Rd.
+      if(/(路|街|道|巷|弄|段)\s*\d+(之\d+)?[號号]/.test(n)) return true;                          // 合肥路199號7幢、合肥路199号
+      if(/[號号]\s*\d*\s*(幢|棟|栋|樓|楼|室|層|层|[Ff]|之\d+)?$/.test(n) && /\d/.test(n) && /(路|街|道|巷|弄|段|區|区|市)/.test(n)) return true;
+      if(/[,，]/.test(n) && /(區|区|市)/.test(n) && /(路|街|道|巷|弄|段)/.test(n)) return true;     // 上海, 黃浦區, 合肥路…
       return false;
     };
     const isPlaceLike = r => r && r.name && !looksLikeAddress(r.name) && !(r.types && r.types.length && r.types.every(t=>BAD_TYPES.includes(t)));
@@ -3275,6 +3400,8 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     type:"spot", tripId: activeTripId, day: currentDay, time: fTime.value||"", category: selectedSpotCat,
     departTime: document.getElementById("fDepartTime").value || "",
     stayMinutes: document.getElementById("fStayMinutes").value ? Number(document.getElementById("fStayMinutes").value) : 0,
+    pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
+    pinLeave: document.getElementById("fPinLeave").value || "",
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
@@ -3282,7 +3409,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
   };
   try{
     const editing = editingSpotId ? items.find(i=>i.id===editingSpotId) : null;
-    const choice = document.getElementById("fPosition").value || (editing ? "keep" : "last");
+    const choice = editing ? "keep" : "last";   // 新增一律放最後；要換位置請在行程頁長按拖拉或按 ▲▼
     const newOrder = computeSpotOrderByChoice(choice, editing);
     if(newOrder!=null) data.order = newOrder;
     else if(!editing) data.order = computeOrder(currentDay);
@@ -3334,11 +3461,13 @@ const tDuration = document.getElementById("tDuration");
 // 預估時間：畫面用「小時＋分」兩格輸入，內部仍以分鐘存在隱藏欄位 #tDuration（其他程式照舊讀寫它）
 const tDurH = document.getElementById("tDurH"), tDurM = document.getElementById("tDurM");
 (function(){
+  for(let i=0;i<=12;i++) tDurH.add(new Option(String(i), String(i)));   // 小時、分鐘改成滾輪（分鐘以 5 為單位；自動估算出的非 5 倍數也會保留）
+  for(let i=0;i<60;i+=5) tDurM.add(new Option(String(i), String(i)));
   const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   function refreshDurUI(){
     const n = Math.round(Number(desc.get.call(tDuration)) || 0);
-    tDurH.value = n ? Math.floor(n/60) : ""; tDurM.value = n ? (n % 60) : "";
-    if(n && n < 60) tDurH.value = "";
+    const hh = Math.floor(n/60), mm = n % 60;
+    [[tDurH,hh],[tDurM,mm]].forEach(([sel,v])=>{ if(![...sel.options].some(o=>Number(o.value)===v)){ sel.add(new Option(String(v), String(v))); [...sel.options].sort((a,b)=>a.value-b.value).forEach(o=>sel.add(o)); } sel.value = String(v); });
   }
   Object.defineProperty(tDuration, "value", {
     get(){ return desc.get.call(tDuration); },
@@ -3747,12 +3876,38 @@ function updateStationHint(){
 // 站到景點的步行時間（直線距離×1.3÷4.5km/h，與步行交通的估算一致）；走太遠時提醒可考慮計程車
 const WALK_FAR_MINUTES = 15;
 function walkMinFromKm(km){ return Math.max(1, Math.round((km*1.3)/4.5*60)); }
+// 地點名稱裡有站名（例如「人民廣場」→人民廣場站）就直接用那一站；沒有才用座標找最近的站
+function findMetroStationForSpot(spot){
+  if(!spot) return null;
+  const nm = String(spot.name||"").replace(/\s+/g,"");
+  let best = null, bestLen = 0;
+  if(nm){
+    SHANGHAI_METRO_STATIONS.forEach(st=>{
+      const keys = st.name.split(/[()（）]/).map(k=>k.replace(/站$/,"")).filter(k=>k.length>=2);
+      keys.forEach(k=>{
+        if(!nm.includes(k)) return;
+        const closer = best && spot.lat!=null && best.lat!=null && haversineKm(spot.lat,spot.lng,st.lat,st.lng) < haversineKm(spot.lat,spot.lng,best.lat,best.lng);
+        if(k.length > bestLen || (k.length === bestLen && closer)){ best = st; bestLen = k.length; }
+      });
+    });
+  }
+  if(best){
+    const km = (spot.lat!=null) ? haversineKm(spot.lat, spot.lng, best.lat, best.lng) : null;
+    return { name: best.name, distanceKm: km };
+  }
+  return (spot.lat!=null) ? findNearestMetroStation(spot.lat, spot.lng) : null;
+}
 function updateStationHintChina(el){
   const parts = [];
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
   let far = false;
-  if(p && p.lat!=null){ const s = findNearestMetroStation(p.lat, p.lng); if(s){ const w = walkMinFromKm(s.distanceKm); if(w>=WALK_FAR_MINUTES) far = true; parts.push(`出發點附近：${s.name}（步行約${w}分）`); } }
-  if(n && n.lat!=null){ const s = findNearestMetroStation(n.lat, n.lng); if(s){ const w = walkMinFromKm(s.distanceKm); if(w>=WALK_FAR_MINUTES) far = true; parts.push(`抵達點附近：${s.name}（步行約${w}分）`); } }
+  const _line = (label, spot)=>{
+    const s = findMetroStationForSpot(spot); if(!s) return;
+    if(s.distanceKm==null){ parts.push(`${label}：${s.name}`); return; }
+    const w = walkMinFromKm(s.distanceKm); if(w>=WALK_FAR_MINUTES) far = true;
+    parts.push(`${label}：${s.name}（步行約${w}分）`);
+  };
+  _line("上車站", p); _line("下車站", n);
   if(parts.length){
     el.innerHTML = "🚇 " + parts.join("<br>") + (far ? "<br><b>⚠️ 站離景點較遠，可考慮改搭計程車</b>" : "") + "<br><span style='color:var(--sub); font-weight:400;'>僅供參考</span>";
     el.style.display = "block";
@@ -5754,6 +5909,7 @@ function renderPacking(){
           <button class="del">🗑</button>
         </div>
       `;
+      { const _im = card.querySelector(".spot-body img"); if(_im){ _im.style.cursor = "zoom-in"; _im.addEventListener("click", e=>{ e.stopPropagation(); openPhotoLightbox(it.photo); }); } }
       card.querySelector(".spot-icon").addEventListener("click", ()=>togglePackChecked(it));
       card.querySelector(".up").addEventListener("click", ()=>movePackItem(it, -1));
       card.querySelector(".down").addEventListener("click", ()=>movePackItem(it, 1));
@@ -5862,7 +6018,7 @@ function buildShareText(){
         const d = derived[it.id] || {};
         const isFirstSpot = spotIndex===0;
         const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
-        const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
+        const stayInfo = (d.stay) ? (d.arrival ? `停留${fmtMin(d.stay)}，${d.leave}離開` : `停留${fmtMin(d.stay)}`) : "";
         rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
         pendingTransportLabel = null;
         spotIndex++;
@@ -5896,88 +6052,154 @@ function buildShareText(){
   return lines.join("\n");
 }
 
-function buildShareHtml(){
+// ===== 存成 PDF：不經列印視窗，直接在瀏覽器產生 PDF 檔並下載（不依賴外部套件，離線也能用）=====
+// 做法：把行程排成 A4 一頁一頁的版面 → 用 SVG 轉成圖片畫到 canvas → 包成 JPEG 頁面的 PDF。文字會是圖片（清楚但不能選取）。
+const PDF_W = 794, PDF_H = 1123, PDF_PAD_X = 40, PDF_PAD_TOP = 36, PDF_PAD_BOTTOM = 44;   // A4 @96dpi
+const PDF_FONT = "'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif";
+function buildPdfBlocks(){
   const trip = getActiveTrip();
   const s = flightSettings || {};
   const esc = escapeHtml;
   const seal = "#2C86AD";
-  let html = `<h1 style="font-size:22px; margin-bottom:2px;">${esc(trip ? trip.name : "行程")}</h1>`;
-
-  if(trip && trip.startDate && trip.endDate){
-    html += `<p style="color:#777; margin:0 0 10px;">${esc(trip.startDate)} ～ ${esc(trip.endDate)}</p>`;
-  }
-  if(trip && trip.notes){
-    html += `<p style="background:#F5F6F8; border-radius:8px; padding:8px 12px; color:#444; font-size:13px; white-space:pre-wrap;">📝 ${esc(trip.notes)}</p>`;
-  }
-
+  const blocks = [];
+  let head = `<div class="h1">${esc(trip ? trip.name : "行程")}</div>`;
+  const sub = [];
+  if(trip && trip.startDate && trip.endDate) sub.push(`${esc(trip.startDate)} ～ ${esc(trip.endDate)}`);
+  if(trip && Array.isArray(trip.members) && trip.members.length) sub.push(trip.members.map(esc).join("、"));
+  if(sub.length) head += `<div class="sub">${sub.join("　・　")}</div>`;
+  if(trip && trip.notes) head += `<div class="note">📝 ${esc(trip.notes)}</div>`;
   if(legShown("out") || legShown("ret")){
-    html += `<table style="width:100%; border-collapse:collapse; margin:10px 0 20px;"><tr>`;
-    if(legShown("out")){
-      html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
-        <b>${legMode("out")==="hsr" ? "🚄" : "✈️"} 去程</b><br>${esc(s.outAirline||"")} ${esc(s.outFlightNo||"")}<br>${esc(AIRPORTS[s.outFrom]||s.outFrom||"")} ${esc(s.outDepartTime||"--:--")} → ${esc(AIRPORTS[s.outTo]||s.outTo||"")} ${esc(s.outArriveTime||"--:--")}
-      </td><td style="width:12px;"></td>`;
-    }
-    if(legShown("ret")){
-      html += `<td style="width:50%; padding:10px 14px; background:#F5F6F8; border-radius:8px; vertical-align:top;">
-        <b>${legMode("ret")==="hsr" ? "🚄" : "✈️"} 回程</b><br>${esc(s.retAirline||"")} ${esc(s.retFlightNo||"")}<br>${esc(AIRPORTS[s.retFrom]||s.retFrom||"")} ${esc(s.retDepartTime||"--:--")} → ${esc(AIRPORTS[s.retTo]||s.retTo||"")} ${esc(s.retArriveTime||"--:--")}
-      </td>`;
-    }
-    html += `</tr></table>`;
+    const card = (k, label)=>`<div class="fl-card"><b>${legMode(k)==="hsr" ? "🚄" : "✈️"} ${label}</b><br>${esc(s[k+"Airline"]||"")} ${esc(s[k+"FlightNo"]||"")}<br>${esc(AIRPORTS[s[k+"From"]]||s[k+"From"]||"")} ${esc(s[k+"DepartTime"]||"--:--")} → ${esc(AIRPORTS[s[k+"To"]]||s[k+"To"]||"")} ${esc(s[k+"ArriveTime"]||"--:--")}</div>`;
+    head += `<div class="fl">${legShown("out") ? card("out","去程") : ""}${legShown("ret") ? card("ret","回程") : ""}</div>`;
   }
+  blocks.push(head);
 
-  days.forEach(day=>{
+  days.forEach((day, di)=>{
     const dateLabel = computeDateForDay(day);
-    html += `<div class="pdf-day" style="background:${seal}; color:#fff; padding:9px 14px; border-radius:8px; font-weight:bold; margin:18px 0 8px;">${esc(day)}${dateLabel ? "（"+esc(dateLabel)+"）" : ""}</div>`;
+    const dayHead = `<div class="day">第 ${di+1} 天${dateLabel ? "　"+esc(dateLabel) : ""}</div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
-    if(arr.length===0){ html += "<p>（尚未安排）</p>"; return; }
-
-    const rows = [];
-    let pendingTransportLabel = null;
-    let spotIndex = 0;
+    const hasSpot = arr.some(i=>i.type==="spot");
+    if(!hasSpot){ blocks.push(dayHead + `<div class="empty">尚未安排</div>`); return; }
+    let pendingTransport = "";
+    let spotIndex = 0, first = true;
     arr.forEach(it=>{
       if(it.type==="transport"){
-        pendingTransportLabel = `${TRANSPORT_ICON[it.mode]||""}${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}`;
-      } else if(it.type==="spot"){
-        const d = derived[it.id] || {};
-        const isFirstSpot = spotIndex===0;
-        const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
-        const stayInfo = (d.arrival && it.stayMinutes) ? `停留${fmtMin(it.stayMinutes)}，${d.leave}離開` : "";
-        rows.push({ time: displayTime, name: it.name, transport: pendingTransportLabel, stayInfo, note: it.note, memo: it.memo, photo: it.photo });
-        pendingTransportLabel = null;
-        spotIndex++;
+        pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}${it.duration ? "　約"+fmtMin(it.duration) : ""}`;
+        return;
       }
+      if(it.type!=="spot") return;
+      const d = derived[it.id] || {};
+      const isFirstSpot = spotIndex===0;
+      const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
+      const stay = (d.stay) ? (d.arrival ? `停留 ${fmtMin(d.stay)}・${d.leave} 離開` : `停留 ${fmtMin(d.stay)}`) : "";
+      const right = [];
+      if(stay) right.push(esc(stay));
+      if(it.memo) right.push("📝 " + esc(it.memo).replace(/\n/g,"<br>"));
+      if(it.photo) right.push(`<img src="${it.photo}" style="width:90px; border-radius:6px; margin-top:4px;">`);
+      let unit = "";
+      if(first) unit += dayHead;
+      if(pendingTransport) unit += `<div class="tr">${esc(pendingTransport)}</div>`;
+      unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${it.note ? `<div class="ad">${esc(it.note)}</div>` : ""}</div><div class="m">${right.join("<br>")}</div></div>`;
+      blocks.push(unit);
+      first = false; pendingTransport = ""; spotIndex++;
     });
-
-    const th = (t, w)=>`<th style="text-align:left; padding:7px 6px; font-size:12px; ${w ? "width:"+w+"; " : ""}border-bottom:2px solid ${seal};">${t}</th>`;
-    html += `<table class="pdf-table" style="width:100%; border-collapse:collapse; margin-bottom:6px; table-layout:fixed;">
-      <thead><tr style="background:#EFF2F3;">${th("時間","56px")}${th("地點","17%")}${th("交通","13%")}${th("地址","27%")}${th("備註","")}</tr></thead><tbody>`;
-    rows.forEach((row, idx)=>{
-      const memoLines = [];
-      if(row.stayInfo) memoLines.push(...row.stayInfo.split("，"));   // 「停留…」「…離開」各一行
-      if(row.memo) memoLines.push(row.memo);
-      const memoHtml = memoLines.map(l=>esc(l)).join("<br>");
-      const bg = idx%2===0 ? "#FFFFFF" : "#FAFBFB";
-      const td = "padding:7px 6px; vertical-align:top; border-bottom:1px solid #EEE; word-break:break-all;";
-      html += `<tr style="background:${bg};">
-        <td style="${td} font-size:13px; white-space:nowrap; word-break:normal;"><b>${esc(row.time || "未定")}</b></td>
-        <td style="${td} font-size:13px;">${esc(row.name)}</td>
-        <td style="${td} font-size:12px; color:#555;">${esc(row.transport || "").replace(" 約","<br>約")}</td>
-        <td style="${td} font-size:12px; color:#777;">${esc(row.note || "").replace(/\s+(邮政编码|郵政編碼|郵遞區號)/,"<br>$1")}</td>
-        <td style="${td} font-size:12px; color:#555;">${memoHtml}${row.photo ? `<br><img src="${row.photo}" style="width:90px; border-radius:6px; margin-top:4px;">` : ""}</td>
-      </tr>`;
-    });
-    html += `</tbody>`;
-    html += `</table>`;
   });
-
-  return html;
+  blocks.push(`<div class="ft">交通時間為系統估算，僅供參考　・　由 智在生活・旅遊計畫 產生</div>`);
+  return blocks;
 }
-
-function exportItineraryPdf(){
-  const bodyHtml = buildShareHtml();
-  document.getElementById("printArea").innerHTML = bodyHtml;
-  window.print();
+const PDF_CSS = `
+  .pg{box-sizing:border-box; width:${PDF_W}px; height:${PDF_H}px; background:#fff; color:#1f2d3a; font-family:${PDF_FONT}; padding:${PDF_PAD_TOP}px ${PDF_PAD_X}px 0; position:relative; overflow:hidden;}
+  .blk{width:${PDF_W-2*PDF_PAD_X}px;}
+  .h1{font-size:26px; font-weight:700; margin:0 0 4px;} .sub{color:#6b7885; font-size:14px; margin-bottom:12px;}
+  .note{background:#F3F6F8; border-radius:10px; padding:10px 14px; font-size:14px; margin-bottom:12px; white-space:pre-wrap;}
+  .fl{display:flex; gap:12px; margin:12px 0 6px;} .fl-card{flex:1; background:#EAF3F8; border-radius:10px; padding:11px 14px; font-size:14px; line-height:1.6;}
+  .day{background:#2C86AD; color:#fff; border-radius:10px; padding:9px 16px; font-weight:700; font-size:16px; margin:18px 0 6px;}
+  .row{display:flex; gap:12px; padding:10px 4px; border-bottom:1px solid #E6ECF0;}
+  .t{width:58px; flex:none; font-weight:700; font-size:15px;} .p{flex:1.3; min-width:0; word-break:break-word;} .p b{font-size:15px;}
+  .ad{color:#7a8794; font-size:12px; margin-top:2px; line-height:1.5;} .m{flex:1; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
+  .tr{margin:0 0 0 74px; padding:5px 0; font-size:12px; color:#2C86AD;}
+  .empty{color:#9aa5b0; font-size:13px; padding:6px 4px 2px;} .ft{margin-top:20px; font-size:12px; color:#9aa5b0; text-align:center;}
+  .pn{position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:12px; color:#9aa5b0;}`;
+function paginatePdfBlocks(blocks){
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:fixed; left:-10000px; top:0; visibility:hidden;`;
+  probe.innerHTML = `<style>${PDF_CSS}</style><div class="pg" style="height:auto; overflow:visible;"></div>`;
+  document.body.appendChild(probe);
+  const pg = probe.querySelector(".pg");
+  const avail = PDF_H - PDF_PAD_TOP - PDF_PAD_BOTTOM;
+  const pages = []; let cur = [], used = 0;
+  try{
+    blocks.forEach(html=>{
+      const el = document.createElement("div"); el.className = "blk"; el.innerHTML = html; pg.appendChild(el);
+      const h = el.offsetHeight + 1;
+      if(cur.length && used + h > avail){ pages.push(cur); cur = []; used = 0; }
+      cur.push(html); used += h;
+    });
+    if(cur.length) pages.push(cur);
+  } finally { document.body.removeChild(probe); }
+  return pages;
+}
+async function renderPdfPageJpeg(htmlBlocks, pageNo, total){
+  const node = document.createElement("div");
+  node.setAttribute("xmlns","http://www.w3.org/1999/xhtml");
+  node.innerHTML = `<style>${PDF_CSS}</style><div class="pg">${htmlBlocks.map(h=>`<div class="blk">${h}</div>`).join("")}<div class="pn">${pageNo} / ${total}</div></div>`;
+  const xhtml = new XMLSerializer().serializeToString(node);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${PDF_W}" height="${PDF_H}"><foreignObject x="0" y="0" width="${PDF_W}" height="${PDF_H}">${xhtml}</foreignObject></svg>`;
+  const img = new Image();
+  await new Promise((res, rej)=>{ img.onload = res; img.onerror = ()=>rej(new Error("render")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+  const SC = 2, cv = document.createElement("canvas"); cv.width = PDF_W*SC; cv.height = PDF_H*SC;
+  const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+  const b64 = cv.toDataURL("image/jpeg", 0.92).split(",")[1];
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return { bytes, w: cv.width, h: cv.height };
+}
+function makePdfFromJpegs(pagesData, title){
+  const enc = new TextEncoder(), chunks = []; let len = 0; const offs = [];
+  const push = u8 => { chunks.push(u8); len += u8.length; };
+  const str = t => push(enc.encode(t));
+  const n = pagesData.length;
+  // 物件編號：1 目錄、2 頁面清單、3 資訊；每頁 3 個（頁、內容、圖片）
+  const pageObj = i => 4 + i*3, contObj = i => 5 + i*3, imgObj = i => 6 + i*3;
+  const obj = (id, fn)=>{ offs[id] = len; str(`${id} 0 obj\n`); fn(); str(`\nendobj\n`); };
+  str("%PDF-1.4\n");
+  obj(1, ()=>str(`<< /Type /Catalog /Pages 2 0 R >>`));
+  obj(2, ()=>str(`<< /Type /Pages /Count ${n} /Kids [${pagesData.map((_,i)=>pageObj(i)+" 0 R").join(" ")}] >>`));
+  let hex = "FEFF"; for(const ch of String(title||"")){ hex += ch.charCodeAt(0).toString(16).padStart(4,"0"); }   // 標題（UTF-16BE）；超出基本平面的字元略過即可
+  obj(3, ()=>str(`<< /Title <${hex}> /Producer (Zhizai Travel) >>`));
+  pagesData.forEach((p,i)=>{
+    obj(pageObj(i), ()=>str(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ${imgObj(i)} 0 R >> >> /Contents ${contObj(i)} 0 R >>`));
+    const content = `q 595.28 0 0 841.89 0 0 cm /Im0 Do Q`;
+    obj(contObj(i), ()=>str(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+    obj(imgObj(i), ()=>{ str(`<< /Type /XObject /Subtype /Image /Width ${p.w} /Height ${p.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.bytes.length} >>\nstream\n`); push(p.bytes); str(`\nendstream`); });
+  });
+  const total = 4 + n*3, xref = len;
+  str(`xref\n0 ${total}\n0000000000 65535 f \n`);
+  for(let id=1; id<total; id++) str(String(offs[id]).padStart(10,"0") + " 00000 n \n");
+  str(`trailer\n<< /Size ${total} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  const out = new Uint8Array(len); let o = 0; chunks.forEach(c=>{ out.set(c,o); o += c.length; });
+  return new Blob([out], { type:"application/pdf" });
+}
+let pdfBusy = false;
+async function exportItineraryPdf(){
+  if(pdfBusy) return;
+  pdfBusy = true;
+  try{
+    travelToast("正在產生 PDF，請稍候…", 4000);
+    const trip = getActiveTrip();
+    const pages = paginatePdfBlocks(buildPdfBlocks());
+    const data = [];
+    for(let i=0;i<pages.length;i++) data.push(await renderPdfPageJpeg(pages[i], i+1, pages.length));
+    const title = trip ? trip.name : "行程";
+    const blob = makePdfFromJpegs(data, title);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = (title.replace(/[\\/:*?"<>|]/g,"_").trim() || "行程") + ".pdf";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    travelToast("PDF 已產生，請到下載項目查看");
+  } finally { pdfBusy = false; }
 }
 
 const shareModalMask = document.getElementById("shareModalMask");
@@ -6004,10 +6226,24 @@ document.getElementById("shareTextBtn").addEventListener("click", async ()=>{
 document.getElementById("sharePdfBtn").addEventListener("click", ()=>{
   shareModalMask.classList.remove("show");
   if(needAdvanced("存成 PDF")) return;
-  try{ exportItineraryPdf(); }
-  catch(e){ console.error("export pdf failed", e); travelToast(failMsg("匯出", e)); }
+  exportItineraryPdf().catch(e=>{ console.error("export pdf failed", e); travelToast(failMsg("匯出", e)); });
 });
 
+document.getElementById("trBackfillStay").addEventListener("click", async ()=>{
+  if(!editingTripId) return;
+  const targets = items.filter(i=>i.tripId===editingTripId && i.type==="spot" && !i.stayMinutes && !i.pinLeave && SPOT_STAY_DEFAULT[i.category]);
+  if(!targets.length){ travelToast("沒有需要補的景點"); return; }
+  if(!confirm(`將為 ${targets.length} 個景點補上停留時間（依類別預設值），要繼續嗎？`)) return;
+  try{
+    for(let i=0;i<targets.length;i+=400){
+      const batch = db.batch();
+      targets.slice(i,i+400).forEach(t=>batch.update(db.collection(COLLECTION).doc(t.id), { stayMinutes: SPOT_STAY_DEFAULT[t.category] }));
+      await batch.commit();
+    }
+    targets.forEach(t=>{ t.stayMinutes = SPOT_STAY_DEFAULT[t.category]; });
+    renderAll(); travelToast(`已補上 ${targets.length} 個景點的停留時間`);
+  }catch(e){ console.error("backfill stay failed", e); travelToast(failMsg("補上", e)); }
+});
 function openTripModal(trip){
   editingTripId = trip ? trip.id : null;
   document.getElementById("tripModalTitle").textContent = trip ? "編輯行程" : "新增行程";
@@ -6020,6 +6256,7 @@ function openTripModal(trip){
   document.getElementById("trName").placeholder = "例：" + regionExample("trip", region);
   trMembersTemp = trip && trip.members ? [...trip.members] : [];
   renderMemberChips();
+  document.getElementById("trBackfillWrap").style.display = trip ? "block" : "none";
   tripListMask.classList.remove("show");
   tripModalMask.classList.add("show");
 }
