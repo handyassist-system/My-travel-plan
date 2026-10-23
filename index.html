@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-180";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-182";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2987,6 +2987,29 @@ function guessCategoryFromPlaceTypes(types){
   return null;
 }
 
+// 名稱搜尋偏向這個行程所在地：行程裡已有地點就以那一帶為中心，沒有就用行程地區（日本／台灣／大陸）的範圍。
+// 只是「優先」，不是限制；這樣打「HAUS NOWHERE」會先出上海的店，而不是韓國的
+function applyPlaceBias(ac){
+  try{
+    if(!ac || !(window.google && google.maps && ac.setBounds)) return;
+    const tr = getActiveTrip();
+    const pts = items.filter(i=>tr && i.tripId===tr.id && i.type==="spot" && i.lat!=null && i.lng!=null && isFinite(i.lat) && isFinite(i.lng));
+    let sw, ne;
+    if(pts.length){
+      const la = pts.map(i=>Number(i.lat)), ln = pts.map(i=>Number(i.lng));
+      sw = { lat: Math.min(...la) - 0.15, lng: Math.min(...ln) - 0.15 };
+      ne = { lat: Math.max(...la) + 0.15, lng: Math.max(...ln) + 0.15 };
+    } else {
+      const reg = (tr && tr.region) || "china";
+      const box = reg==="japan" ? [24,122,46,146] : reg==="taiwan" ? [21.8,119.3,25.5,122.1] : [18,73,54,135];
+      sw = { lat: box[0], lng: box[1] }; ne = { lat: box[2], lng: box[3] };
+    }
+    ac.setBounds(new google.maps.LatLngBounds(sw, ne));
+    // 只搜尋行程所在的國家／地區，不會跳出其他國家（例如韓國）的同名店
+    const reg2 = (tr && tr.region) || "china";
+    if(ac.setComponentRestrictions) ac.setComponentRestrictions({ country: reg2==="japan" ? ["jp"] : reg2==="taiwan" ? ["tw"] : ["cn","hk","mo"] });
+  }catch(e){ console.warn("place bias failed", e); }
+}
 function initAutocomplete(){
   try{
     if(window.google && google.maps && google.maps.places){
@@ -3027,6 +3050,9 @@ function initAutocomplete(){
           }
         }
       });
+      fName.addEventListener("focus", ()=>applyPlaceBias(placeAutocomplete));
+      hNameInput.addEventListener("focus", ()=>applyPlaceBias(holdAutocomplete));
+      applyPlaceBias(placeAutocomplete); applyPlaceBias(holdAutocomplete);
       placesReady = true;
       window.__gmapsStatus = "loaded";
     }
@@ -3370,9 +3396,7 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
       svc.textSearch({ query: address }, (results, status)=>{
         const picks = (status === okStatus) ? pickList(results, "t", status) : (dbg.t = status, []);
         if(picks.length){ show(picks); return; }
-        const near = nearList([nearResults, status === okStatus ? results : []]);
-        if(near.length){ show(near, true); return; }
-        say("找不到這個地址對應的店名，請直接輸入名稱" + dbgText(), "var(--seal)");
+        say("找不到這個地址對應的店名，請手動輸入名稱建立" + dbgText(), "var(--seal)");   // 不再硬列「附近」的地點，避免選到不對的店
       });
     };
     const geocoder = new google.maps.Geocoder();
