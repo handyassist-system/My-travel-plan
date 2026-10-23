@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-174";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-177";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2762,7 +2762,9 @@ function syncSpotExpCat(){
 const MEAL_CATS = ["餐廳","小吃","咖啡廳","飲料"];
 const MEAL_OPTIONS = [["","自動"],["早餐","早餐"],["午餐","午餐"],["下午茶","下午茶"],["晚餐","晚餐"],["none","不標示"]];
 let selectedSpotMeal = "";
+const HOTEL_MEAL_OPTIONS = [["","不標示"],["含早餐","含早餐"]];   // 飯店只有「含早餐」一個選項
 function spotMealLabel(it, timeStr, auto){
+  if(it.category==="飯店") return it.meal==="含早餐" ? "含早餐" : "";
   if(!MEAL_CATS.includes(it.category) || it.meal==="none") return "";
   if(it.meal) return it.meal;
   if(!auto || !timeStr) return "";
@@ -2771,9 +2773,13 @@ function spotMealLabel(it, timeStr, auto){
 }
 function renderMealChips(){
   const wrap = document.getElementById("fMealWrap"), box = document.getElementById("fMealChips");
-  wrap.style.display = MEAL_CATS.includes(selectedSpotCat) ? "block" : "none";
+  const isHotel = selectedSpotCat==="飯店";
+  wrap.style.display = (MEAL_CATS.includes(selectedSpotCat) || isHotel) ? "block" : "none";
+  wrap.querySelector("label").textContent = isHotel ? "早餐（選填）" : "餐別（選填）";
+  if(isHotel && !HOTEL_MEAL_OPTIONS.some(o=>o[0]===selectedSpotMeal)) selectedSpotMeal = "";   // 從餐廳類改成飯店：舊的餐別不帶過來
+  if(!isHotel && selectedSpotMeal==="含早餐") selectedSpotMeal = "";
   box.innerHTML = "";
-  MEAL_OPTIONS.forEach(([v,t])=>{
+  (isHotel ? HOTEL_MEAL_OPTIONS : MEAL_OPTIONS).forEach(([v,t])=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (v===selectedSpotMeal ? " active" : "");
     chip.textContent = t;
@@ -3461,7 +3467,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     stayMinutes: document.getElementById("fStayMinutes").value ? Number(document.getElementById("fStayMinutes").value) : 0,
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
     pinLeave: document.getElementById("fPinLeave").value || "",
-    meal: MEAL_CATS.includes(selectedSpotCat) ? selectedSpotMeal : "",
+    meal: (MEAL_CATS.includes(selectedSpotCat) || selectedSpotCat==="飯店") ? selectedSpotMeal : "",
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
@@ -6169,7 +6175,7 @@ function buildPdfBlocks(){
       if(first) unit += dayHead;
       // 依抵達時間分段（上午／中午／下午／晚上）；餐廳類景點依時間標早餐／午餐／晚餐
       const _h = displayTime ? parseInt(displayTime.split(":")[0],10) : null;
-      const _sec = _h==null ? "" : (_h<12 ? "上午" : (_h<14 ? "中午" : (_h<18 ? "下午" : "晚上")));
+      const _sec = _h==null ? "" : (_h<12 ? "上午" : (_h<18 ? "下午" : "晚上"));
       if(_sec && _sec!==lastSec){ unit += `<div class="sec">${_sec}</div>`; lastSec = _sec; }
       const meal = spotMealLabel(it, displayTime, true);
       unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}</div><div class="adr">${esc(it.note || "")}</div><div class="tc">${pendingTransport}</div><div class="m">${right.join("<br>")}</div></div>`;
@@ -6179,7 +6185,7 @@ function buildPdfBlocks(){
   });
   const _n = new Date(), _p2 = n=>String(n).padStart(2,"0");
   const _stamp = `${_n.getFullYear()}/${_p2(_n.getMonth()+1)}/${_p2(_n.getDate())} ${_p2(_n.getHours())}:${_p2(_n.getMinutes())}`;
-  blocks.push(`<div class="ft">交通時間為系統估算，僅供參考　・　由 智在生活・旅遊計畫 於 ${_stamp} 產生</div>`);
+  blocks[blocks.length-1] += `<div class="ft">交通時間為系統估算，僅供參考　・　產生時間 ${_stamp}</div>`;   // 頁尾說明跟著最後一個區塊，不會自己單獨掉到新的一頁
   return blocks;
 }
 const PDF_CSS = `
@@ -6193,16 +6199,18 @@ const PDF_CSS = `
   .t{width:58px; flex:none; font-weight:700; font-size:15px;} .p{flex:1.05; min-width:0; word-break:break-word;} .p b{font-size:15px;}
   .sec{margin:10px 0 0; padding:5px 12px; font-size:13px; font-weight:700; color:#2C86AD; background:#EAF3F8; border-radius:6px;}
   .meal{display:inline-block; font-size:12px; font-weight:600; background:#FFF1D6; color:#8a5a00; border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:1px;}
+  .pg.c1 .row{padding:6px 4px;} .pg.c1 .day{margin:12px 0 4px; padding:7px 16px;} .pg.c1 .sec{margin-top:6px; padding:3px 12px;} .pg.c1 .ft{margin-top:12px;} .pg.c1 .fl{margin:8px 0 4px;} .pg.c1 .note{margin-bottom:8px;}
+  .pg.c2 .row{padding:3px 4px;} .pg.c2 .day{margin:8px 0 3px; padding:5px 14px;} .pg.c2 .sec{margin-top:4px; padding:2px 10px;} .pg.c2 .ft{margin-top:8px;} .pg.c2 .fl{margin:6px 0 3px;} .pg.c2 .note{margin-bottom:6px;} .pg.c2 .colh{padding:3px 4px;} .pg.c2 .h1{font-size:24px;} .pg.c2 .sub{margin-bottom:6px;}
   .tc{flex:.78; min-width:0; font-size:12px; color:#2C86AD; line-height:1.5;}
   .adr{flex:1.1; min-width:0; color:#6b7885; font-size:12px; line-height:1.5; word-break:break-word;} .m{flex:.95; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
   .colh{display:flex; gap:12px; padding:6px 4px; border-bottom:2px solid #2C86AD; font-size:12px; color:#6b7885;} .colh .t{font-size:12px; font-weight:600;}
   .tr{margin:0 0 0 74px; padding:5px 0; font-size:12px; color:#2C86AD;}
   .empty{color:#9aa5b0; font-size:13px; padding:6px 4px 2px;} .ft{margin-top:20px; font-size:12px; color:#9aa5b0; text-align:center;}
   .pn{position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:12px; color:#9aa5b0;}`;
-function paginatePdfBlocks(blocks){
+function paginatePdfBlocks(blocks, cls){
   const probe = document.createElement("div");
   probe.style.cssText = `position:fixed; left:-10000px; top:0; visibility:hidden;`;
-  probe.innerHTML = `<style>${PDF_CSS}</style><div class="pg" style="height:auto; overflow:visible;"></div>`;
+  probe.innerHTML = `<style>${PDF_CSS}</style><div class="pg ${cls||""}" style="height:auto; overflow:visible;"></div>`;
   document.body.appendChild(probe);
   const pg = probe.querySelector(".pg");
   const avail = PDF_H - PDF_PAD_TOP - PDF_PAD_BOTTOM;
@@ -6218,10 +6226,20 @@ function paginatePdfBlocks(blocks){
   } finally { document.body.removeChild(probe); }
   return pages;
 }
-async function renderPdfPageJpeg(htmlBlocks, pageNo, total){
+// 版面自動調整：先用標準間距；如果會多出一頁（最後一頁只有一點點內容），改用較緊湊的間距看能不能少一頁（字體大小不變）
+function layoutPdfPages(blocks){
+  let best = null;
+  for(const cls of ["", "c1", "c2"]){
+    const pages = paginatePdfBlocks(blocks, cls);
+    if(!best || pages.length < best.pages.length) best = { pages, cls };
+    if(pages.length <= 1) break;
+  }
+  return best;
+}
+async function renderPdfPageJpeg(htmlBlocks, pageNo, total, cls){
   const node = document.createElement("div");
   node.setAttribute("xmlns","http://www.w3.org/1999/xhtml");
-  node.innerHTML = `<style>${PDF_CSS}</style><div class="pg">${htmlBlocks.map(h=>`<div class="blk">${h}</div>`).join("")}<div class="pn">${pageNo} / ${total}</div></div>`;
+  node.innerHTML = `<style>${PDF_CSS}</style><div class="pg ${cls||""}">${htmlBlocks.map(h=>`<div class="blk">${h}</div>`).join("")}<div class="pn">${pageNo} / ${total}</div></div>`;
   const xhtml = new XMLSerializer().serializeToString(node);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${PDF_W}" height="${PDF_H}"><foreignObject x="0" y="0" width="${PDF_W}" height="${PDF_H}">${xhtml}</foreignObject></svg>`;
   const img = new Image();
@@ -6266,9 +6284,9 @@ async function exportItineraryPdf(){
   try{
     travelToast("正在產生 PDF，請稍候…", 4000);
     const trip = getActiveTrip();
-    const pages = paginatePdfBlocks(buildPdfBlocks());
+    const { pages, cls } = layoutPdfPages(buildPdfBlocks());
     const data = [];
-    for(let i=0;i<pages.length;i++) data.push(await renderPdfPageJpeg(pages[i], i+1, pages.length));
+    for(let i=0;i<pages.length;i++) data.push(await renderPdfPageJpeg(pages[i], i+1, pages.length, cls));
     const title = trip ? trip.name : "行程";
     const blob = makePdfFromJpegs(data, title);
     const url = URL.createObjectURL(blob);
