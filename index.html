@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-179";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-180";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3319,21 +3319,40 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
     //  ‧地址有「路＋門牌號」（例：淮海中路1974號）→ 結果的地址必須包含同一個路名＋門牌
     //  ‧其他寫法（例：日本地址）→ 結果必須離地址座標 40 公尺內
     const SIMP = { "号":"號","东":"東","区":"區","华":"華","门":"門","汇":"匯","黄":"黃","长":"長","宁":"寧","静":"靜","闸":"閘","桥":"橋","陆":"陸","国":"國","际":"際","广":"廣","场":"場","馆":"館","园":"園","楼":"樓","铁":"鐵","臺":"台","层":"層","镇":"鎮","县":"縣","乡":"鄉","庙":"廟","纪":"紀","业":"業","兴":"興","贸":"貿","济":"濟","济":"濟","龙":"龍","师":"師","师":"師","范":"範","艺":"藝" };
-    const normAddr = t => String(t||"").replace(/[\s,，．.、]/g,"").replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/./g, c=>SIMP[c]||c);
+    const normAddr = t => String(t||"").replace(/[\s,，．.、]/g,"").replace(/[–—－~～]/g,"-").replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/./g, c=>SIMP[c]||c);
+    // 門牌可以是單一號碼（1974號）或範圍（798-812號）；結果的門牌只要落在範圍內／重疊，就算在這個地址
     const addrKey = (()=>{
-      const m = normAddr(address).match(/([^0-9]{1,14}?[路街道])(\d+)(?:之(\d+))?號/);
+      const m = normAddr(address).match(/([^0-9]{1,14}?[路街道])(\d+)(?:-(\d+))?(?:之(\d+))?號/);
       if(!m) return null;
-      return m[1].replace(/^.*[市區縣鄉鎮]/,"") + m[2] + (m[3] ? "之"+m[3] : "") + "號";
+      const lo = Number(m[2]), hi = m[3] ? Number(m[3]) : lo;
+      return { road: m[1].replace(/^.*[市區縣鄉鎮]/,""), lo: Math.min(lo,hi), hi: Math.max(lo,hi), range: !!m[3], sub: m[4]||"" };
     })();
     let geoLoc = null;
     const atThisAddress = r=>{
-      if(addrKey) return normAddr((r.formatted_address||"") + (r.vicinity||"")).includes(addrKey);
+      if(addrKey){
+        const txt = normAddr((r.formatted_address||"") + " " + (r.vicinity||""));
+        const re = new RegExp(addrKey.road.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "(\\d+)(?:-(\\d+))?(?:之(\\d+))?號", "g");
+        const roadEsc = addrKey.road.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        const re2 = new RegExp("(\\d+)(?:-(\\d+))?(?:之(\\d+))?號?" + roadEsc, "g");   // Google 有時把門牌放在路名前面：800 淮海中路
+        const hits = []; let mm;
+        while((mm = re.exec(txt))) hits.push(mm);
+        while((mm = re2.exec(txt))) hits.push(mm);
+        for(mm of hits){
+          const a = Number(mm[1]), b = mm[2] ? Number(mm[2]) : a;
+          const lo = Math.min(a,b), hi = Math.max(a,b);
+          if(hi < addrKey.lo || lo > addrKey.hi) continue;             // 門牌沒有重疊
+          if(!addrKey.range && !mm[2] && (mm[3]||"") !== addrKey.sub) continue;   // 單一門牌：「之幾」要一致
+          if(!addrKey.range && mm[2]) { /* 結果是範圍、查的是單號：落在範圍內就算 */ }
+          return true;
+        }
+        return false;
+      }
       if(!geoLoc || !(r.geometry && r.geometry.location)) return false;
       return haversineKm(geoLoc.lat(), geoLoc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) <= 0.04;
     };
     const pickList = (results, key, status)=>{
       const seen = new Set(); const picks = [];
-      (results||[]).forEach(r=>{ if(isPlaceLike(r) && atThisAddress(r) && !seen.has(r.name) && picks.length<6){ seen.add(r.name); picks.push(r); } });
+      (results||[]).forEach(r=>{ if(isPlaceLike(r) && atThisAddress(r) && !seen.has(r.name)){ seen.add(r.name); picks.push(r); } });
       if(key) dbg[key] = `${status}（${(results||[]).length}筆→留${picks.length}）`;
       return picks;
     };
@@ -3363,10 +3382,16 @@ document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
         const loc = gres[0].geometry.location; geoLoc = loc;
         svc.nearbySearch({ location: loc, radius: 100 }, (results, status)=>{
           const picks = (status === okStatus) ? pickList(results, "n", status) : (dbg.n = status, []);
-          if(picks.length){
-            const d = r => (r.geometry && r.geometry.location) ? haversineKm(loc.lat(), loc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) : 99;
-            picks.sort((a,b)=>d(a)-d(b));
-            show(picks);
+          const d = r => (r.geometry && r.geometry.location) ? haversineKm(loc.lat(), loc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) : 99;
+          if(picks.length >= 6){ picks.sort((a,b)=>d(a)-d(b)); show(picks.slice(0,6)); }
+          else if(picks.length){
+            // 附近只找到幾間：再用文字搜尋補找（例如 Google 的附近搜尋漏掉的店），合併後再顯示
+            svc.textSearch({ query: address }, (tres, tstatus)=>{
+              const more = (tstatus === okStatus) ? pickList(tres, "t", tstatus) : [];
+              const seenN = new Set(picks.map(x=>x.name));
+              more.forEach(x=>{ if(!seenN.has(x.name)){ seenN.add(x.name); picks.push(x); } });
+              picks.sort((a,b)=>d(a)-d(b)); show(picks.slice(0,6));
+            });
           } else { textFallback(status === okStatus ? results : []); }
         });
       } else { textFallback([]); }
