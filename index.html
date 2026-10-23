@@ -1420,7 +1420,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-172";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-173";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3890,9 +3890,18 @@ function updateDurationSourceNote(){
 }
 function applyDistanceEstimateIfEmpty(){
   if(tDuration.value && !durationIsAutoEstimated) return;
-  if(selectedMode==="train"){ updateDurationSourceNote(); return; }
+  const _hint = document.getElementById("tEstimateHint");
+  if(selectedMode==="train"){ _hint.textContent = "高鐵／新幹線不會自動估算，請自行輸入時間"; updateDurationSourceNote(); return; }
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
-  if(!p || !n || p.lat==null || n.lat==null){ updateDurationSourceNote(); return; }
+  if(!p || !n || p.lat==null || n.lat==null){
+    // 兩端都有地點、但其中一個沒有位置：明講是哪一個，不要讓人以為系統壞了
+    if(p && n){
+      const miss = [p,n].filter(x=>x.lat==null).map(x=>x.name).filter(Boolean);
+      _hint.textContent = "⚠️ " + (miss.length ? "「" + miss.join("」「") + "」" : "其中一個地點") + "沒有位置，無法自動估算，請自行輸入時間（可到該景點用「地址定位」補上位置）";
+    }
+    updateDurationSourceNote(); return;
+  }
+  if(!(_hint.textContent||"").startsWith("按「儲存」")) _hint.textContent = "依直線距離估算，僅供參考";
   const km = haversineKm(p.lat, p.lng, n.lat, n.lng);
   const mins = (p.airport || n.airport) ? estimateAirportLegMinutes(selectedMode, km) : estimateDurationMinutes(selectedMode, km);
   if(mins){ tDuration.value = mins; durationIsAutoEstimated = true; }
