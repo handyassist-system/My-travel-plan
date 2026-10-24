@@ -245,6 +245,12 @@
   .spot-meta{font-size:13px; color:var(--sub); margin:0 0 5px;}
   .spot-note{font-size:12.5px; color:var(--sub); white-space:pre-wrap; word-break:break-word; margin:0 0 5px;}
   .spot-expense{font-size:13px; color:var(--green); font-weight:600;}
+  .note-card{border:1.5px dashed var(--line); border-radius:var(--radius-lg); padding:10px 14px; margin-bottom:10px; display:flex; gap:11px; align-items:flex-start;}
+  .note-card .nt{width:46px; flex-shrink:0; color:var(--line); font-size:16px; padding-top:2px;}
+  .note-card .nb{flex:1; min-width:0;} .note-card .nb p{margin:0; font-size:15px; font-weight:600; color:var(--sub); white-space:pre-wrap; word-break:break-word;}
+  .note-card .nb small{font-size:12px; color:var(--sub);}
+  .note-card .na{display:flex; flex-direction:row; gap:10px; margin-top:8px;}
+  .note-card .na button{background:var(--bg); border:none; border-radius:10px; min-width:36px; height:34px; font-size:14px; color:var(--sub);}
   .spot-actions{display:flex; flex-direction:row; gap:10px; justify-content:flex-end; margin-top:8px; padding-top:8px; border-top:1px solid var(--line);}
   .pack-card-compact{transition:padding 0.15s;}
   .pack-actions-hidden{display:none; margin-top:0; padding-top:0; border-top:none;}
@@ -799,10 +805,28 @@ header #mapBtn, header #settingsBtn{
 </div>
 
 <!-- Spot Modal -->
+<div class="modal-mask" id="noteModalMask">
+  <div class="modal">
+    <button class="close-x" id="noteClose">✕</button>
+    <h2 id="noteModalTitle">新增地點</h2>
+    <div id="noteTypeRow" style="display:flex; gap:8px; margin:0 0 14px;"><div class="chip" id="noteTypeSpot" style="flex:1; text-align:center;">📍 地點</div><div class="chip active" id="noteTypeNote" style="flex:1; text-align:center;">📝 文字備註</div></div>
+    <div class="sec-card"><div class="sec-h">📝 備註內容</div>
+      <div class="field"><label>想記的文字</label><textarea id="noteText" maxlength="200" placeholder="例：晚餐還沒決定" style="min-height:90px;"></textarea></div>
+      <p style="font-size:12px; color:var(--sub); margin:0; line-height:1.6;">只是提醒自己，不會算時間、也不會產生交通。決定後可以改成正式地點。</p>
+    </div>
+    <button type="button" id="noteToSpot" style="display:none; width:100%; padding:12px; border:1px solid var(--seal); border-radius:var(--radius-md); background:var(--seal-soft); color:var(--seal); font-size:14px; font-weight:700; margin-bottom:10px;">📍 改成正式地點</button>
+    <button type="button" id="noteDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這則備註</button>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="noteCancel">取消</button>
+      <button class="btn btn-primary" id="noteSave">儲存</button>
+    </div>
+  </div>
+</div>
 <div class="modal-mask" id="spotModalMask">
   <div class="modal">
     <button class="close-x" id="spotClose">✕</button>
     <h2 id="spotModalTitle">新增地點</h2>
+    <div id="spotTypeRow" style="display:flex; gap:8px; margin:0 0 14px;"><div class="chip active" style="flex:1; text-align:center;">📍 地點</div><div class="chip" id="spotTypeNote" style="flex:1; text-align:center;">📝 文字備註</div></div>
     <div class="sec-card"><div class="sec-h">📍 地點</div>
     <div class="field"><label>名稱（可搜尋自動帶入）</label><input id="fName" type="text" placeholder="輸入地點名稱..."></div>
     <p id="fCatSuggestHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
@@ -821,6 +845,7 @@ header #mapBtn, header #settingsBtn{
     <p id="fGeocodeStatus" style="font-size:12px; margin:-2px 0 12px; display:none;"></p>
     </div>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
+    <div id="fNoTransWrap" style="display:none; margin:0 0 12px; padding:10px 12px; border-radius:10px; background:var(--bg); font-size:13px; color:var(--sub); line-height:1.6;">🚫 這個地點前面設為「不需要交通」。<button type="button" id="fNoTransRestore" style="display:block; margin-top:6px; padding:8px 14px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:13px; font-weight:700;">還原交通（讓系統重新估算）</button></div>
     <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點從飯店出發（選填）</label><input id="fDepartTime" type="time"></div>
     <div class="field" id="fPinArriveWrap"><label>抵達時間（選填，不填由系統算）</label><input id="fPinArrive" type="time"></div>
     <div class="field" id="fStayWrap"><label>停留時間（選填）</label>
@@ -1424,7 +1449,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-189";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-193";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2572,7 +2597,10 @@ function renderDayList(){
   const warn = buildFlightWarning(derived);
   if(warn) list.appendChild(warn);
 
-  if(arr.length===0){
+  const notes = dayNotes(currentDay);
+  let _ni = 0;
+  const flushNotes = upTo=>{ while(_ni<notes.length && (upTo==null || notes[_ni].order < upTo)){ list.appendChild(buildNoteCard(notes[_ni])); _ni++; } };
+  if(arr.length===0 && notes.length===0){
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.innerHTML = `<span class="emoji">🗺️</span>「${dayLabel(currentDay)}」還沒有安排行程<span class="esub">點右下角「＋」新增</span>`;
@@ -2585,10 +2613,11 @@ function renderDayList(){
   }
   for(let idx=0; idx<arr.length; idx++){
     const it = arr[idx];
+    flushNotes(it.order);
     if(it.type==="spot"){
       list.appendChild(buildSpotCard(it, derived[it.id]));
       const next = arr[idx+1];
-      if(next && next.type==="spot" && it.category!=="拍照" && next.category!=="拍照"){
+      if(next && next.type==="spot" && it.category!=="拍照" && next.category!=="拍照" && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
         list.appendChild(buildAddTransportGhost(it, next, derived));
       }
     } else if(it.type==="transport"){
@@ -2596,6 +2625,7 @@ function renderDayList(){
     }
   }
 
+  flushNotes(null);
   // 最後一天：最後一個地點 → 機場站（航班資訊在機場卡內）
   if(currentDay === days[days.length-1]){
     const lastItem = arr[arr.length-1];
@@ -2717,6 +2747,93 @@ function suggestTransport(prevSpot, nextSpot){
   if(!mins) return null;
   return { mode, mins, km };
 }
+// ---------- 文字備註（不是行程，不算時間、沒有交通）----------
+function dayNotes(day){
+  return items.filter(i=>i.tripId===activeTripId && i.day===day && i.type==="note").sort((a,b)=>a.order-b.order);
+}
+function buildNoteCard(n){
+  const card = document.createElement("div");
+  card.className = "note-card"; card.dataset.noteId = n.id;
+  card.innerHTML = `<div class="nt">--:--</div><div style="font-size:20px; line-height:1.2;">📝</div>
+    <div class="nb"><p>${escapeHtml(n.text||"")}</p><small>文字備註・不算時間、沒有交通</small>
+      <div class="na"><button class="up" title="上移">▲</button><button class="down" title="下移">▼</button><button class="edit">✎</button><button class="del">🗑</button></div></div>`;
+  card.querySelector(".up").addEventListener("click", ()=>moveNote(n, -1));
+  card.querySelector(".down").addEventListener("click", ()=>moveNote(n, 1));
+  card.querySelector(".edit").addEventListener("click", ()=>openNoteModal(n));
+  card.querySelector(".del").addEventListener("click", ()=>deleteNote(n));
+  return card;
+}
+async function deleteNote(n){
+  if(!await askConfirm("刪除備註", "確定要刪除這則備註嗎？", "刪除")) return false;
+  try{ await db.collection(COLLECTION).doc(n.id).delete(); return true; }
+  catch(e){ console.error("delete note failed", e); travelToast(failMsg("刪除", e)); return false; }
+}
+// 備註只用小數 order 插在目標前後，不動到地點的 order（不會影響交通）
+async function moveNote(n, dir){
+  const full = items.filter(i=>i.tripId===activeTripId && i.day===n.day && (i.type==="spot"||i.type==="transport"||i.type==="note")).sort((a,b)=>a.order-b.order);
+  const vis = full.filter(i=>i.type!=="transport");
+  const vi = vis.findIndex(i=>i.id===n.id);
+  const nb = vis[vi+dir];
+  if(vi<0 || !nb) return;
+  const fi = full.findIndex(i=>i.id===nb.id);
+  let order;
+  if(dir>0){
+    const next = full[fi+1];
+    order = next ? (nb.order + next.order)/2 : nb.order + 1000;
+  } else {
+    let k = fi-1;
+    if(k>=0 && full[k].type==="transport") k--;   // 前面若緊接著一段交通，放在那段交通之前
+    const edge = (fi-1>=0 && full[fi-1].type==="transport") ? full[fi-1] : nb;
+    order = k>=0 ? (full[k].order + edge.order)/2 : edge.order - 1000;
+  }
+  n.order = order; renderAll();
+  try{ await db.collection(COLLECTION).doc(n.id).update({ order }); }
+  catch(e){ console.error("move note failed", e); travelToast(failMsg("移動", e)); }
+}
+const noteModalMask = document.getElementById("noteModalMask");
+let editingNoteId = null, pendingConvertNote = null;
+function openNoteModal(n){
+  editingNoteId = n ? n.id : null;
+  document.getElementById("noteModalTitle").textContent = n ? "編輯文字備註" : "新增地點";
+  document.getElementById("noteTypeRow").style.display = n ? "none" : "flex";
+  document.getElementById("noteText").value = n ? (n.text||"") : "";
+  document.getElementById("noteToSpot").style.display = n ? "block" : "none";
+  document.getElementById("noteDelete").style.display = n ? "block" : "none";
+  noteModalMask.classList.add("show");
+}
+function closeNoteModal(){ noteModalMask.classList.remove("show"); editingNoteId = null; }
+document.getElementById("noteClose").addEventListener("click", closeNoteModal);
+document.getElementById("noteCancel").addEventListener("click", closeNoteModal);
+noteModalMask.addEventListener("click", e=>{ if(e.target===noteModalMask) closeNoteModal(); });
+document.getElementById("noteTypeSpot").addEventListener("click", ()=>{ closeNoteModal(); openSpotModal(null); });
+document.getElementById("spotTypeNote").addEventListener("click", ()=>{ if(editingSpotId) return; closeSpotModal(); openNoteModal(null); });
+document.getElementById("noteDelete").addEventListener("click", async ()=>{
+  const n = items.find(i=>i.id===editingNoteId); if(!n) return;
+  if(await deleteNote(n)) closeNoteModal();
+});
+document.getElementById("noteToSpot").addEventListener("click", ()=>{
+  const n = items.find(i=>i.id===editingNoteId); if(!n) return;
+  const text = (n.text||"").trim();
+  closeNoteModal();
+  openSpotModal(null);
+  fName.value = text.split("\n")[0].slice(0, 40);
+  pendingConvertNote = { id:n.id, day:n.day, order:n.order };   // 儲存成地點後，這則備註自動刪除，地點取代備註的位置
+});
+document.getElementById("noteSave").addEventListener("click", async ()=>{
+  const text = document.getElementById("noteText").value.trim();
+  if(!text){ document.getElementById("noteText").focus(); return; }
+  try{
+    if(editingNoteId){
+      await db.collection(COLLECTION).doc(editingNoteId).update({ text });
+    } else {
+      const all = items.filter(i=>i.tripId===activeTripId && i.day===currentDay && (i.type==="spot"||i.type==="transport"||i.type==="note"));
+      const order = all.length ? Math.max(...all.map(i=>i.order||0)) + 1000 : 1000;
+      await db.collection(COLLECTION).add({ type:"note", tripId: activeTripId, day: currentDay, order, text, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    closeNoteModal();
+  }catch(e){ console.error("save note failed", e); travelToast(failMsg("儲存", e)); }
+});
+
 function buildAddTransportGhost(prevSpot, nextSpot, derived){
   const wrap = document.createElement("div");
   wrap.className = "add-transport-ghost";
@@ -3121,6 +3238,8 @@ function computeOrder(day){
 function openSpotModal(spot){
   { const _l=document.getElementById("fAddrFindList"), _s=document.getElementById("fAddrFindStatus"); if(_l){ _l.style.display="none"; _l.innerHTML=""; } if(_s){ _s.style.display="none"; } }
   editingSpotId = spot ? spot.id : null;
+  { const _tr = document.getElementById("spotTypeRow"); if(_tr) _tr.style.display = spot ? "none" : "flex"; }
+  document.getElementById("fNoTransWrap").style.display = (spot && spot.noTransportBefore) ? "block" : "none";   // 新增才能切換「文字備註」
   fSelectedLatLng = (spot && spot.lat!=null && spot.lng!=null) ? { lat: spot.lat, lng: spot.lng } : null;
   document.getElementById("fGeocodeStatus").style.display = "none";
   document.getElementById("spotModalTitle").textContent = spot ? "編輯地點" : "新增地點";
@@ -3485,7 +3604,7 @@ document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
     }
   });
 });
-function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; }
+function closeSpotModal(){ spotModalMask.classList.remove("show"); editingSpotId = null; pendingConvertNote = null; }
 function setExpOpen(p, open){
   document.getElementById(p+"ExpCard").style.display = open ? "" : "none";
   const b = document.getElementById(p+"ExpToggle");
@@ -3559,6 +3678,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     const newOrder = computeSpotOrderByChoice(choice, editing);
     if(newOrder!=null) data.order = newOrder;
     else if(!editing) data.order = computeOrder(currentDay);
+    if(pendingConvertNote && !editing){ data.order = pendingConvertNote.order; data.day = pendingConvertNote.day; }   // 由備註改成地點：留在備註原本的位置
     // 「出發時間」跟著第一個地點走：換了第一個地點，出發時間要一起搬過去
     const spotsNow = dayItems(currentDay).filter(i=>i.type==="spot");
     const oldFirst = spotsNow[0] || null;
@@ -3596,6 +3716,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
       extra.forEach(function(e){ batch.update(db.collection(COLLECTION).doc(e[0]), { departTime: e[1] }); });
       await batch.commit();
     }
+    if(pendingConvertNote && !editing){ try{ await db.collection(COLLECTION).doc(pendingConvertNote.id).delete(); }catch(e){ console.error("remove converted note failed", e); } }
     closeSpotModal();
   }catch(e){ console.error("save spot failed", e); travelToast(failMsg("儲存", e)); }
 });
@@ -4119,6 +4240,11 @@ async function markNoTransportBefore(nextSpot, on){
   nextSpot.noTransportBefore = !!on;
   await db.collection(COLLECTION).doc(nextSpot.id).update({ noTransportBefore: !!on });
 }
+document.getElementById("fNoTransRestore").addEventListener("click", async ()=>{
+  const sp = items.find(i=>i.id===editingSpotId); if(!sp) return;
+  try{ await markNoTransportBefore(sp, false); document.getElementById("fNoTransWrap").style.display = "none"; travelToast("已還原，系統會重新估算這段交通"); renderAll(); }
+  catch(e){ console.error("restore transport failed", e); travelToast(failMsg("還原", e)); }
+});
 document.getElementById("transDelete").addEventListener("click", async ()=>{
   const nx = currentTransportNextSpot;
   if(!pendingTransport.id){   // 系統估算的交通：不用刪資料，標記不需要就好
@@ -4182,6 +4308,9 @@ async function deleteSpotWithAdjacentTransport(spot){
     const backup = toDelete.map(id=>items.find(i=>i.id===id)).filter(Boolean).map(x=>{ const c = Object.assign({}, x); delete c.id; return [x.id, c]; });
     const batch = db.batch();
     toDelete.forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
+    // 被刪地點後面那個地點若設了「不需要交通」，它的前一個鄰居換人了，標記清除
+    const _after = arr.slice(idx+1).find(i=>i.type==="spot");
+    if(_after && _after.noTransportBefore){ _after.noTransportBefore = false; batch.update(db.collection(COLLECTION).doc(_after.id), { noTransportBefore:false }); }
     await batch.commit();
     undoToast(toDelete.length>1 ? "已刪除地點和相連的交通" : "已刪除地點", async ()=>{
       try{
@@ -4372,7 +4501,8 @@ async function moveSpotToDay(spot, targetDay){
   }
   const order = computeOrder(targetDay);
   const batch = db.batch();
-  batch.update(db.collection(COLLECTION).doc(spot.id), { day: targetDay, order });
+  batch.update(db.collection(COLLECTION).doc(spot.id), { day: targetDay, order, noTransportBefore: false });
+  { const _after = arr.slice(idx+1).find(i=>i.type==="spot"); if(_after && _after.noTransportBefore){ batch.update(db.collection(COLLECTION).doc(_after.id), { noTransportBefore:false }); } }
   toDeleteTransports.forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
   await batch.commit();
 }
@@ -4385,7 +4515,7 @@ async function copyItemsToDay(sourceItems, targetDay){
   sourceItems.forEach((it, idx)=>{
     const ref = db.collection(COLLECTION).doc();
     const data = { ...it };
-    delete data.id;
+    delete data.id; delete data.noTransportBefore;   // 複製過去的地點，前後鄰居不同了，不沿用「不需要交通」
     data.day = targetDay;
     data.order = baseOrder + idx*1000;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -6235,15 +6365,17 @@ function buildShareText(){
 
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
-    if(arr.length===0){ lines.push("（尚未安排）"); return; }
+    if(arr.length===0 && dayNotes(day).length===0){ lines.push("（尚未安排）"); return; }
 
     // Build display rows: each spot gets an optional "(交通方式 約X分)" suffix
     // from the transport that immediately precedes it.
     const rows = [];
     let pendingTransportLabel = null;
     let spotIndex = 0;
-    arr.forEach(it=>{
-      if(it.type==="transport"){
+    [...arr, ...dayNotes(day)].sort((a,b)=>a.order-b.order).forEach(it=>{
+      if(it.type==="note"){
+        rows.push({ isNote:true, text: it.text||"" });
+      } else if(it.type==="transport"){
         pendingTransportLabel = `${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}`;
       } else if(it.type==="spot"){
         const d = derived[it.id] || {};
@@ -6258,6 +6390,7 @@ function buildShareText(){
 
     let lastGroup = null;
     rows.forEach(row=>{
+      if(row.isNote){ lines.push(`📝 ${row.text}`); lines.push(""); return; }
       const group = timeOfDayLabel(row.time);
       if(group !== lastGroup){
         lines.push(`──── ${group} ────`);
@@ -6311,11 +6444,18 @@ function buildPdfBlocks(){
     const dayHead = dayBar + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
-    const hasSpot = arr.some(i=>i.type==="spot");
+    const hasSpot = arr.some(i=>i.type==="spot") || dayNotes(day).length>0;
     if(!hasSpot){ blocks.push(dayBar + `<div class="empty">尚未安排</div>`); return; }
     let pendingTransport = "";
     let spotIndex = 0, first = true, lastSec = "";
-    arr.forEach(it=>{
+    [...arr, ...dayNotes(day)].sort((a,b)=>a.order-b.order).forEach(it=>{
+      if(it.type==="note"){
+        let u = "";
+        if(first){ u += dayHead; first = false; }
+        u += `<div class="row notep"><div class="t">&nbsp;</div><div class="p np"><b>📝 ${esc(it.text||"").replace(/\n/g,"<br>")}</b><span class="nt2">（備註）</span></div></div>`;
+        blocks.push(u);
+        return;
+      }
       if(it.type==="transport"){
         pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}` + (it.duration ? `<br>約 ${esc(fmtMin(it.duration))}` : "");
         return;
@@ -6357,6 +6497,7 @@ const PDF_CSS = `
   .meal{display:inline-block; font-size:12px; font-weight:600; background:#FFF1D6; color:#8a5a00; border-radius:6px; padding:1px 7px; margin-left:6px; vertical-align:1px;}
   .pg.c1 .row{padding:6px 4px;} .pg.c1 .day{margin:12px 0 4px; padding:7px 16px;} .pg.c1 .sec{margin-top:6px; padding:3px 12px;} .pg.c1 .ft{margin-top:12px;} .pg.c1 .fl{margin:8px 0 4px;} .pg.c1 .note{margin-bottom:8px;}
   .pg.c2 .row{padding:3px 4px;} .pg.c2 .day{margin:8px 0 3px; padding:5px 14px;} .pg.c2 .sec{margin-top:4px; padding:2px 10px;} .pg.c2 .ft{margin-top:8px;} .pg.c2 .fl{margin:6px 0 3px;} .pg.c2 .note{margin-bottom:6px;} .pg.c2 .colh{padding:3px 4px;} .pg.c2 .h1{font-size:24px;} .pg.c2 .sub{margin-bottom:6px;}
+  .row.notep{border-bottom:1px dashed #C9D3DB;} .np{flex:3.2; color:#6b7885;} .np b{font-weight:600;} .nt2{font-size:12px; color:#9aa5b0; margin-left:6px;}
   .tc{flex:.78; min-width:0; font-size:12px; color:#2C86AD; line-height:1.5;}
   .adr{flex:1.1; min-width:0; color:#6b7885; font-size:12px; line-height:1.5; word-break:break-word;} .m{flex:.95; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
   .colh{display:flex; gap:12px; padding:6px 4px; border-bottom:2px solid #2C86AD; font-size:12px; color:#6b7885;} .colh .t{font-size:12px; font-weight:600;}
@@ -6661,6 +6802,15 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(!_updateAsked || _reloaded) return; _reloaded=true; window.location.reload();
     });
+    // 主動檢查新版：切回 app 時、以及開著超過 30 分鐘，都去問一次 sw.js 有沒有變（不用等瀏覽器 24 小時才檢查）
+    var _lastSwCheck = 0;
+    function checkSwUpdate(){
+      if(Date.now() - _lastSwCheck < 60000) return;
+      _lastSwCheck = Date.now();
+      navigator.serviceWorker.getRegistration().then(function(reg){ if(reg) return reg.update(); }).catch(function(){});
+    }
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') checkSwUpdate(); });
+    setInterval(function(){ if(document.visibilityState==='visible') checkSwUpdate(); }, 30*60*1000);
     var ubtn=document.getElementById('updateBtn');
     if(ubtn) ubtn.addEventListener('click', function(){
       _updateAsked=true;
