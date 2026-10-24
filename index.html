@@ -222,6 +222,10 @@
 
   .spot-card.dragging{position:relative; z-index:50; box-shadow:0 10px 28px rgba(0,0,0,0.28); opacity:0.96; transition:none; touch-action:none;}
   body.spot-dragging{user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
+  /* 拖曳換位時把清單縮成一行一個地點（只留時間、圖示、名稱），一個畫面就能看到整天；放開後還原 */
+  body.spot-dragging #list > :not(.spot-card){display:none !important;}
+  body.spot-dragging #list .spot-card .spot-meta, body.spot-dragging #list .spot-card .spot-note, body.spot-dragging #list .spot-card .spot-expense, body.spot-dragging #list .spot-card .spot-actions, body.spot-dragging #list .spot-card img{display:none !important;}
+  body.spot-dragging #list .spot-card{margin-top:0; margin-bottom:6px; padding-top:8px; padding-bottom:8px;}
   .drop-line{position:fixed; height:4px; border-radius:2px; background:var(--seal); z-index:60; pointer-events:none;}
   .spot-card{
     background:var(--card); border-radius:var(--radius-lg); padding:14px 16px 10px 14px;
@@ -819,11 +823,11 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
     <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點從飯店出發（選填）</label><input id="fDepartTime" type="time"></div>
     <div class="field" id="fPinArriveWrap"><label>抵達時間（選填，不填由系統算）</label><input id="fPinArrive" type="time"></div>
-    <div class="field"><label>停留時間（選填）</label>
+    <div class="field" id="fStayWrap"><label>停留時間（選填）</label>
       <div style="display:flex; align-items:center; gap:8px;"><select id="fStayH" style="flex:1;"></select><span style="font-size:14px;">小時</span><select id="fStayM" style="flex:1;"></select><span style="font-size:14px;">分</span></div>
       <input id="fStayMinutes" type="hidden"></div>
-    <div class="field"><label>離開時間（選填，不填由系統算）</label><input id="fPinLeave" type="time"></div>
-    <p style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開填一個就好，都填以離開時間為準。全部可以不填，系統會自動估算。</p>
+    <div class="field" id="fPinLeaveWrap"><label>離開時間（選填，不填由系統算）</label><input id="fPinLeave" type="time"></div>
+    <p id="fStayHint" style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開填一個就好，都填以離開時間為準。全部可以不填，系統會自動估算。</p>
     </div>
     <button type="button" id="fMoreToggle" style="display:none; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（備註、照片）</button>
         <div style="display:none;">
@@ -1420,7 +1424,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-182";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-184";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2480,8 +2484,11 @@ function computeDerivedTimes(day){
         if(arrival && timeToMinutes(it.pinArrive) < timeToMinutes(arrival)){ warn = "late"; earliest = arrival; }
         arrival = it.pinArrive;
       }
-      let leave, stay = it.stayMinutes || 0;
-      if(arrival && it.pinLeave && timeToMinutes(it.pinLeave) >= timeToMinutes(arrival)){
+      // 第一個地點是飯店、又設了出發時間：出發時間就是離開時間，不再加停留時間
+      const hotelDep = idx===0 && it.category==="飯店" && !!it.departTime && !flightDay1;
+      let leave, stay = hotelDep ? 0 : (it.stayMinutes || 0);
+      if(hotelDep){ leave = arrival; }
+      else if(arrival && it.pinLeave && timeToMinutes(it.pinLeave) >= timeToMinutes(arrival)){
         leave = it.pinLeave; stay = timeToMinutes(leave) - timeToMinutes(arrival);
       } else {
         if(arrival && it.pinLeave) warn = warn || "leave";
@@ -2812,6 +2819,16 @@ document.getElementById("fStayMinutes").addEventListener("input", ()=>{ fStayTou
   h.addEventListener("change", fromSel); m.addEventListener("change", fromSel);
   render();
 })();
+// 第一個地點若是飯店，又填了「幾點從飯店出發」：出發時間就是離開時間，不需要停留時間（兩個擇一）
+function isHotelDepartMode(){
+  return selectedSpotCat==="飯店" && document.getElementById("fDepartWrap").style.display!=="none" && !!document.getElementById("fDepartTime").value;
+}
+function syncHotelDepartExclusive(){
+  const on = isHotelDepartMode();
+  ["fStayWrap","fPinLeaveWrap","fStayHint"].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = on ? "none" : ""; });
+}
+document.getElementById("fDepartTime").addEventListener("input", syncHotelDepartExclusive);
+document.getElementById("fDepartTime").addEventListener("change", syncHotelDepartExclusive);
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
   getAllSpotCategories().forEach(cat=>{
@@ -2827,6 +2844,7 @@ function renderSpotCatChips(){
     fCategoryChips.appendChild(chip);
   });
   renderMealChips();
+  syncHotelDepartExclusive();
 }
 
 let currentSpotPhoto = "";
@@ -3199,6 +3217,7 @@ function beginSpotDrag(card, it, x, y, touch){
   const line = document.createElement("div"); line.className = "drop-line"; document.body.appendChild(line);
   spotDrag = { it, card, cards, srcIdx: cards.indexOf(card), startY: y, curY: y, startScroll: window.scrollY, k: cards.indexOf(card), line, raf: 0 };
   card.classList.add("dragging"); document.body.classList.add("spot-dragging");
+  { const r0 = card.getBoundingClientRect(); spotDrag.cy0 = r0.top + r0.height/2 + window.scrollY; }   // 清單縮小後，卡片位置會變，重新以手指位置對齊
   try{ if(navigator.vibrate) navigator.vibrate(30); }catch(_){}
   const move = e=>{ const p = e.touches ? e.touches[0] : e; spotDrag.curY = p.clientY; if(e.cancelable) e.preventDefault(); };
   const end = ()=>finishSpotDrag(move, end);
@@ -3215,7 +3234,7 @@ function beginSpotDrag(card, it, x, y, touch){
     if(!spotDrag) return;
     const d = spotDrag;
     if(d.curY < 90) window.scrollBy(0, -12); else if(d.curY > window.innerHeight - 90) window.scrollBy(0, 12);
-    d.card.style.transform = `translateY(${d.curY - d.startY + (window.scrollY - d.startScroll)}px)`;
+    d.card.style.transform = `translateY(${d.curY + window.scrollY - d.cy0}px)`;
     const others = d.cards.filter(c=>c!==d.card), rects = others.map(c=>c.getBoundingClientRect());
     let k = 0; rects.forEach(rc=>{ if(rc.top + rc.height/2 < d.curY) k++; });
     d.k = k;
@@ -3513,9 +3532,9 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
   const data = {
     type:"spot", tripId: activeTripId, day: currentDay, time: fTime.value||"", category: selectedSpotCat,
     departTime: document.getElementById("fDepartTime").value || "",
-    stayMinutes: document.getElementById("fStayMinutes").value ? Number(document.getElementById("fStayMinutes").value) : 0,
+    stayMinutes: (!isHotelDepartMode() && document.getElementById("fStayMinutes").value) ? Number(document.getElementById("fStayMinutes").value) : 0,
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
-    pinLeave: document.getElementById("fPinLeave").value || "",
+    pinLeave: isHotelDepartMode() ? "" : (document.getElementById("fPinLeave").value || ""),
     meal: (MEAL_CATS.includes(selectedSpotCat) || selectedSpotCat==="飯店") ? selectedSpotMeal : "",
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
