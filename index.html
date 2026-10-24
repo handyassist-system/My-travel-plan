@@ -1424,7 +1424,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-188";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-189";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3272,6 +3272,7 @@ async function reorderSpotTo(spot, k, others){
   if(newOrder==null) return;
   const spotsOf = ()=>dayItems(day).filter(i=>i.type==="spot");
   const oldFirst = spotsOf()[0];
+  const pairsBefore = snapshotTransportPairs(day);
   const updates = new Map(); updates.set(spot.id, { order:newOrder });
   spot.order = newOrder;
   const newFirst = spotsOf()[0];
@@ -3281,9 +3282,11 @@ async function reorderSpotTo(spot, k, others){
     updates.set(oldFirst.id, Object.assign(updates.get(oldFirst.id)||{}, { departTime: "" }));
     newFirst.departTime = dep; oldFirst.departTime = "";
   }
+  const batch = db.batch();
+  const dropped = dropStaleTransports(day, pairsBefore, batch);
   renderAll();
+  if(dropped) travelToast("已移除原位置相連的交通，新的相鄰地點會重新估算");
   try{
-    const batch = db.batch();
     updates.forEach((u,id)=>batch.update(db.collection(COLLECTION).doc(id), u));
     recalcAdjacentTaxiWalkTransports(day, batch);
     await batch.commit();
@@ -4198,6 +4201,45 @@ async function deleteSpotWithAdjacentTransport(spot){
   }catch(e){ console.error("delete spot+transport failed", e); travelToast(failMsg("刪除", e)); }
 }
 
+// 調整地點順序後，原本連著「舊鄰居」的交通就不對了（例如 A→B 的交通，B 搬走後變成夾在 A 和別人中間）。
+// 做法：移動前記下每段交通／「不需要交通」標記連的是哪兩個地點，移動後兩端變了就一起移除，系統會重新估算新的相鄰地點。
+function snapshotTransportPairs(day){
+  const arr = dayItems(day);
+  const tr = new Map(), flags = new Map();
+  arr.forEach((it, idx)=>{
+    if(it.type==="transport"){
+      const p = arr[idx-1], n = arr[idx+1];
+      if(p && n && p.type==="spot" && n.type==="spot") tr.set(it.id, [p.id, n.id].sort().join("|"));   // 兩端互換（A→B 變 B→A）算同一對，距離一樣，交通保留；機場／頭尾的交通不動
+    } else if(it.type==="spot" && it.noTransportBefore){
+      let k = idx-1; while(k>=0 && arr[k].type!=="spot") k--;
+      flags.set(it.id, k>=0 ? arr[k].id : "");
+    }
+  });
+  return { tr, flags };
+}
+function dropStaleTransports(day, before, batch){
+  const arr = dayItems(day);
+  let n = 0;
+  arr.forEach((it, idx)=>{
+    if(it.type==="transport" && before.tr.has(it.id)){
+      const p = arr[idx-1], nx = arr[idx+1];
+      const now = (p && nx && p.type==="spot" && nx.type==="spot") ? [p.id, nx.id].sort().join("|") : "";
+      if(now !== before.tr.get(it.id)){
+        batch.delete(db.collection(COLLECTION).doc(it.id));
+        const i = items.findIndex(x=>x.id===it.id); if(i>=0) items.splice(i,1);
+        n++;
+      }
+    } else if(it.type==="spot" && before.flags.has(it.id)){
+      let k = idx-1; while(k>=0 && arr[k].type!=="spot") k--;
+      const prevNow = k>=0 ? arr[k].id : "";
+      if(prevNow !== before.flags.get(it.id)){
+        it.noTransportBefore = false;
+        batch.update(db.collection(COLLECTION).doc(it.id), { noTransportBefore: false });
+      }
+    }
+  });
+  return n;
+}
 function recalcAdjacentTaxiWalkTransports(day, batch){
   const arr = dayItems(day);
   arr.forEach((it, idx)=>{
@@ -4246,11 +4288,14 @@ async function moveSpot(spot, direction){
   // that a second quick tap on ▲▼ before the network round-trip finishes
   // computes against up-to-date data instead of a stale snapshot — that
   // race was corrupting the order/departTime swap on fast repeated clicks.
+  const pairsBefore = snapshotTransportPairs(spot.day);
   Object.assign(spot, spotUpdate);
   Object.assign(neighbor, neighborUpdate);
+  const batch = db.batch();
+  const dropped = dropStaleTransports(spot.day, pairsBefore, batch);
   renderAll();
+  if(dropped) travelToast("已移除原位置相連的交通，新的相鄰地點會重新估算");
   try{
-    const batch = db.batch();
     batch.update(db.collection(COLLECTION).doc(spot.id), spotUpdate);
     batch.update(db.collection(COLLECTION).doc(neighbor.id), neighborUpdate);
     recalcAdjacentTaxiWalkTransports(spot.day, batch);
