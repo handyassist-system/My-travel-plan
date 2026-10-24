@@ -1028,6 +1028,7 @@ header #mapBtn, header #settingsBtn{
           <option value="行前採買">🧳 行前採買</option>
           <option value="兌換">💱 兌換（不計入總額）</option>
           <option value="購物">🛍️ 購物</option>
+          <option value="門票">🎫 門票</option>
           <option value="餐飲">🍜 餐飲</option>
           <option value="其他">📌 其他</option>
         </select>
@@ -1456,7 +1457,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-198";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-200";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2737,6 +2738,7 @@ function buildSpotCard(it, d){
       <button class="up" title="上移">▲</button>
       <button class="down" title="下移">▼</button>
       <button class="copy" title="複製">⧉</button>
+      ${it.category==="飯店" ? "" : `<button class="expbtn" title="記一筆花費">💰</button>`}
       <button class="edit">✎</button>
       <button class="del">🗑</button>
     </div>
@@ -2746,6 +2748,14 @@ function buildSpotCard(it, d){
   card.querySelector(".up").addEventListener("click", ()=>moveSpot(it, -1));
   card.querySelector(".down").addEventListener("click", ()=>moveSpot(it, 1));
   card.querySelector(".copy").addEventListener("click", ()=>openCopySpotPicker(it));
+  { const _eb = card.querySelector(".expbtn");
+    if(_eb) _eb.addEventListener("click", ()=>{
+      if(needAdvanced("花費彙總")) return;
+      const _cat = SPOT_EXPENSE_CAT[it.category] || "其他";
+      currentTab = "expense"; renderAll();
+      try{ window.scrollTo(0,0); }catch(e){}
+      openExpenseModal(null, { name: it.name || "", date: isoDateForDay(it.day), category: _cat });
+    }); }
   attachSpotDrag(card, it);
   const _im = card.querySelector(".spot-body img"); if(_im){ _im.style.cursor = "zoom-in"; _im.addEventListener("click", e=>{ e.stopPropagation(); openPhotoLightbox(it.photo); }); }
   return card;
@@ -4938,7 +4948,21 @@ function shareNonePicked(chipsId){
   if(document.getElementById(chipsId).parentElement.style.display==="none") return false;
   return document.querySelectorAll("#"+chipsId+" .chip.active").length===0;
 }
-function openExpenseModal(it){
+// 新增花費時，付款人預設帶「上一筆花費的付款人」（還在成員名單裡才帶）
+function lastExpensePayer(){
+  const trip = getActiveTrip(); const ms = (trip && trip.members) || [];
+  const last = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.payer).sort((a,b)=>(b.order||0)-(a.order||0))[0];
+  return (last && (ms.includes(last.expense.payer) || last.expense.payer===POOL_PAYER)) ? last.expense.payer : "";
+}
+// 某一天的日期（yyyy-mm-dd，給日期欄用）
+function isoDateForDay(day){
+  const trip = getActiveTrip(); if(!trip || !trip.startDate) return "";
+  const dayNum = parseInt((day||"").replace(/\D/g,"")) || (days.indexOf(day)+1);
+  const d = new Date(trip.startDate + "T00:00:00"); d.setDate(d.getDate() + (dayNum-1));
+  const p2 = n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+}
+function openExpenseModal(it, prefill){
   if(!getActiveTrip()) return;
   editingExpenseId = it ? it.id : null;
   const e = (it && it.expense) ? it.expense : {};
@@ -4954,11 +4978,13 @@ function openExpenseModal(it){
     xo.textContent = (EXP_CAT_ICON[e.category]||"📌") + " " + e.category; eCatSel.appendChild(xo);
   }
   eCatSel.value = e.category || "行前採買";
-  setCurrencyChip(eCurrencyChips, it ? e.currency : "TWD");   // 新增時預設新台幣（事前花費多半用台幣付）
-  populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), e.payer || "");
+  if(!it && prefill && prefill.category && [...eCatSel.options].some(o=>o.value===prefill.category)) eCatSel.value = prefill.category;
+  setCurrencyChip(eCurrencyChips, it ? e.currency : (prefill ? primaryCurrencyForTrip() : "TWD"));   // 新增時預設新台幣（事前花費多半用台幣付）；從景點記帳是在當地花的，預設當地幣別
+  populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), it ? (e.payer || "") : lastExpensePayer());
   renderShareChips(e.sharedBy);
-  document.getElementById("eDate").value = it ? (it.date||"") : "";
+  document.getElementById("eDate").value = it ? (it.date||"") : ((prefill && prefill.date) || "");
   document.getElementById("eNote").value = it ? (it.note||"") : "";
+  if(!it && prefill && prefill.name) document.getElementById("eName").value = prefill.name;
   document.getElementById("eDelete").style.display = it ? "" : "none";
   document.getElementById("ePaySec").style.display = (document.getElementById("ePayerWrap").style.display!=="none" || document.getElementById("eShareWrap").style.display!=="none") ? "" : "none";   // 沒有成員時整區不顯示
   expModalMask.classList.add("show");
@@ -6420,6 +6446,11 @@ function buildPdfBlocks(){
       blocks.push(unit);
       first = false; pendingTransport = ""; spotIndex++;
     });
+    // 最後一天：提醒最晚幾點離開最後一站、幾點要到機場（和行程頁的航班提醒同一組數字）
+    if(day===days[days.length-1] && s.retDepartTime){
+      const _lg = flightLegFromSettings("ret");
+      if(_lg) blocks.push(`<div class="mealbar" style="background:#FFF1D6; color:#8a5a00; font-weight:600;">⏰ ${esc(flightLegText(_lg, "最後一站", legMode("ret")==="hsr"))}（僅供參考）</div>`);
+    }
   });
   const _n = new Date(), _p2 = n=>String(n).padStart(2,"0");
   const _stamp = `${_n.getFullYear()}/${_p2(_n.getMonth()+1)}/${_p2(_n.getDate())} ${_p2(_n.getHours())}:${_p2(_n.getMinutes())}`;
