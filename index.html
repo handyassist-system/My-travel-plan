@@ -838,6 +838,10 @@ header #mapBtn, header #settingsBtn{
       <label style="display:flex; align-items:center; gap:10px; font-size:15px; color:var(--ink); margin:0;"><input type="checkbox" id="fPhotoOnly" style="width:22px; height:22px; flex:none;"> 🚶 這裡不用走到（只拍照）</label>
       <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">打勾：不產生交通，前後地點直接相接。不打勾：和一般地點一樣估算怎麼去。</p>
     </div>
+    <div class="field" id="fInMealWrap" style="display:none;"><label>園內用餐（選填，可複選）</label>
+      <div class="chip-row" id="fInMealChips"></div>
+      <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">例如在迪士尼園內吃午餐：選了會算進當天的三餐，不另外增加時間或交通。</p>
+    </div>
     <div class="field" id="fMealWrap" style="display:none;"><label>餐別（選填）</label>
       <div class="chip-row" id="fMealChips"></div>
     </div>
@@ -1457,7 +1461,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-200";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-203";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2596,6 +2600,9 @@ function dayMealStatus(day, derived){
   effectiveItems(day).forEach(it=>{
     if(it.type!=="spot") return;
     if(it.category==="飯店" && it.meal==="含早餐" && !r["早餐"]) r["早餐"] = "飯店含早餐";
+    if(Array.isArray(it.inMeals)) it.inMeals.forEach(m=>{
+      if(r[m]===""){ const n = String(it.name||"").trim(); r[m] = (n.length>6 ? n.slice(0,6)+"…" : n) + "（園內）"; }
+    });
     if(it.category==="餐廳"){
       const lb = spotMealLabel(it, (derived[it.id]||{}).arrival || "", true);
       if(r[lb]===""){ const n = String(it.name||"").trim(); r[lb] = n.length>8 ? n.slice(0,8)+"…" : (n || "已安排"); }
@@ -2616,6 +2623,9 @@ function renderDayList(){
   const s = flightSettings || {};
   const arr = effectiveItems(currentDay);
 
+  { const _mh = mealStatusHtml(currentDay, derived);
+    if(_mh){ const d = document.createElement("div"); d.id = "mealStatusBar"; d.style.cssText = "margin:0 0 10px; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--ink); font-size:13px; line-height:1.7;"; d.innerHTML = _mh; list.appendChild(d); } }
+
   if(currentDay === days[0]){
     const ap = buildAirportStopCard("arrive");
     if(ap) list.appendChild(ap);
@@ -2624,8 +2634,6 @@ function renderDayList(){
     }
   }
 
-  { const _mh = mealStatusHtml(currentDay, derived);
-    if(_mh){ const d = document.createElement("div"); d.id = "mealStatusBar"; d.style.cssText = "margin:0 0 10px; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--ink); font-size:13px; line-height:1.7;"; d.innerHTML = _mh; list.appendChild(d); } }
   const warn = buildFlightWarning(derived);
   if(warn) list.appendChild(warn);
 
@@ -2714,7 +2722,8 @@ function buildSpotCard(it, d){
   const exp = it.expense && it.expense.amount ? `<div class="spot-expense">💰 ${escapeHtml(it.expense.category||'')} ${currencySymbol(it.expense.currency)}${escapeHtml(String(it.expense.amount))}</div>` : "";
   const metaParts = [];
   if(!["景點","拍照","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商"].includes(it.category)) metaParts.push(escapeHtml(it.category||"其他"));   // 這三類圖示已看得出來
-  { const _meal = spotMealLabel(it, "", false); if(_meal) metaParts.push(escapeHtml(_meal)); }   // 只顯示自己指定的餐別
+  { const _meal = spotMealLabel(it, "", false); if(_meal) metaParts.push(escapeHtml(_meal)); }
+  if(Array.isArray(it.inMeals) && it.inMeals.length) metaParts.push("🍽 園內" + it.inMeals.map(escapeHtml).join("、"));   // 只顯示自己指定的餐別
   const _fd1 = (it.day===days[0]) && !!(flightSettings && flightSettings.outArriveTime);
   if(d.isFirst && it.departTime && !_fd1) metaParts.push(`🚪${it.departTime}出發`);
   { const _stay = (d.stay!=null) ? d.stay : it.stayMinutes;
@@ -2880,7 +2889,7 @@ function buildAddTransportGhost(prevSpot, nextSpot, derived){
   wrap.className = "add-transport-ghost";
   const mid = (prevSpot.order + nextSpot.order) / 2;
   const prevLeave = derived[prevSpot.id] ? derived[prevSpot.id].leave : "";
-  wrap.innerHTML = `<button>＋ 交通</button>`;
+  wrap.innerHTML = `<button>🚏 怎麼去？點此設定</button>`;
   wrap.querySelector("button").addEventListener("click", ()=>{
     pendingTransport = { day: currentDay, order: mid, id: null };
     openTransportModal(null, prevLeave, prevSpot, nextSpot);
@@ -2953,6 +2962,21 @@ function mealOptionsFor(cat){
   }
   if(spotMealOrig && spotMealOrig===selectedSpotMeal && !opts.some(o=>o[0]===spotMealOrig)) opts.splice(1,0,[spotMealOrig,spotMealOrig]);
   return opts;
+}
+const INMEAL_CATS = ["景點","購物","其他"];   // 園內用餐只給「裡面可以吃飯」的類型
+let selectedInMeals = [];
+function renderInMealChips(){
+  const wrap = document.getElementById("fInMealWrap"), box = document.getElementById("fInMealChips");
+  if(!wrap || !box) return;
+  wrap.style.display = INMEAL_CATS.includes(selectedSpotCat) ? "block" : "none";
+  box.innerHTML = "";
+  ["早餐","午餐","晚餐"].forEach(m=>{
+    const chip = document.createElement("div");
+    chip.className = "chip" + (selectedInMeals.includes(m) ? " active" : "");
+    chip.textContent = m;
+    chip.addEventListener("click", ()=>{ selectedInMeals = selectedInMeals.includes(m) ? selectedInMeals.filter(x=>x!==m) : selectedInMeals.concat([m]); renderInMealChips(); });
+    box.appendChild(chip);
+  });
 }
 function renderMealChips(){
   const wrap = document.getElementById("fMealWrap"), box = document.getElementById("fMealChips");
@@ -3034,6 +3058,7 @@ function renderSpotCatChips(){
     fCategoryChips.appendChild(chip);
   });
   renderMealChips();
+  renderInMealChips();
   syncHotelDepartExclusive();
   syncPhotoOnlyWrap();
 }
@@ -3344,6 +3369,7 @@ function openSpotModal(spot){
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
   selectedSpotMeal = spot ? (spot.meal||"") : "";
   spotMealOrig = selectedSpotMeal;
+  selectedInMeals = (spot && Array.isArray(spot.inMeals)) ? spot.inMeals.slice() : [];
   document.getElementById("fPhotoOnly").checked = spot ? !spot.needTransport : true;   // 拍照預設「不用走到」；舊資料沒有這個欄位，維持原本行為
   spotTimeMode = (spot && spot.pinLeave) ? "leave" : "stay";
   fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
@@ -3604,6 +3630,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
     pinLeave: (isHotelDepartMode() || spotTimeMode!=="leave") ? "" : (document.getElementById("fPinLeave").value || ""),
     meal: (MEAL_CATS.includes(selectedSpotCat) || selectedSpotCat==="飯店") ? selectedSpotMeal : "",
+    inMeals: INMEAL_CATS.includes(selectedSpotCat) ? selectedInMeals.slice() : [],
     needTransport: (selectedSpotCat==="拍照" && !document.getElementById("fPhotoOnly").checked),
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
@@ -3966,6 +3993,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   document.getElementById("tExpFields").style.display = "block";
   // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
   setExpOpen("t", hasExpense);
+  if(!hasExpense) document.getElementById("tExpToggle").style.display = "none";   // 交通通常不另外記帳：沒有金額的交通不顯示記錄花費入口（已有金額的照舊可改）
 
   let isLeading = isLeadingOverride || false;
   if(it){
@@ -6442,7 +6470,7 @@ function buildPdfBlocks(){
       const _sec = _h==null ? "" : (_h<12 ? "上午" : (_h<18 ? "下午" : "晚上"));
       if(_sec && _sec!==lastSec){ unit += `<div class="sec">${_sec}</div>`; lastSec = _sec; }
       const meal = spotMealLabel(it, displayTime, true);
-      unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}</div><div class="adr">${esc(it.note || "")}</div><div class="tc">${pendingTransport}</div><div class="m">${right.join("<br>")}</div></div>`;
+      unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}${(Array.isArray(it.inMeals)&&it.inMeals.length) ? `<span class="meal">園內${it.inMeals.map(esc).join("、")}</span>` : ""}</div><div class="adr">${esc(it.note || "")}</div><div class="tc">${pendingTransport}</div><div class="m">${right.join("<br>")}</div></div>`;
       blocks.push(unit);
       first = false; pendingTransport = ""; spotIndex++;
     });
