@@ -830,9 +830,6 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h">📍 地點</div>
     <div class="field"><label>名稱（可搜尋自動帶入）</label><input id="fName" type="text" placeholder="輸入地點名稱..."></div>
     <p id="fCatSuggestHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
-    <button type="button" id="fAddrFindBtn" style="padding:8px 14px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin:-4px 0 10px;">🔎 用這個地址找名稱</button>
-    <p id="fAddrFindStatus" style="font-size:12px; margin:-2px 0 12px; display:none; white-space:pre-wrap;"></p>
-    <div id="fAddrFindList" style="display:none; border:1px solid var(--line); border-radius:12px; margin:0 0 14px; overflow:hidden; background:var(--bg);"></div>
     <p id="placesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
@@ -850,15 +847,17 @@ header #mapBtn, header #settingsBtn{
     </div>
     <div class="sec-card"><div class="sec-h">⏱ 時間</div>
     <div id="fNoTransWrap" style="display:none; margin:0 0 12px; padding:10px 12px; border-radius:10px; background:var(--bg); font-size:13px; color:var(--sub); line-height:1.6;">🚫 這個地點前面設為「不需要交通」。<button type="button" id="fNoTransRestore" style="display:block; margin-top:6px; padding:8px 14px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:13px; font-weight:700;">還原交通（讓系統重新估算）</button></div>
-    <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點從飯店出發（選填）</label><input id="fDepartTime" type="time"></div>
+    <div class="field" id="fDepartWrap" style="display:none;"><label id="fDepartLabel">今天幾點出發（選填，沒填預設 09:00）</label><input id="fDepartTime" type="time"></div>
     <div class="field" id="fPinArriveWrap"><label>抵達時間（選填，不填由系統算）</label><input id="fPinArrive" type="time"></div>
+    <div class="field" id="fTimeModeWrap"><label>要填哪一個（擇一）</label>
+      <div class="chip-row" id="fTimeModeChips"><div class="chip active" data-m="stay">⏳ 停留多久</div><div class="chip" data-m="leave">🚪 幾點離開</div></div>
+    </div>
     <div class="field" id="fStayWrap"><label>停留時間（選填）</label>
       <div style="display:flex; align-items:center; gap:8px;"><select id="fStayH" style="flex:1;"></select><span style="font-size:14px;">小時</span><select id="fStayM" style="flex:1;"></select><span style="font-size:14px;">分</span></div>
       <input id="fStayMinutes" type="hidden"><p id="fHotelStayNote" style="display:none; font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.5;">飯店不預設停留時間，可不填；如果是今天第一個地點，請在上面填「幾點從飯店出發」。</p></div>
     <div class="field" id="fPinLeaveWrap"><label>離開時間（選填，不填由系統算）</label><input id="fPinLeave" type="time"></div>
-    <p id="fStayHint" style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開填一個就好，都填以離開時間為準。全部可以不填，系統會自動估算。</p>
+    <p id="fStayHint" style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開擇一就好，另一個由系統算出來。都不填也可以，系統會自動估算。</p>
     </div>
-    <button type="button" id="fMoreToggle" style="display:none; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（備註、照片）</button>
         <div style="display:none;">
     <div class="field"><label>抵達時間</label><input id="fTime" type="time"></div>
     <p id="fTimeHint" style="font-size:12px; color:var(--sub); margin:-10px 0 12px; display:none;"></p>
@@ -888,9 +887,11 @@ header #mapBtn, header #settingsBtn{
       <div class="field"><label>日期（選填，付款日）</label><input id="fExpDate" type="date"></div>
     </div>
     </div>
-    <div class="sec-card"><div class="sec-h" data-for="fMoreFields"><span>📝 備註與照片</span></div>
-    <div id="fMoreFields" style="display:none;">
+    <div class="sec-card"><div class="sec-h">📝 備註</div>
     <div class="field"><label>備註（只是記事）</label><textarea id="fMemo" placeholder="例：要先訂位、營業時間、注意事項"></textarea></div>
+    </div>
+    <button type="button" id="fMoreToggle" style="display:block; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（照片）</button>
+    <div class="sec-card" id="fMoreFields" style="display:none;"><div class="sec-h">📷 照片</div>
     <div class="field"><label>照片（例如菜單、地圖截圖）</label>
       <input id="fPhotoInput" type="file" accept="image/*" style="display:none;">
       <div id="fPhotoPreviewWrap" style="display:none; position:relative; width:100%; max-width:220px; margin-bottom:8px;">
@@ -899,7 +900,6 @@ header #mapBtn, header #settingsBtn{
       </div>
       <button type="button" id="fPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
       <p id="fPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
-    </div>
     </div>
     </div>
     <div class="modal-actions">
@@ -1456,7 +1456,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-195";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-198";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2479,6 +2479,7 @@ function outLeaveAirportTime(){
 
 // Single source of truth for the day's schedule: only the FIRST spot's stored
 // time is an anchor; every following spot/transport time is derived from it.
+const DEFAULT_DAY_START = "09:00";   // 第一個地點沒填出發時間時的預設
 function computeDerivedTimes(day){
   const arr = effectiveItems(day);
   const map = {};
@@ -2503,7 +2504,7 @@ function computeDerivedTimes(day){
         // day (leaving the airport on day1, leaving the hotel on other days).
         // If no transport segment precedes it, arrival == that anchor (0
         // travel time assumed).
-        const anchor = flightDay1 ? defaultAnchorForDay : (it.departTime || defaultAnchorForDay || "");
+        const anchor = flightDay1 ? defaultAnchorForDay : (it.departTime || defaultAnchorForDay || DEFAULT_DAY_START);
         arrival = anchor;
         if(flightDay1){
           // 機場到第一個地點（還沒另外存交通）：加上建議的交通時間
@@ -2536,7 +2537,7 @@ function computeDerivedTimes(day){
       if(idx===0){
         // Leading transport (e.g. "+接機交通") has no previous spot to
         // inherit a time from, so it needs its own manual anchor too.
-        depart = flightDay1 ? defaultAnchorForDay : (it.manualDepartTime || defaultAnchorForDay || "");
+        depart = flightDay1 ? defaultAnchorForDay : (it.manualDepartTime || defaultAnchorForDay || DEFAULT_DAY_START);
       } else {
         depart = clock || "";
       }
@@ -2588,6 +2589,24 @@ function buildLockedDayCard(){
   box.appendChild(btn);
   return box;
 }
+// 每天的三餐狀態：早餐（飯店含早餐，或餐廳標早餐）、午餐、晚餐只看「餐廳」類；小吃、咖啡廳算下午茶，不算一餐
+function dayMealStatus(day, derived){
+  const r = { "早餐":"", "午餐":"", "晚餐":"" };
+  effectiveItems(day).forEach(it=>{
+    if(it.type!=="spot") return;
+    if(it.category==="飯店" && it.meal==="含早餐" && !r["早餐"]) r["早餐"] = "飯店含早餐";
+    if(it.category==="餐廳"){
+      const lb = spotMealLabel(it, (derived[it.id]||{}).arrival || "", true);
+      if(r[lb]===""){ const n = String(it.name||"").trim(); r[lb] = n.length>8 ? n.slice(0,8)+"…" : (n || "已安排"); }
+    }
+  });
+  return r;
+}
+function mealStatusHtml(day, derived){
+  if(!effectiveItems(day).some(i=>i.type==="spot")) return "";
+  const r = dayMealStatus(day, derived), e = escapeHtml;
+  return "🍽 " + ["早餐","午餐","晚餐"].map(k=> `<span style="white-space:nowrap; margin-right:10px;">` + (r[k] ? `${k} ✓ ${e(r[k])}` : `${k} ✗ 未安排`) + `</span>`).join("");
+}
 function renderDayList(){
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -2604,6 +2623,8 @@ function renderDayList(){
     }
   }
 
+  { const _mh = mealStatusHtml(currentDay, derived);
+    if(_mh){ const d = document.createElement("div"); d.id = "mealStatusBar"; d.style.cssText = "margin:0 0 10px; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--ink); font-size:13px; line-height:1.7;"; d.innerHTML = _mh; list.appendChild(d); } }
   const warn = buildFlightWarning(derived);
   if(warn) list.appendChild(warn);
 
@@ -2894,16 +2915,34 @@ function syncSpotExpCat(){
 }
 // 餐別：餐廳類景點可自己指定早餐／午餐／下午茶／晚餐（「自動」＝PDF 依抵達時間判斷早／午／晚餐；「不標示」＝不標）
 const MEAL_CATS = ["餐廳","小吃","咖啡廳"];   // 飲料不算一餐，不提供餐別
-const MEAL_OPTIONS = [["","自動"],["早餐","早餐"],["午餐","午餐"],["下午茶","下午茶"],["晚餐","晚餐"],["none","不標示"]];
+const SNACK_CATS = ["小吃","咖啡廳"];   // 這兩類固定算下午茶，不分早中晚餐
 let selectedSpotMeal = "";
+let spotMealOrig = "";   // 開啟時原本存的餐別：舊資料的特殊餐別（例如小吃存過「午餐」）編輯時保留，不被悄悄清掉
 const HOTEL_MEAL_OPTIONS = [["","不標示"],["含早餐","含早餐"]];   // 飯店只有「含早餐」一個選項
 function spotMealLabel(it, timeStr, auto){
   if(it.category==="飯店") return it.meal==="含早餐" ? "含早餐" : "";
   if(!MEAL_CATS.includes(it.category) || it.meal==="none") return "";
   if(it.meal) return it.meal;
+  if(SNACK_CATS.includes(it.category)) return auto ? "下午茶" : "";
   if(!auto || !timeStr) return "";
   const m = parseInt(timeStr.split(":")[0],10) + (parseInt(timeStr.split(":")[1],10)||0)/60;
   return (m>=6 && m<10.5) ? "早餐" : (m>=11 && m<14.5) ? "午餐" : (m>=17 && m<20.5) ? "晚餐" : "";
+}
+// 這一天有沒有飯店已含早餐（excludeId：編輯中的那個地點不算）
+function dayHasHotelBreakfast(day, excludeId){
+  return items.some(i=>i.tripId===activeTripId && i.type==="spot" && i.day===day && i.category==="飯店" && i.meal==="含早餐" && i.id!==excludeId);
+}
+function mealOptionsFor(cat){
+  if(cat==="飯店") return HOTEL_MEAL_OPTIONS;
+  let opts;
+  if(SNACK_CATS.includes(cat)) opts = [["","下午茶（自動）"],["none","不標示"]];
+  else {
+    opts = [["","自動"]];
+    if(!dayHasHotelBreakfast(currentDay, editingSpotId) || selectedSpotMeal==="早餐") opts.push(["早餐","早餐"]);
+    opts.push(["午餐","午餐"],["晚餐","晚餐"],["none","不標示"]);
+  }
+  if(spotMealOrig && spotMealOrig===selectedSpotMeal && !opts.some(o=>o[0]===spotMealOrig)) opts.splice(1,0,[spotMealOrig,spotMealOrig]);
+  return opts;
 }
 function renderMealChips(){
   const wrap = document.getElementById("fMealWrap"), box = document.getElementById("fMealChips");
@@ -2913,7 +2952,8 @@ function renderMealChips(){
   if(isHotel && !HOTEL_MEAL_OPTIONS.some(o=>o[0]===selectedSpotMeal)) selectedSpotMeal = "";   // 從餐廳類改成飯店：舊的餐別不帶過來
   if(!isHotel && selectedSpotMeal==="含早餐") selectedSpotMeal = "";
   box.innerHTML = "";
-  (isHotel ? HOTEL_MEAL_OPTIONS : MEAL_OPTIONS).forEach(([v,t])=>{
+  { const _o = mealOptionsFor(selectedSpotCat); if(selectedSpotMeal && !isHotel && !_o.some(o=>o[0]===selectedSpotMeal) && selectedSpotMeal!==spotMealOrig) selectedSpotMeal = ""; }
+  mealOptionsFor(selectedSpotCat).forEach(([v,t])=>{
     const chip = document.createElement("div");
     chip.className = "chip" + (v===selectedSpotMeal ? " active" : "");
     chip.textContent = t;
@@ -2950,9 +2990,18 @@ document.getElementById("fStayMinutes").addEventListener("input", ()=>{ fStayTou
 function isHotelDepartMode(){
   return selectedSpotCat==="飯店" && document.getElementById("fDepartWrap").style.display!=="none" && !!document.getElementById("fDepartTime").value;
 }
+let spotTimeMode = "stay";   // 停留／離開擇一：stay＝填停留時間，leave＝填離開時間
+function applyTimeMode(){
+  const on = isHotelDepartMode();
+  const m = spotTimeMode==="leave" ? "leave" : "stay";
+  const show = (id, v)=>{ const el = document.getElementById(id); if(el) el.style.display = v ? "" : "none"; };
+  show("fTimeModeWrap", !on); show("fStayWrap", !on && m==="stay"); show("fPinLeaveWrap", !on && m==="leave"); show("fStayHint", !on);
+  document.querySelectorAll("#fTimeModeChips .chip").forEach(c=>c.classList.toggle("active", c.dataset.m===m));
+}
+document.querySelectorAll("#fTimeModeChips .chip").forEach(c=>c.addEventListener("click", ()=>{ spotTimeMode = c.dataset.m; applyTimeMode(); }));
 function syncHotelDepartExclusive(){
   const on = isHotelDepartMode();
-  ["fStayWrap","fPinLeaveWrap","fStayHint"].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = on ? "none" : ""; });
+  applyTimeMode();
   const hn = document.getElementById("fHotelStayNote"); if(hn) hn.style.display = (selectedSpotCat==="飯店" && !on) ? "block" : "none";
 }
 document.getElementById("fDepartTime").addEventListener("input", syncHotelDepartExclusive);
@@ -3250,7 +3299,6 @@ function computeOrder(day){
 }
 
 function openSpotModal(spot){
-  { const _l=document.getElementById("fAddrFindList"), _s=document.getElementById("fAddrFindStatus"); if(_l){ _l.style.display="none"; _l.innerHTML=""; } if(_s){ _s.style.display="none"; } }
   editingSpotId = spot ? spot.id : null;
   { const _tr = document.getElementById("spotTypeRow"); if(_tr) _tr.style.display = spot ? "none" : "flex"; }
   document.getElementById("fNoTransWrap").style.display = (spot && spot.noTransportBefore) ? "block" : "none";   // 新增才能切換「文字備註」
@@ -3275,7 +3323,7 @@ function openSpotModal(spot){
 
   const departWrap = document.getElementById("fDepartWrap");
   departWrap.style.display = isFirstPosition ? "block" : "none";
-  document.getElementById("fDepartLabel").textContent = "今天幾點從飯店出發（選填）";
+  document.getElementById("fDepartLabel").textContent = "今天幾點出發（選填，沒填預設 09:00）";
   // 第一天有填去程班機：這個地點的時間由「班機抵達＋入境時間＋交通」自動算出，不需要填出發時間
   if(hasFlightAnchor && isFirstPosition) departWrap.style.display = "none";
   document.getElementById("fDepartTime").value = (hasFlightAnchor && isFirstPosition) ? "" : (spot ? (spot.departTime||"") : defaultAnchor);
@@ -3285,7 +3333,9 @@ function openSpotModal(spot){
   document.getElementById("fPinArriveWrap").style.display = (departWrap.style.display==="none") ? "block" : "none";   // 第一個地點已有「從飯店出發」時間，不重複問抵達
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
   selectedSpotMeal = spot ? (spot.meal||"") : "";
+  spotMealOrig = selectedSpotMeal;
   document.getElementById("fPhotoOnly").checked = spot ? !spot.needTransport : true;   // 拍照預設「不用走到」；舊資料沒有這個欄位，維持原本行為
+  spotTimeMode = (spot && spot.pinLeave) ? "leave" : "stay";
   fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
   if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
   renderSpotCatChips();
@@ -3318,9 +3368,10 @@ function openSpotModal(spot){
   // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
   setExpOpen("f", hasExpense);
   // 更多選項：已有備註或照片時自動展開，避免讓人以為資料不見了
-  const hasMore = !!(spot && (spot.memo || spot.photo));
-  document.getElementById("fMoreFields").style.display = "block";
-  document.getElementById("fMoreToggle").style.display = "none";
+  const hasMore = !!(spot && spot.photo);
+  document.getElementById("fMoreFields").style.display = hasMore ? "block" : "none";
+  document.getElementById("fMoreToggle").style.display = hasMore ? "none" : "block";
+  applyTimeMode();
   spotModalMask.classList.add("show");
   checkPlacesStatus();
 }
@@ -3448,145 +3499,6 @@ function computeSpotOrderByChoice(choice, spot){
   }
   return null;
 }
-// 用地址找名稱：把「地址欄（沒填就用名稱欄）」的文字拿去搜尋，列出候選地點讓使用者點選
-document.getElementById("fAddrFindBtn").addEventListener("click", ()=>{
-  const statusEl = document.getElementById("fAddrFindStatus");
-  const listEl = document.getElementById("fAddrFindList");
-  const say = (t, color)=>{ statusEl.textContent = t; statusEl.style.color = color || "var(--sub)"; statusEl.style.display = t ? "block" : "none"; };
-  listEl.style.display = "none"; listEl.innerHTML = "";
-  const address = (fNote.value.trim() || fName.value.trim());
-  if(!address){ say("請先在地址欄或名稱欄填入地址", "var(--seal)"); return; }
-  if(!(window.google && google.maps && google.maps.places)){ say("地圖服務尚未連線，請確認網路後再試", "var(--seal)"); return; }
-  say("🔄 搜尋中...");
-  try{
-    const svc = new google.maps.places.PlacesService(document.createElement("div"));
-    const okStatus = google.maps.places.PlacesServiceStatus.OK;
-    const BAD_TYPES = ["route","street_address","premise","subpremise","political","locality","sublocality","neighborhood","postal_code","country","administrative_area_level_1","administrative_area_level_2","administrative_area_level_3"];
-    // Google 有時把「地址」當成地點名稱回傳（類型還標成店家）：名稱長得像地址的一律不當店名
-    const looksLikeAddress = n => {
-      n = String(n||"").trim();
-      if(/^\d{3,6}\s*(臺灣|台灣)?\s*\S*[縣市]/.test(n)) return true;                     // 110台北市…
-      if(/(縣|市|區|鄉|鎮|村|里)/.test(n) && /\d+(之\d+)?號(\s*\d*[樓Ff之])?$/.test(n)) return true;          // 台北市信義區市府路45號
-      if(/(路|街|道|巷|弄|段)/.test(n) && /\d+(之\d+)?號(\s*\d*[樓Ff之])?$/.test(n)) return true;            // 中山東一路18號
-      if(/^\d+[\s,-]*[A-Za-z0-9 .'-]*\b(road|rd|street|st|avenue|ave|lane|ln|blvd|no\.?)\b/i.test(n)) return true;   // 45 Shifu Rd
-      if(/^no\.?\s*\d+/i.test(n)) return true;                                              // No. 45, Shifu Rd.
-      if(/(路|街|道|巷|弄|段)\s*\d+(之\d+)?[號号]/.test(n)) return true;                          // 合肥路199號7幢、合肥路199号
-      if(/[號号]\s*\d*\s*(幢|棟|栋|樓|楼|室|層|层|[Ff]|之\d+)?$/.test(n) && /\d/.test(n) && /(路|街|道|巷|弄|段|區|区|市)/.test(n)) return true;
-      if(/[,，]/.test(n) && /(區|区|市)/.test(n) && /(路|街|道|巷|弄|段)/.test(n)) return true;     // 上海, 黃浦區, 合肥路…
-      return false;
-    };
-    const isPlaceLike = r => r && r.name && !looksLikeAddress(r.name) && !(r.types && r.types.length && r.types.every(t=>BAD_TYPES.includes(t)));
-    const show = (picks, nearby)=>{
-      say("");
-      const head = document.createElement("div");
-      head.style.cssText = "padding:8px 14px; font-size:12px; color:" + (nearby ? "var(--seal)" : "var(--sub)") + ";" + (nearby ? " font-weight:600; line-height:1.5;" : "");
-      head.textContent = nearby ? "⚠️ 找不到地址完全相符的店名。以下不一定是這個地址，是附近的地點，請自己確認後再點選" : `找到 ${picks.length} 個，請點選你要的地點`;
-      listEl.appendChild(head);
-      picks.forEach(p=>{
-        const row = document.createElement("div");
-        row.style.cssText = "padding:11px 14px; border-top:1px solid var(--line); cursor:pointer;";
-        const n = document.createElement("div"); n.style.cssText = "font-size:15px; font-weight:600;"; n.textContent = p.name;
-        const a = document.createElement("div"); a.style.cssText = "font-size:12px; color:var(--sub);"; a.textContent = (p.formatted_address || p.vicinity || "") + (nearby && geoLoc && p.geometry && p.geometry.location ? "　約" + Math.max(1, Math.round(haversineKm(geoLoc.lat(), geoLoc.lng(), p.geometry.location.lat(), p.geometry.location.lng())*1000)) + "公尺" : "");
-        row.appendChild(n); row.appendChild(a);
-        row.addEventListener("click", ()=>{
-          fName.value = p.name;
-          const addr = p.formatted_address || p.vicinity || "";
-          if(addr && !fNote.value.trim()){ fNote.value = addr; }
-          fSelectedLatLng = (p.geometry && p.geometry.location) ? { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } : fSelectedLatLng;
-          const guess = guessCategoryFromPlaceTypes(p.types);
-          const hint = document.getElementById("fCatSuggestHint");
-          if(guess){
-            selectedSpotCat = guess; renderSpotCatChips(); syncSpotExpCat(); syncSpotStay();
-            hint.textContent = `已自動判斷類型為「${guess}」，可自行修改`; hint.style.display = "block";
-          } else { hint.style.display = "none"; }
-          listEl.style.display = "none"; listEl.innerHTML = "";
-        });
-        listEl.appendChild(row);
-      });
-      listEl.style.display = "block";
-    };
-    const dbg = {};   // 查不到時顯示的診斷資訊（Google 各步驟的回應），方便找出原因
-    // 只留「真的在這個地址」的地點，寧可找不到也不要帶出旁邊別家：
-    //  ‧地址有「路＋門牌號」（例：淮海中路1974號）→ 結果的地址必須包含同一個路名＋門牌
-    //  ‧其他寫法（例：日本地址）→ 結果必須離地址座標 40 公尺內
-    const SIMP = { "号":"號","东":"東","区":"區","华":"華","门":"門","汇":"匯","黄":"黃","长":"長","宁":"寧","静":"靜","闸":"閘","桥":"橋","陆":"陸","国":"國","际":"際","广":"廣","场":"場","馆":"館","园":"園","楼":"樓","铁":"鐵","臺":"台","层":"層","镇":"鎮","县":"縣","乡":"鄉","庙":"廟","纪":"紀","业":"業","兴":"興","贸":"貿","济":"濟","济":"濟","龙":"龍","师":"師","师":"師","范":"範","艺":"藝" };
-    const normAddr = t => String(t||"").replace(/[\s,，．.、]/g,"").replace(/[–—－~～]/g,"-").replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/./g, c=>SIMP[c]||c);
-    // 門牌可以是單一號碼（1974號）或範圍（798-812號）；結果的門牌只要落在範圍內／重疊，就算在這個地址
-    const addrKey = (()=>{
-      const m = normAddr(address).match(/([^0-9]{1,14}?[路街道])(\d+)(?:-(\d+))?(?:之(\d+))?號/);
-      if(!m) return null;
-      const lo = Number(m[2]), hi = m[3] ? Number(m[3]) : lo;
-      return { road: m[1].replace(/^.*[市區縣鄉鎮]/,""), lo: Math.min(lo,hi), hi: Math.max(lo,hi), range: !!m[3], sub: m[4]||"" };
-    })();
-    let geoLoc = null;
-    const atThisAddress = r=>{
-      if(addrKey){
-        const txt = normAddr((r.formatted_address||"") + " " + (r.vicinity||""));
-        const re = new RegExp(addrKey.road.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "(\\d+)(?:-(\\d+))?(?:之(\\d+))?號", "g");
-        const roadEsc = addrKey.road.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-        const re2 = new RegExp("(\\d+)(?:-(\\d+))?(?:之(\\d+))?號?" + roadEsc, "g");   // Google 有時把門牌放在路名前面：800 淮海中路
-        const hits = []; let mm;
-        while((mm = re.exec(txt))) hits.push(mm);
-        while((mm = re2.exec(txt))) hits.push(mm);
-        for(mm of hits){
-          const a = Number(mm[1]), b = mm[2] ? Number(mm[2]) : a;
-          const lo = Math.min(a,b), hi = Math.max(a,b);
-          if(hi < addrKey.lo || lo > addrKey.hi) continue;             // 門牌沒有重疊
-          if(!addrKey.range && !mm[2] && (mm[3]||"") !== addrKey.sub) continue;   // 單一門牌：「之幾」要一致
-          if(!addrKey.range && mm[2]) { /* 結果是範圍、查的是單號：落在範圍內就算 */ }
-          return true;
-        }
-        return false;
-      }
-      if(!geoLoc || !(r.geometry && r.geometry.location)) return false;
-      return haversineKm(geoLoc.lat(), geoLoc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) <= 0.04;
-    };
-    const pickList = (results, key, status)=>{
-      const seen = new Set(); const picks = [];
-      (results||[]).forEach(r=>{ if(isPlaceLike(r) && atThisAddress(r) && !seen.has(r.name)){ seen.add(r.name); picks.push(r); } });
-      if(key) dbg[key] = `${status}（${(results||[]).length}筆→留${picks.length}）`;
-      return picks;
-    };
-    const dbgText = ()=>`\n診斷：地址轉換 ${dbg.g||"-"}｜附近 ${dbg.n||"-"}｜文字搜尋 ${dbg.t||"-"}`;
-    // 第 2 步：用座標找附近約 80 公尺內的店家／酒店／景點；沒有再退回文字搜尋
-    // 地址附近（100 公尺內）的地點：地址完全相符的找不到時，當作「附近的可能地點」列出（會明確標示不一定是這個地址）
-    const NEAR_KM = 0.1;
-    const distKm = r => (geoLoc && r.geometry && r.geometry.location) ? haversineKm(geoLoc.lat(), geoLoc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) : 99;
-    const nearList = lists=>{
-      const seen = new Set(), out = [];
-      lists.forEach(l=>(l||[]).forEach(r=>{ if(isPlaceLike(r) && distKm(r) <= NEAR_KM && !seen.has(r.name)){ seen.add(r.name); out.push(r); } }));
-      return out.sort((a,b)=>distKm(a)-distKm(b)).slice(0,6);
-    };
-    const textFallback = (nearResults)=>{
-      svc.textSearch({ query: address }, (results, status)=>{
-        const picks = (status === okStatus) ? pickList(results, "t", status) : (dbg.t = status, []);
-        if(picks.length){ show(picks); return; }
-        say("找不到這個地址對應的店名，請手動輸入名稱建立" + dbgText(), "var(--seal)");   // 不再硬列「附近」的地點，避免選到不對的店
-      });
-    };
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address }, (gres, gstatus)=>{
-      dbg.g = gstatus;
-      if(gstatus === "OK" && gres && gres[0] && gres[0].geometry){
-        const loc = gres[0].geometry.location; geoLoc = loc;
-        svc.nearbySearch({ location: loc, radius: 100 }, (results, status)=>{
-          const picks = (status === okStatus) ? pickList(results, "n", status) : (dbg.n = status, []);
-          const d = r => (r.geometry && r.geometry.location) ? haversineKm(loc.lat(), loc.lng(), r.geometry.location.lat(), r.geometry.location.lng()) : 99;
-          if(picks.length >= 6){ picks.sort((a,b)=>d(a)-d(b)); show(picks.slice(0,6)); }
-          else if(picks.length){
-            // 附近只找到幾間：再用文字搜尋補找（例如 Google 的附近搜尋漏掉的店），合併後再顯示
-            svc.textSearch({ query: address }, (tres, tstatus)=>{
-              const more = (tstatus === okStatus) ? pickList(tres, "t", tstatus) : [];
-              const seenN = new Set(picks.map(x=>x.name));
-              more.forEach(x=>{ if(!seenN.has(x.name)){ seenN.add(x.name); picks.push(x); } });
-              picks.sort((a,b)=>d(a)-d(b)); show(picks.slice(0,6));
-            });
-          } else { textFallback(status === okStatus ? results : []); }
-        });
-      } else { textFallback([]); }
-    });
-  }catch(e){ console.error("address find failed", e); say("查不到，請直接輸入名稱", "var(--seal)"); }
-});
 
 document.getElementById("fGeocodeBtn").addEventListener("click", ()=>{
   const statusEl = document.getElementById("fGeocodeStatus");
@@ -3680,7 +3592,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     departTime: document.getElementById("fDepartTime").value || "",
     stayMinutes: (!isHotelDepartMode() && document.getElementById("fStayMinutes").value) ? Number(document.getElementById("fStayMinutes").value) : 0,
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
-    pinLeave: isHotelDepartMode() ? "" : (document.getElementById("fPinLeave").value || ""),
+    pinLeave: (isHotelDepartMode() || spotTimeMode!=="leave") ? "" : (document.getElementById("fPinLeave").value || ""),
     meal: (MEAL_CATS.includes(selectedSpotCat) || selectedSpotCat==="飯店") ? selectedSpotMeal : "",
     needTransport: (selectedSpotCat==="拍照" && !document.getElementById("fPhotoOnly").checked),
     lat: latLng ? latLng.lat : null,
@@ -3861,6 +3773,10 @@ function estimateDurationMinutes(mode, km){
     const mins = (nearPart*routingFactor) / speedKmh * 60 + (farPart*FAR_FACTOR) / FAR_SPEED_KMH * 60;
     return Math.max(3, Math.round(mins) + stationBuffer);
   }
+  // 船／纜車／接駁車：只是粗略估算（直線距離＋固定速度＋上下車緩衝），沒有考慮班次、等候和實際航線，一律標「僅供參考」
+  if(mode==="ferry")   return Math.max(10, Math.round((km*1.2)/15*60) + 10);
+  if(mode==="cable")   return Math.max(5,  Math.round((km*1.2)/15*60) + 5);
+  if(mode==="shuttle") return Math.max(10, Math.round((km*1.3)/25*60) + 10);
   return null;
 }
 
@@ -3910,7 +3826,7 @@ function findNearestMetroStation(lat, lng){
     const d = haversineKm(lat, lng, s.lat, s.lng);
     if(d < bestDist){ bestDist = d; best = s; }
   });
-  if(!best || bestDist > 3) return null; // too far to be a useful hint
+  if(!best || bestDist > 1.5) return null; // 內建清單不完整：離清單內任何一站超過 1.5 公里就不顯示，避免把很遠的站當成最近站
   return { name: best.name, distanceKm: bestDist };
 }
 
@@ -4100,7 +4016,7 @@ let currentTransportIsLeading = false;
 let durationIsAutoEstimated = false;
 let durEmptyReason = "";
 // 這些交通方式的時間要自己填（航程、班次無法用直線距離估算）
-const MANUAL_TIME_MODES = ["train","ferry","cable","shuttle"];
+const MANUAL_TIME_MODES = ["train"];   // 只有高鐵／新幹線要自己填時間；船、纜車、接駁車有粗略估算
 function updateDurationSourceNote(){
   const note = document.getElementById("tDurationAutoNote");
   if(MANUAL_TIME_MODES.includes(selectedMode)){
@@ -6466,7 +6382,8 @@ function buildPdfBlocks(){
   days.forEach((day, di)=>{
     const dateLabel = computeDateForDay(day);
     const dayBar = `<div class="day">第 ${di+1} 天${dateLabel ? "　"+esc(dateLabel) : ""}</div>`;
-    const dayHead = dayBar + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
+    const _mhP = mealStatusHtml(day, computeDerivedTimes(day));
+    const dayHead = dayBar + (_mhP ? `<div class="mealbar">${_mhP}</div>` : "") + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
     const hasSpot = arr.some(i=>i.type==="spot") || dayNotes(day).length>0;
@@ -6526,6 +6443,7 @@ const PDF_CSS = `
   .tc{flex:.78; min-width:0; font-size:12px; color:#2C86AD; line-height:1.5;}
   .adr{flex:1.1; min-width:0; color:#6b7885; font-size:12px; line-height:1.5; word-break:break-word;} .m{flex:.95; min-width:0; font-size:13px; color:#445; line-height:1.6; word-break:break-word;}
   .colh{display:flex; gap:12px; padding:6px 4px; border-bottom:2px solid #2C86AD; font-size:12px; color:#6b7885;} .colh .t{font-size:12px; font-weight:600;}
+  .mealbar{margin:6px 0 0; padding:6px 12px; border-radius:8px; background:#F3F6F8; font-size:13px; color:#445;}
   .tr{margin:0 0 0 74px; padding:5px 0; font-size:12px; color:#2C86AD;}
   .empty{color:#9aa5b0; font-size:13px; padding:6px 4px 2px;} .ft{margin-top:20px; font-size:12px; color:#9aa5b0; text-align:center;}
   .pn{position:absolute; bottom:16px; left:0; right:0; text-align:center; font-size:12px; color:#9aa5b0;}`;
