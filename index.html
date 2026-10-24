@@ -837,6 +837,10 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label>類型</label>
       <div class="chip-row" id="fCategoryChips"></div>
     </div>
+    <div class="field" id="fPhotoOnlyWrap" style="display:none;">
+      <label style="display:flex; align-items:center; gap:10px; font-size:15px; color:var(--ink); margin:0;"><input type="checkbox" id="fPhotoOnly" style="width:22px; height:22px; flex:none;"> 🚶 這裡不用走到（只拍照）</label>
+      <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">打勾：不產生交通，前後地點直接相接。不打勾：和一般地點一樣估算怎麼去。</p>
+    </div>
     <div class="field" id="fMealWrap" style="display:none;"><label>餐別（選填）</label>
       <div class="chip-row" id="fMealChips"></div>
     </div>
@@ -1449,7 +1453,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-193";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-194";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2436,6 +2440,9 @@ function dayItems(day){
 
 // 一天的完整順序＝已存的地點與交通，再補上「系統預估的交通」：
 // 相鄰兩個地點都有座標、中間又沒有交通時，自動帶出預估（不寫入資料；點開修改並儲存後才會真的存起來）
+// 「拍照」類預設只是拍照、不用走到：不產生交通、前後地點直接相接。
+// 個別拍照地點如果需要知道怎麼去，編輯時關掉「這裡不用走到」（存成 needTransport:true），就和一般地點一樣
+function skipsTransport(it){ return !!it && it.category==="拍照" && !it.needTransport; }
 function effectiveItems(day){
   const arr = dayItems(day);
   if(!canUseAdvanced()) return arr;
@@ -2443,10 +2450,10 @@ function effectiveItems(day){
   for(let i=0; i<arr.length; i++){
     out.push(arr[i]);
     const last = arr[i], b = arr[i+1];
-    if(last.type==="spot" && b && b.type==="spot" && b.category!=="拍照" && !b.noTransportBefore){   // noTransportBefore：使用者說「這段不需要交通」
+    if(last.type==="spot" && b && b.type==="spot" && !skipsTransport(b) && !b.noTransportBefore){   // noTransportBefore：使用者說「這段不需要交通」
       // 「拍照」類不用走到定點：估算交通跳過它們，改接前一個要走到的地點
       let a = last, k = i;
-      while(a && a.type==="spot" && a.category==="拍照"){ k--; a = k>=0 ? arr[k] : null; }
+      while(a && a.type==="spot" && skipsTransport(a)){ k--; a = k>=0 ? arr[k] : null; }
       if(!a || a.type!=="spot") continue;
       const sug = suggestTransport(a, b);
       if(sug && sug.km >= 0.1){
@@ -2617,7 +2624,7 @@ function renderDayList(){
     if(it.type==="spot"){
       list.appendChild(buildSpotCard(it, derived[it.id]));
       const next = arr[idx+1];
-      if(next && next.type==="spot" && it.category!=="拍照" && next.category!=="拍照" && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
+      if(next && next.type==="spot" && !skipsTransport(it) && !skipsTransport(next) && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
         list.appendChild(buildAddTransportGhost(it, next, derived));
       }
     } else if(it.type==="transport"){
@@ -2947,6 +2954,9 @@ function syncHotelDepartExclusive(){
 }
 document.getElementById("fDepartTime").addEventListener("input", syncHotelDepartExclusive);
 document.getElementById("fDepartTime").addEventListener("change", syncHotelDepartExclusive);
+function syncPhotoOnlyWrap(){
+  const w = document.getElementById("fPhotoOnlyWrap"); if(w) w.style.display = (selectedSpotCat==="拍照") ? "block" : "none";
+}
 function renderSpotCatChips(){
   fCategoryChips.innerHTML = "";
   getAllSpotCategories().forEach(cat=>{
@@ -2963,6 +2973,7 @@ function renderSpotCatChips(){
   });
   renderMealChips();
   syncHotelDepartExclusive();
+  syncPhotoOnlyWrap();
 }
 
 let currentSpotPhoto = "";
@@ -3271,6 +3282,7 @@ function openSpotModal(spot){
   document.getElementById("fPinArriveWrap").style.display = (departWrap.style.display==="none") ? "block" : "none";   // 第一個地點已有「從飯店出發」時間，不重複問抵達
   selectedSpotCat = spot ? (spot.category||"景點") : "景點";
   selectedSpotMeal = spot ? (spot.meal||"") : "";
+  document.getElementById("fPhotoOnly").checked = spot ? !spot.needTransport : true;   // 拍照預設「不用走到」；舊資料沒有這個欄位，維持原本行為
   fStayTouched = false;   // 換類型時依新類型帶預設；只有這次開啟後自己動過停留時間欄位，才不再自動改
   if(!spot) syncSpotStay();                       // 新增：一開啟就帶預設；編輯舊景點：打開不改，選類型才帶
   renderSpotCatChips();
@@ -3667,6 +3679,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     pinArrive: document.getElementById("fPinArriveWrap").style.display==="none" ? "" : (document.getElementById("fPinArrive").value || ""),
     pinLeave: isHotelDepartMode() ? "" : (document.getElementById("fPinLeave").value || ""),
     meal: (MEAL_CATS.includes(selectedSpotCat) || selectedSpotCat==="飯店") ? selectedSpotMeal : "",
+    needTransport: (selectedSpotCat==="拍照" && !document.getElementById("fPhotoOnly").checked),
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
     name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
