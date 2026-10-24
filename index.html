@@ -923,6 +923,9 @@ header #mapBtn, header #settingsBtn{
         <div class="chip" data-v="taxi">🚕 計程車</div>
         <div class="chip" data-v="walk">🚶 步行</div>
         <div class="chip" data-v="train" id="trainChip">🚄 高鐵/新幹線</div>
+        <div class="chip" data-v="ferry">🚢 船/渡輪</div>
+        <div class="chip" data-v="cable">🚡 纜車</div>
+        <div class="chip" data-v="shuttle">🚐 接駁車</div>
       </div>
     </div>
     <p id="tStationHint" style="font-size:12px; color:var(--seal); line-height:1.6; margin:-8px 0 12px; display:none;"></p>
@@ -1255,8 +1258,8 @@ let _firebaseReady = false;
 _firebaseReady = !!db;
 
 const HOLDING = "_holding";
-const TRANSPORT_ICON = { jr:"🚃", subway:"🚇", taxi:"🚕", walk:"🚶", train:"🚄", drive:"🚗" };
-const TRANSPORT_LABEL_BASE = { jr:"JR", subway:"地鐵/公車", taxi:"計程車", walk:"步行", train:"高鐵/新幹線", drive:"自駕" };
+const TRANSPORT_ICON = { jr:"🚃", subway:"🚇", taxi:"🚕", walk:"🚶", train:"🚄", drive:"🚗", ferry:"🚢", cable:"🚡", shuttle:"🚐" };
+const TRANSPORT_LABEL_BASE = { jr:"JR", subway:"地鐵/公車", taxi:"計程車", walk:"步行", train:"高鐵/新幹線", drive:"自駕", ferry:"船/渡輪", cable:"纜車", shuttle:"接駁車" };
 function isTaiwanTrip(){ const t = getActiveTrip(); return !!(t && t.region==="taiwan"); }
 // 輸入框的範例文字：依行程地區顯示當地的例子（日本／大陸／台灣）
 const REGION_EXAMPLES = {
@@ -1453,7 +1456,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-194";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-195";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4061,6 +4064,7 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
     : (isLeading && !_bothGeo)
     ? "⚠️ 這段沒有出發地點的位置，無法估算，請自行輸入時間"
     : "依直線距離估算，僅供參考";
+  if(MANUAL_TIME_MODES.includes(selectedMode)) updateDurationSourceNote();   // 高鐵／船／纜車／接駁車：說明文字改成「請自行填寫」
   const manualWrap = document.getElementById("tManualDepartWrap");
   if(isLeading){
     const s = flightSettings || {};
@@ -4095,8 +4099,16 @@ let currentTransportIsLeading = false;
 
 let durationIsAutoEstimated = false;
 let durEmptyReason = "";
+// 這些交通方式的時間要自己填（航程、班次無法用直線距離估算）
+const MANUAL_TIME_MODES = ["train","ferry","cable","shuttle"];
 function updateDurationSourceNote(){
   const note = document.getElementById("tDurationAutoNote");
+  if(MANUAL_TIME_MODES.includes(selectedMode)){
+    // 高鐵、船、纜車、接駁車：時間一定是自己填的，不標成「系統估算」，說明文字也不要寫「依直線距離」
+    const _nm = (selectedMode==="train") ? "高鐵／新幹線" : TRANSPORT_LABEL_BASE[selectedMode].replace("/","／");
+    const _h = document.getElementById("tEstimateHint"); if(_h && !(_h.textContent||"").startsWith("按「儲存」")) _h.textContent = _nm + "不會自動估算，時間請自行填寫";
+    if(tDuration.value){ note.textContent = "✏️ 自訂時間"; note.style.color = "var(--sub)"; note.style.display = "block"; return; }
+  }
   if(!tDuration.value){
     // 算不出來時，直接在欄位下方說明原因，避免空白看起來像壞掉
     if(durEmptyReason){ note.textContent = "ℹ️ " + durEmptyReason; note.style.color = "var(--sub)"; note.style.display = "block"; }
@@ -4119,7 +4131,7 @@ function applyDistanceEstimateIfEmpty(){
   durEmptyReason = "";
   if(tDuration.value && !durationIsAutoEstimated) return;
   const _hint = document.getElementById("tEstimateHint");
-  if(selectedMode==="train"){ _hint.textContent = "高鐵／新幹線不會自動估算，請自行輸入時間"; durEmptyReason = "高鐵／新幹線不會自動估算，請自行選時間"; if(durationIsAutoEstimated && tDuration.value){ tDuration.value = ""; } updateDurationSourceNote(); return; }
+  if(MANUAL_TIME_MODES.includes(selectedMode)){ const _nm = (selectedMode==="train") ? "高鐵／新幹線" : TRANSPORT_LABEL_BASE[selectedMode].replace("/","／"); _hint.textContent = _nm + "不會自動估算，請自行輸入時間"; durEmptyReason = _nm + "不會自動估算，請自行選時間"; if(durationIsAutoEstimated && tDuration.value){ tDuration.value = ""; } updateDurationSourceNote(); return; }
   const p = currentTransportPrevSpot, n = currentTransportNextSpot;
   if(!p || !n || p.lat==null || n.lat==null){
     // 兩端都有地點、但其中一個沒有位置：明講是哪一個，不要讓人以為系統壞了
