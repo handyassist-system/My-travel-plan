@@ -825,7 +825,7 @@ header #mapBtn, header #settingsBtn{
     <div class="field" id="fPinArriveWrap"><label>抵達時間（選填，不填由系統算）</label><input id="fPinArrive" type="time"></div>
     <div class="field" id="fStayWrap"><label>停留時間（選填）</label>
       <div style="display:flex; align-items:center; gap:8px;"><select id="fStayH" style="flex:1;"></select><span style="font-size:14px;">小時</span><select id="fStayM" style="flex:1;"></select><span style="font-size:14px;">分</span></div>
-      <input id="fStayMinutes" type="hidden"></div>
+      <input id="fStayMinutes" type="hidden"><p id="fHotelStayNote" style="display:none; font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.5;">飯店不預設停留時間，可不填；如果是今天第一個地點，請在上面填「幾點從飯店出發」。</p></div>
     <div class="field" id="fPinLeaveWrap"><label>離開時間（選填，不填由系統算）</label><input id="fPinLeave" type="time"></div>
     <p id="fStayHint" style="font-size:12px; color:var(--sub); margin:-6px 0 4px; line-height:1.5;">停留和離開填一個就好，都填以離開時間為準。全部可以不填，系統會自動估算。</p>
     </div>
@@ -945,7 +945,7 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h"><span>📝 備註</span></div>
     <div class="field"><label>備註（選填）</label><textarea id="tExpNote" placeholder="補充說明"></textarea></div>
     </div>
-    <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🗑 刪除這段交通</button>
+    <button id="transDelete" style="display:none; width:100%; padding:12px; border:none; border-radius:var(--radius-md); background:#F7E0DD; color:var(--danger); font-size:14px; font-weight:700; margin-bottom:10px;">🚫 這段不需要交通</button>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="transCancel">取消</button>
       <button class="btn btn-primary" id="transSave">儲存</button>
@@ -1424,7 +1424,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-184";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-188";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2418,7 +2418,7 @@ function effectiveItems(day){
   for(let i=0; i<arr.length; i++){
     out.push(arr[i]);
     const last = arr[i], b = arr[i+1];
-    if(last.type==="spot" && b && b.type==="spot" && b.category!=="拍照"){
+    if(last.type==="spot" && b && b.type==="spot" && b.category!=="拍照" && !b.noTransportBefore){   // noTransportBefore：使用者說「這段不需要交通」
       // 「拍照」類不用走到定點：估算交通跳過它們，改接前一個要走到的地點
       let a = last, k = i;
       while(a && a.type==="spot" && a.category==="拍照"){ k--; a = k>=0 ? arr[k] : null; }
@@ -2766,7 +2766,7 @@ function syncSpotExpCat(){
   if(sel && !fExpCatTouched) sel.value = SPOT_EXPENSE_CAT[selectedSpotCat] || "其他";
 }
 // 餐別：餐廳類景點可自己指定早餐／午餐／下午茶／晚餐（「自動」＝PDF 依抵達時間判斷早／午／晚餐；「不標示」＝不標）
-const MEAL_CATS = ["餐廳","小吃","咖啡廳","飲料"];
+const MEAL_CATS = ["餐廳","小吃","咖啡廳"];   // 飲料不算一餐，不提供餐別
 const MEAL_OPTIONS = [["","自動"],["早餐","早餐"],["午餐","午餐"],["下午茶","下午茶"],["晚餐","晚餐"],["none","不標示"]];
 let selectedSpotMeal = "";
 const HOTEL_MEAL_OPTIONS = [["","不標示"],["含早餐","含早餐"]];   // 飯店只有「含早餐」一個選項
@@ -2826,6 +2826,7 @@ function isHotelDepartMode(){
 function syncHotelDepartExclusive(){
   const on = isHotelDepartMode();
   ["fStayWrap","fPinLeaveWrap","fStayHint"].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = on ? "none" : ""; });
+  const hn = document.getElementById("fHotelStayNote"); if(hn) hn.style.display = (selectedSpotCat==="飯店" && !on) ? "block" : "none";
 }
 document.getElementById("fDepartTime").addEventListener("input", syncHotelDepartExclusive);
 document.getElementById("fDepartTime").addEventListener("change", syncHotelDepartExclusive);
@@ -2913,7 +2914,15 @@ const POOL_PAYER = "公費現金";
 function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   const trip = getActiveTrip();
   const members = trip && trip.members ? trip.members : [];
-  if(members.length===0){ wrapEl.style.display = "none"; selectEl.innerHTML = ""; return; }
+  let nm = wrapEl.nextElementSibling && wrapEl.nextElementSibling.classList.contains("nomem-note") ? wrapEl.nextElementSibling : null;
+  if(members.length===0){
+    wrapEl.style.display = "none"; selectEl.innerHTML = "";
+    // 沒有成員時不是壞掉：說明為什麼沒有付款人可選
+    if(!nm){ nm = document.createElement("p"); nm.className = "nomem-note"; nm.style.cssText = "font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;"; nm.textContent = "💡 還沒有旅伴，所以沒有「付款人」可選。到「編輯行程」加入旅伴後就會出現。"; wrapEl.parentNode.insertBefore(nm, wrapEl.nextSibling); }
+    nm.style.display = "";
+    return;
+  }
+  if(nm) nm.style.display = "none";
   wrapEl.style.display = "block";
   selectEl.innerHTML = "";
   let poolNote = wrapEl.querySelector(".pool-note");
@@ -3938,7 +3947,8 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   }
   document.getElementById("tJrCustomForm").style.display = "none";
 
-  document.getElementById("transDelete").style.display = it ? "block" : "none";
+  // 「這段不需要交通」：已存的交通＝刪除並不再自動估算；系統估算的交通（還沒存）＝直接標記不需要。只有兩端都是真的地點才提供（機場那端沒有這個選項）
+  document.getElementById("transDelete").style.display = (it || (currentTransportPrevSpot && currentTransportPrevSpot.id && currentTransportNextSpot && currentTransportNextSpot.id)) ? "block" : "none";
   transModalMask.classList.add("show");
 }
 
@@ -4100,10 +4110,25 @@ document.getElementById("tExpToggle").addEventListener("click", ()=>{
   setExpOpen("t", true);
   document.getElementById("tExpFields").style.display = "block";
 });
+// 標記「後一個地點前面不要交通」：系統就不會再自動估算、也不會再冒出來；想要時按兩地點中間的「＋ 交通」
+async function markNoTransportBefore(nextSpot, on){
+  if(!nextSpot || !nextSpot.id || nextSpot.airport) return;
+  nextSpot.noTransportBefore = !!on;
+  await db.collection(COLLECTION).doc(nextSpot.id).update({ noTransportBefore: !!on });
+}
 document.getElementById("transDelete").addEventListener("click", async ()=>{
-  if(!pendingTransport.id) return;
-  if(!await askConfirm("刪除這段交通", "刪除後無法復原。", "刪除")) return;
-  try{ await db.collection(COLLECTION).doc(pendingTransport.id).delete(); closeTransportModal(); }
+  const nx = currentTransportNextSpot;
+  if(!pendingTransport.id){   // 系統估算的交通：不用刪資料，標記不需要就好
+    try{ await markNoTransportBefore(nx, true); closeTransportModal(); }
+    catch(e){ console.error("mark no transport failed", e); travelToast(failMsg("儲存", e)); }
+    return;
+  }
+  if(!await askConfirm("這段不需要交通", "這兩個地點之間不會再顯示交通；之後想要可按中間的「＋ 交通」。", "確定")) return;
+  try{
+    await db.collection(COLLECTION).doc(pendingTransport.id).delete();
+    if(nx && nx.id && !nx.airport) await markNoTransportBefore(nx, true);
+    closeTransportModal();
+  }
   catch(e){ console.error("delete transport failed", e); travelToast(failMsg("刪除", e)); }
 });
 transModalMask.addEventListener("click",(e)=>{ if(e.target===transModalMask) closeTransportModal(); });
@@ -4128,6 +4153,8 @@ document.getElementById("transSave").addEventListener("click", async ()=>{
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection(COLLECTION).add(data);
     }
+    // 自己新增交通＝這段需要交通，取消「不需要交通」標記
+    if(currentTransportNextSpot && currentTransportNextSpot.id && currentTransportNextSpot.noTransportBefore){ await markNoTransportBefore(currentTransportNextSpot, false); }
     closeTransportModal();
   }catch(e){ console.error("save transport failed", e); travelToast(failMsg("儲存", e)); }
 });
@@ -4149,9 +4176,17 @@ async function deleteSpotWithAdjacentTransport(spot){
     : "確定要刪除嗎？";
   if(!await askConfirm("刪除地點", msg, "刪除")) return;
   try{
+    const backup = toDelete.map(id=>items.find(i=>i.id===id)).filter(Boolean).map(x=>{ const c = Object.assign({}, x); delete c.id; return [x.id, c]; });
     const batch = db.batch();
     toDelete.forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
     await batch.commit();
+    undoToast(toDelete.length>1 ? "已刪除地點和相連的交通" : "已刪除地點", async ()=>{
+      try{
+        const b2 = db.batch();
+        backup.forEach(([id,c])=>b2.set(db.collection(COLLECTION).doc(id), c));
+        await b2.commit(); travelToast("已復原");
+      }catch(e){ console.error("undo failed", e); travelToast(failMsg("復原", e)); }
+    });
     if(idx===0){
       const remaining = arr.filter(i=>!toDelete.includes(i.id));
       const newFirst = remaining[0];
@@ -6354,6 +6389,40 @@ function makePdfFromJpegs(pagesData, title){
   return new Blob([out], { type:"application/pdf" });
 }
 let pdfBusy = false;
+function downloadPdfBlob(blob, title){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; const _d = new Date(), _q = n=>String(n).padStart(2,"0");
+  a.download = (title.replace(/[\\/:*?"<>|]/g,"_").trim() || "行程") + `_${_q(_d.getMonth()+1)}${_q(_d.getDate())}_${_q(_d.getHours())}${_q(_d.getMinutes())}.pdf`;   // 檔名帶產生時間，才不會點到舊檔
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  travelToast("PDF 已產生，請到下載項目查看");
+}
+// PDF 預覽：把每一頁顯示出來，確認內容和分頁沒問題再下載（預覽的圖就是 PDF 裡的頁面）
+function showPdfPreview(data, title, blob){
+  let ov = document.getElementById("pdfPreview");
+  if(ov) ov.remove();
+  const _tt = document.getElementById("_tToast"); if(_tt){ _tt.style.opacity = "0"; }   // 收起「正在產生」提示
+  const urls = data.map(d=>URL.createObjectURL(new Blob([d.bytes], { type:"image/jpeg" })));
+  ov = document.createElement("div"); ov.id = "pdfPreview";
+  ov.style.cssText = "position:fixed; inset:0; z-index:9500; background:#3a3f45; display:flex; flex-direction:column;";
+  ov.innerHTML = `<div style="flex:none; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#2b2f34; color:#fff;">
+      <div style="font-size:16px; font-weight:700;">PDF 預覽　<span style="font-size:13px; font-weight:400; opacity:.8;">共 ${data.length} 頁</span></div>
+      <button type="button" id="pdfPvClose" style="background:none; border:none; color:#fff; font-size:15px; padding:6px 4px;">✕ 關閉</button></div>
+    <div id="pdfPvBody" style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 4px;"></div>
+    <div style="flex:none; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:#2b2f34;">
+      <button type="button" id="pdfPvSave" style="width:100%; padding:13px; border:none; border-radius:12px; background:var(--seal,#2C86AD); color:#fff; font-size:16px; font-weight:700;">⬇️ 下載 PDF</button></div>`;
+  const body = ov.querySelector("#pdfPvBody");
+  urls.forEach((u,i)=>{
+    const im = document.createElement("img"); im.src = u; im.alt = "第 " + (i+1) + " 頁";
+    im.style.cssText = "display:block; width:100%; max-width:640px; margin:0 auto 12px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.4);";
+    body.appendChild(im);
+  });
+  const close = ()=>{ ov.remove(); urls.forEach(u=>URL.revokeObjectURL(u)); };
+  ov.querySelector("#pdfPvClose").addEventListener("click", close);
+  ov.querySelector("#pdfPvSave").addEventListener("click", ()=>{ downloadPdfBlob(blob, title); });
+  document.body.appendChild(ov);
+}
 async function exportItineraryPdf(){
   if(pdfBusy) return;
   pdfBusy = true;
@@ -6365,13 +6434,7 @@ async function exportItineraryPdf(){
     for(let i=0;i<pages.length;i++) data.push(await renderPdfPageJpeg(pages[i], i+1, pages.length, cls));
     const title = trip ? trip.name : "行程";
     const blob = makePdfFromJpegs(data, title);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; const _d = new Date(), _q = n=>String(n).padStart(2,"0");
-    a.download = (title.replace(/[\\/:*?"<>|]/g,"_").trim() || "行程") + `_${_q(_d.getMonth()+1)}${_q(_d.getDate())}_${_q(_d.getHours())}${_q(_d.getMinutes())}.pdf`;   // 檔名帶產生時間，才不會點到舊檔
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 60000);
-    travelToast("PDF 已產生，請到下載項目查看");
+    showPdfPreview(data, title, blob);   // 先預覽，滿意再按「下載」
   } finally { pdfBusy = false; }
 }
 
@@ -6581,6 +6644,19 @@ function failMsg(what, err){
 }
 
 // ===== 小提示 =====
+// 刪除後的「復原」提示：6 秒內可以點「復原」
+function undoToast(msg, onUndo){
+  let el = document.getElementById("_uToast");
+  if(!el){
+    el = document.createElement("div"); el.id = "_uToast";
+    el.style.cssText = "position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(45,50,56,.96);color:#fff;font-size:14px;padding:10px 14px;border-radius:12px;z-index:9999;display:none;align-items:center;gap:14px;max-width:90%;";
+    el.innerHTML = '<span id="_uMsg"></span><button type="button" id="_uBtn" style="background:none;border:none;color:#8fd3f4;font-size:15px;font-weight:700;padding:4px 6px;">復原</button>';
+    document.body.appendChild(el);
+  }
+  el.querySelector("#_uMsg").textContent = msg;
+  const btn = el.querySelector("#_uBtn"); btn.onclick = ()=>{ el.style.display = "none"; clearTimeout(el._t); onUndo(); };
+  el.style.display = "flex"; clearTimeout(el._t); el._t = setTimeout(()=>{ el.style.display = "none"; }, 6000);
+}
 function travelToast(msg, ms){
   var el=document.getElementById('_tToast');
   if(!el){
