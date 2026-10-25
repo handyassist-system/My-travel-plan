@@ -898,11 +898,8 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card" id="fMoreFields" style="display:none;"><div class="sec-h">📷 照片</div>
     <div class="field"><label>照片（例如菜單、地圖截圖）</label>
       <input id="fPhotoInput" type="file" accept="image/*" style="display:none;">
-      <div id="fPhotoPreviewWrap" style="display:none; position:relative; width:100%; max-width:220px; margin-bottom:8px;">
-        <img id="fPhotoPreview" style="width:100%; border-radius:12px; display:block;">
-        <button type="button" id="fPhotoRemove" style="position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%; border:none; background:var(--seal); color:#fff; font-size:14px;">✕</button>
-      </div>
-      <button type="button" id="fPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
+      <div id="fPhotoList" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px;"></div>
+      <button type="button" id="fPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 加照片（最多 3 張）</button>
       <p id="fPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
     </div>
     </div>
@@ -1461,7 +1458,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-203";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-206";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2634,6 +2631,10 @@ function renderDayList(){
     }
   }
 
+  { let _hinted = false; try{ _hinted = localStorage.getItem("tripDragHinted")==="1"; }catch(e){}
+    if(!_hinted && arr.filter(i=>i.type==="spot").length>=2 && (typeof canEdit!=="function" || canEdit())){
+      const h = document.createElement("div"); h.id = "dragHint"; h.style.cssText = "margin:0 0 10px; font-size:12px; color:var(--sub); line-height:1.6;";
+      h.textContent = "💡 長按景點卡（約 0.5 秒）再拖曳，就可以換順序；也可以用卡片上的 ▲▼。"; list.appendChild(h); } }
   const warn = buildFlightWarning(derived);
   if(warn) list.appendChild(warn);
 
@@ -2739,7 +2740,7 @@ function buildSpotCard(it, d){
         ${metaParts.length ? `<p class="spot-meta">${metaParts.join(" · ")}</p>` : ""}
         ${it.note ? `<p class="spot-note">📍${escapeHtml(it.note)}</p>` : ""}
         ${it.memo ? `<p class="spot-note">📝${escapeHtml(it.memo)}</p>` : ""}
-        ${it.photo ? `<img src="${it.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; margin:4px 0 0; display:block;">` : ""}
+        ${spotPhotosOf(it).length ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 0;">${spotPhotosOf(it).map((u,i)=>`<img data-ph="${i}" src="${u}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; display:block;">`).join("")}</div>` : ""}
         ${exp}
       </div>
     </div>
@@ -2766,7 +2767,7 @@ function buildSpotCard(it, d){
       openExpenseModal(null, { name: it.name || "", date: isoDateForDay(it.day), category: _cat });
     }); }
   attachSpotDrag(card, it);
-  const _im = card.querySelector(".spot-body img"); if(_im){ _im.style.cursor = "zoom-in"; _im.addEventListener("click", e=>{ e.stopPropagation(); openPhotoLightbox(it.photo); }); }
+  { const _ph = spotPhotosOf(it); card.querySelectorAll(".spot-body img[data-ph]").forEach(_im=>{ _im.style.cursor = "zoom-in"; _im.addEventListener("click", e=>{ e.stopPropagation(); openPhotoLightbox(_ph[Number(_im.dataset.ph)]); }); }); }
   return card;
 }
 
@@ -2779,6 +2780,7 @@ function buildTransportChip(it, d){
   const durationStr = it.duration ? `約${escapeHtml(fmtMin(it.duration))}` : `<span style="color:var(--seal); font-weight:600;">尚未設定時間</span>`;
   row.innerHTML = `<div class="transport-chip">${TRANSPORT_ICON[it.mode]||"🚇"} ${TRANSPORT_LABEL[it.mode]||""} · ${durationStr}${exp}${stationStr}</div>`;
   row.querySelector(".transport-chip").addEventListener("click", ()=>openTransportModal(it, d.depart));
+  if(it.note){ row.style.flexWrap = "wrap"; const nt = document.createElement("div"); nt.style.cssText = "flex-basis:100%; font-size:12px; color:var(--sub); line-height:1.6; white-space:pre-wrap;"; nt.textContent = "📝 " + it.note; row.appendChild(nt); }   // 備註也要看得到
   return row;
 }
 
@@ -3063,7 +3065,9 @@ function renderSpotCatChips(){
   syncPhotoOnlyWrap();
 }
 
-let currentSpotPhoto = "";
+let currentSpotPhotos = [];
+const SPOT_PHOTO_MAX = 3, SPOT_PHOTO_BYTES = 150000;   // 每個景點最多 3 張、每張壓到 150KB 內（整筆資料上限 1MB）
+function spotPhotosOf(it){ return (it && Array.isArray(it.photos) && it.photos.length) ? it.photos : ((it && it.photo) ? [it.photo] : []); }
 function compressImageFile(file, maxWidth){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
@@ -3085,28 +3089,34 @@ function compressImageFile(file, maxWidth){
     reader.readAsDataURL(file);
   });
 }
-function setSpotPhotoPreview(dataUrl){
-  currentSpotPhoto = dataUrl || "";
-  document.getElementById("fPhotoPreviewWrap").style.display = currentSpotPhoto ? "block" : "none";
-  document.getElementById("fPhotoPickBtn").style.display = currentSpotPhoto ? "none" : "block";
-  if(currentSpotPhoto) document.getElementById("fPhotoPreview").src = currentSpotPhoto;
+function setSpotPhotos(arr){
+  currentSpotPhotos = (arr || []).slice(0, SPOT_PHOTO_MAX);
+  const box = document.getElementById("fPhotoList"); box.innerHTML = "";
+  currentSpotPhotos.forEach((u, i)=>{
+    const w = document.createElement("div"); w.style.cssText = "position:relative; width:96px;";
+    w.innerHTML = `<img src="${u}" style="width:96px; height:96px; object-fit:cover; border-radius:12px; display:block; cursor:zoom-in;"><button type="button" style="position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%; border:none; background:var(--seal); color:#fff; font-size:14px;">✕</button>`;
+    w.querySelector("img").addEventListener("click", ()=>openPhotoLightbox(u));
+    w.querySelector("button").addEventListener("click", ()=>{ const a = currentSpotPhotos.slice(); a.splice(i,1); setSpotPhotos(a); });
+    box.appendChild(w);
+  });
+  document.getElementById("fPhotoPickBtn").style.display = currentSpotPhotos.length < SPOT_PHOTO_MAX ? "block" : "none";
 }
 document.getElementById("fPhotoPickBtn").addEventListener("click", ()=>document.getElementById("fPhotoInput").click());
-document.getElementById("fPhotoRemove").addEventListener("click", ()=>setSpotPhotoPreview(""));
 document.getElementById("fPhotoInput").addEventListener("change", async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
   const status = document.getElementById("fPhotoStatus");
   status.style.display = "block"; status.textContent = "處理中...";
   try{
-    const dataUrl = await compressImageFile(file, 500);
-    // Rough size guard: Firestore documents cap at 1MB total, keep photos
-    // well under that so the rest of the spot's fields always fit.
-    if(dataUrl.length > 700000){
+    let dataUrl = "";
+    for(const mw of [500, 400, 320]){ dataUrl = await compressImageFile(file, mw); if(dataUrl.length <= SPOT_PHOTO_BYTES) break; }
+    // Firestore 一筆資料上限 1MB：每張壓到 150KB 內，最多 3 張，其他欄位一定放得下
+    if(dataUrl.length > SPOT_PHOTO_BYTES){
       status.textContent = "圖片壓縮後仍太大，請換一張較小的圖片";
-      return;
+      e.target.value = ""; return;
     }
-    setSpotPhotoPreview(dataUrl);
+    if(currentSpotPhotos.length >= SPOT_PHOTO_MAX){ status.textContent = "最多 3 張"; e.target.value = ""; return; }
+    setSpotPhotos(currentSpotPhotos.concat([dataUrl]));
     status.style.display = "none";
   }catch(err){
     console.error("compress image failed", err);
@@ -3379,7 +3389,7 @@ function openSpotModal(spot){
   fNote.value = spot ? (spot.note||"") : "";
   fNote.placeholder = "例：" + regionExample("addr");
   document.getElementById("fMemo").value = spot ? (spot.memo||"") : "";
-  setSpotPhotoPreview(spot ? (spot.photo||"") : "");
+  setSpotPhotos(spotPhotosOf(spot));
   document.getElementById("fPhotoStatus").style.display = "none";
   fExpAmount.value = spot && spot.expense ? (spot.expense.amount||"") : "";
   setCurrencyChip(fCurrencyChips, spot && spot.expense ? spot.expense.currency : primaryCurrencyForTrip());
@@ -3404,7 +3414,7 @@ function openSpotModal(spot){
   // 花費：已有金額就直接展開；沒有則收起，點「記錄這裡的花費」才出現
   setExpOpen("f", hasExpense);
   // 更多選項：已有備註或照片時自動展開，避免讓人以為資料不見了
-  const hasMore = !!(spot && spot.photo);
+  const hasMore = spotPhotosOf(spot).length > 0;
   document.getElementById("fMoreFields").style.display = hasMore ? "block" : "none";
   document.getElementById("fMoreToggle").style.display = hasMore ? "none" : "block";
   applyTimeMode();
@@ -3484,6 +3494,7 @@ async function finishSpotDrag(){
   if(d.k === d.srcIdx) return;
   const others = d.cards.filter(c=>c!==d.card).map(c=>items.find(i=>i.id===c.dataset.spotId)).filter(Boolean);
   await reorderSpotTo(d.it, d.k, others);
+  try{ localStorage.setItem("tripDragHinted","1"); }catch(e){}   // 已經拖曳換過順序：之後不再顯示提示
 }
 // 把 spot 放到「其餘地點」的第 k 個位置（0＝最前面）；出發時間跟著「第一個位置」走
 async function reorderSpotTo(spot, k, others){
@@ -3634,7 +3645,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     needTransport: (selectedSpotCat==="拍照" && !document.getElementById("fPhotoOnly").checked),
     lat: latLng ? latLng.lat : null,
     lng: latLng ? latLng.lng : null,
-    name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhoto,
+    name, note: fNote.value.trim(), memo: document.getElementById("fMemo").value.trim(), photo: currentSpotPhotos[0] || "", photos: currentSpotPhotos.slice(),
     expense: { amount: fExpAmount.value ? Number(fExpAmount.value) : 0, category: document.getElementById("fExpCat").value || SPOT_EXPENSE_CAT[selectedSpotCat] || "其他", payer: fExpPayer.value||"", currency: getCurrencyChip(fCurrencyChips), sharedBy: readSharedByIn("fShareChips"), date: document.getElementById("fExpDate").value || "" }
   };
   try{
@@ -5280,6 +5291,70 @@ function renderFlightForm(){
   document.getElementById("fsrPaySub").style.display = (document.getElementById("fsrPayerWrap").style.display!=="none") ? "block" : "none";
   setv("fsrExpDate", s.retExpenseDate); setv("fsrExpNote", s.retExpenseNote);
   renderFlightExpenseTitle();
+  renderFlightPhotos();
+}
+// ---------- 機票／航班動態截圖（去程、回程各一張；只放在航班頁，不進 PDF 和分享文字）----------
+const FLIGHT_PHOTO_MAX = 380000;   // 兩張都存在同一份航班資料裡，單張限制小一點，避免超過 Firestore 1MB
+function flightPhotoWrap(dir){
+  const id = "fs"+dir+"PhotoWrap";
+  let w = document.getElementById(id);
+  if(w) return w;
+  const card = document.getElementById(dir==="Out" ? "fsOutCard" : "fsRetCard"); if(!card) return null;
+  w = document.createElement("div"); w.className = "field"; w.id = id;
+  w.innerHTML = `<label>📷 機票／航班動態截圖（選填）</label>
+    <input type="file" accept="image/*" id="fs${dir}PhotoInput" style="display:none;">
+    <div id="fs${dir}PhotoView" style="display:none;">
+      <img id="fs${dir}PhotoImg" style="width:100%; max-width:260px; border-radius:12px; display:block; cursor:zoom-in;">
+      <p id="fs${dir}PhotoAt" style="font-size:12px; color:var(--sub); margin:6px 0;"></p>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="fs${dir}PhotoChange" style="flex:1; padding:10px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">更換照片</button>
+        <button type="button" id="fs${dir}PhotoDel" style="flex:1; padding:10px; border:1px solid var(--line); background:var(--bg); color:var(--danger); border-radius:var(--radius-md); font-size:13px;">刪除</button>
+      </div>
+    </div>
+    <button type="button" id="fs${dir}PhotoPick" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
+    <p id="fs${dir}PhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>`;
+  card.appendChild(w);
+  const inp = w.querySelector("#fs"+dir+"PhotoInput");
+  w.querySelector("#fs"+dir+"PhotoPick").addEventListener("click", ()=>inp.click());
+  w.querySelector("#fs"+dir+"PhotoChange").addEventListener("click", ()=>inp.click());
+  w.querySelector("#fs"+dir+"PhotoImg").addEventListener("click", ()=>openPhotoLightbox((flightSettings||{})[dir.toLowerCase()+"Photo"]));
+  w.querySelector("#fs"+dir+"PhotoDel").addEventListener("click", async ()=>{
+    if(!await askConfirm("刪除這張照片", "刪除後無法復原。", "刪除")) return;
+    await saveFlightPhoto(dir, "");
+  });
+  inp.addEventListener("change", async (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const st = w.querySelector("#fs"+dir+"PhotoStatus");
+    st.style.display = "block"; st.textContent = "處理中...";
+    try{
+      let url = "";
+      for(const mw of [800, 640, 500]){ url = await compressImageFile(file, mw); if(url.length <= FLIGHT_PHOTO_MAX) break; }
+      if(url.length > FLIGHT_PHOTO_MAX){ st.textContent = "圖片壓縮後仍太大，請換一張較小的圖片"; e.target.value = ""; return; }
+      await saveFlightPhoto(dir, url);
+      st.style.display = "none";
+    }catch(err){ console.error("flight photo failed", err); st.textContent = "圖片無法處理，請換一張圖片"; }
+    e.target.value = "";
+  });
+  return w;
+}
+async function saveFlightPhoto(dir, url){
+  if(!activeTripId) return;
+  const k = dir.toLowerCase();
+  const p2 = n=>String(n).padStart(2,"0"), d = new Date();
+  const at = url ? (d.getMonth()+1)+"/"+d.getDate()+" "+p2(d.getHours())+":"+p2(d.getMinutes()) : "";
+  try{
+    await db.collection(COLLECTION).doc("flight_"+activeTripId).set({ [k+"Photo"]: url, [k+"PhotoAt"]: at }, { merge:true });
+  }catch(e){ console.error("save flight photo failed", e); travelToast(failMsg("儲存", e)); }
+}
+function renderFlightPhotos(){
+  const s = flightSettings || {};
+  ["Out","Ret"].forEach(dir=>{
+    const w = flightPhotoWrap(dir); if(!w) return;
+    const k = dir.toLowerCase(), url = s[k+"Photo"] || "";
+    w.querySelector("#fs"+dir+"PhotoView").style.display = url ? "block" : "none";
+    w.querySelector("#fs"+dir+"PhotoPick").style.display = url ? "none" : "block";
+    if(url){ w.querySelector("#fs"+dir+"PhotoImg").src = url; w.querySelector("#fs"+dir+"PhotoAt").textContent = s[k+"PhotoAt"] ? "更新於 " + s[k+"PhotoAt"] : ""; }
+  });
 }
 
 // ---------- 航班倒推時間：到機場、出門 ----------
@@ -6371,7 +6446,7 @@ function buildShareText(){
       if(it.type==="note"){
         rows.push({ isNote:true, text: it.text||"" });
       } else if(it.type==="transport"){
-        pendingTransportLabel = `${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}`;
+        pendingTransportLabel = `${TRANSPORT_LABEL[it.mode]||""}${it.duration ? " 約"+fmtMin(it.duration) : ""}${it.note ? "（"+it.note.replace(/\s+/g," ")+"）" : ""}`;
       } else if(it.type==="spot"){
         const d = derived[it.id] || {};
         const isFirstSpot = spotIndex===0;
@@ -6453,7 +6528,7 @@ function buildPdfBlocks(){
         return;
       }
       if(it.type==="transport"){
-        pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}` + (it.duration ? `<br>約 ${esc(fmtMin(it.duration))}` : "");
+        pendingTransport = `${TRANSPORT_ICON[it.mode]||""} ${TRANSPORT_LABEL[it.mode]||""}` + (it.duration ? `<br>約 ${esc(fmtMin(it.duration))}` : "") + (it.note ? `<br>📝 ${esc(it.note).replace(/\n/g,"<br>")}` : "");
         return;
       }
       if(it.type!=="spot") return;
@@ -6462,7 +6537,7 @@ function buildPdfBlocks(){
       const displayTime = (isFirstSpot && !(it.day===days[0] && flightSettings && flightSettings.outArriveTime)) ? (it.departTime || d.arrival || "") : (d.arrival || "");
       const right = [];
       if(it.memo) right.push("📝 " + esc(it.memo).replace(/\n/g,"<br>"));
-      if(it.photo) right.push(`<img src="${it.photo}" style="width:90px; border-radius:6px; margin-top:4px;">`);
+      spotPhotosOf(it).forEach(u=>right.push(`<img src="${u}" style="width:90px; border-radius:6px; margin-top:4px;">`));
       let unit = "";
       if(first) unit += dayHead;
       // 依抵達時間分段（上午／中午／下午／晚上）；餐廳類景點依時間標早餐／午餐／晚餐
