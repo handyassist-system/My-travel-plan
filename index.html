@@ -1005,7 +1005,8 @@ header #mapBtn, header #settingsBtn{
       </div>
       <div class="field"><label>名稱</label><input id="hName" type="text" placeholder="例：朋友推薦的火鍋店"></div>
       <p id="hPlacesStatus" style="font-size:12px; color:var(--seal); margin:-10px 0 12px; display:none;"></p>
-      <div class="field"><label>備註（選填）</label><textarea id="hNote" placeholder="例：尚未確認地址、營業時間"></textarea></div>
+      <div class="field"><label>地址（選填，用來在地圖上定位）</label><textarea id="hNote" placeholder="例：上海市黃浦區福州路99號"></textarea></div>
+      <div class="field"><label>備註（選填）</label><textarea id="hMemo" placeholder="例：要先訂位、營業時間、注意事項"></textarea></div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="holdFormCancel">取消</button>
         <button class="btn btn-primary" id="holdSave">新增</button>
@@ -1458,7 +1459,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-206";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-208";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2620,6 +2621,7 @@ function renderDayList(){
   const s = flightSettings || {};
   const arr = effectiveItems(currentDay);
 
+  { const _tn = getActiveTrip(); if(_tn && _tn.notes){ const d = document.createElement("p"); d.id = "tripNoteLine"; d.className = "spot-note"; d.style.cssText = "margin:0 0 8px; white-space:pre-wrap;"; d.textContent = "📝 " + _tn.notes; list.appendChild(d); } }   // 旅程備註（建立旅程時填的）
   { const _mh = mealStatusHtml(currentDay, derived);
     if(_mh){ const d = document.createElement("div"); d.id = "mealStatusBar"; d.style.cssText = "margin:0 0 10px; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--ink); font-size:13px; line-height:1.7;"; d.innerHTML = _mh; list.appendChild(d); } }
 
@@ -4570,7 +4572,8 @@ function renderHolding(){
       card.className = "hold-card";
       card.innerHTML = `
         <p class="hname">${escapeHtml(h.name)}</p>
-        ${showNote ? `<p class="hnote">${escapeHtml(h.note)}</p>` : ""}
+        ${showNote ? `<p class="hnote" style="margin-bottom:${h.memo ? 4 : 10}px;">📍${escapeHtml(h.note)}</p>` : ""}
+        ${h.memo ? `<p class="hnote">📝${escapeHtml(h.memo)}</p>` : ""}
         <div class="hold-actions">
           ${isSpotType ? `<button class="assign">排進行程</button>` : ""}
           <button class="edit-h">編輯</button>
@@ -4625,6 +4628,7 @@ function showHoldForm(h){
   selectedHoldCategory = (h && h.category) ? h.category : (h ? "其他" : "景點");
   document.getElementById("hName").value = h ? h.name : "";
   document.getElementById("hNote").value = h ? (h.note||"") : "";
+  document.getElementById("hMemo").value = h ? (h.memo||"") : "";
   hSelectedLatLng = null;
   updateHoldTypeUI();
   document.getElementById("holdListWrap").style.display = "none";
@@ -4638,7 +4642,7 @@ document.getElementById("holdSave").addEventListener("click", async ()=>{
   if(!name){ document.getElementById("hName").focus(); return; }
   try{
     if(holdEditingId){
-      const upd = { name, note: document.getElementById("hNote").value.trim(), holdType: selectedHoldType };
+      const upd = { name, note: document.getElementById("hNote").value.trim(), memo: document.getElementById("hMemo").value.trim(), holdType: selectedHoldType };
       if(selectedHoldType==="spot"){
         upd.category = selectedHoldCategory;
         if(hSelectedLatLng){ upd.lat = hSelectedLatLng.lat; upd.lng = hSelectedLatLng.lng; }
@@ -4646,7 +4650,7 @@ document.getElementById("holdSave").addEventListener("click", async ()=>{
       await db.collection(COLLECTION).doc(holdEditingId).update(upd);
     } else {
       const data = {
-        type:"holding", tripId: activeTripId, day: HOLDING, name, note: document.getElementById("hNote").value.trim(),
+        type:"holding", tripId: activeTripId, day: HOLDING, name, note: document.getElementById("hNote").value.trim(), memo: document.getElementById("hMemo").value.trim(),
         holdType: selectedHoldType, order: Date.now(), createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       if(selectedHoldType==="spot"){
@@ -4727,10 +4731,10 @@ function renderExpense(){
 
   const all = items.filter(i=>i.tripId===activeTripId && (i.type==="spot"||i.type==="transport"||i.type==="expense"||i.type==="packing") && i.expense && i.expense.amount);
   if(isTaiwanTrip() && flightSettings && Number(flightSettings.retExpense) > 0){   // 台灣：回程的票另外一筆
-    all.push({ type:"flight", day:"航班", order:-1, name:"回程" + (legMode("ret")==="hsr" ? "車票" : "機票"), expense:{ amount:flightSettings.retExpense, category:"交通", payer: flightSettings.retExpensePayer||"", currency: flightSettings.retExpenseCurrency||primary, sharedBy: flightSettings.retExpenseSharedBy||[], date: flightSettings.retExpenseDate||"" } });
+    all.push({ type:"flight", day:"航班", order:-1, name:"回程" + (legMode("ret")==="hsr" ? "車票" : "機票"), expense:{ amount:flightSettings.retExpense, category:"交通", payer: flightSettings.retExpensePayer||"", currency: flightSettings.retExpenseCurrency||primary, sharedBy: flightSettings.retExpenseSharedBy||[], date: flightSettings.retExpenseDate||"" }, note: flightSettings.retExpenseNote||"" });
   }
   if(flightSettings && flightSettings.expense){
-    all.push({ type:"flight", day:"航班", order:-1, name:(isTaiwanTrip() ? ("去程" + (legMode("out")==="hsr" ? "車票" : "機票")) : ticketLabel()), expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" } });
+    all.push({ type:"flight", day:"航班", order:-1, name:(isTaiwanTrip() ? ("去程" + (legMode("out")==="hsr" ? "車票" : "機票")) : ticketLabel()), expense:{ amount:flightSettings.expense, category:"交通", payer: flightSettings.expensePayer||"", currency: flightSettings.expenseCurrency||primary, sharedBy: flightSettings.expenseSharedBy||[], date: flightSettings.expenseDate||"" }, note: flightSettings.expenseNote||"" });
   }
   const converted = i => convertCurrency(i.expense.amount, i.expense.currency||primary, expDisplayCurrency, rate);
   // 兌換只是把錢換成當地幣，不算花費：不計入總額、分類、各人已付，只在明細最後面另外列出；但結算會算（付款人先墊、平分）
@@ -4830,7 +4834,7 @@ function renderExpense(){
     const sameCur = origCur===expDisplayCurrency;
     const amtMain = sym + (sameCur ? Number(i.expense.amount).toLocaleString() : Math.round(converted(i)).toLocaleString());
     const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
-    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}</div></div><div class="r">${amtMain}${amtSub}</div>`;
+    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
     row.addEventListener("click", ()=>{
       if(i.type==="expense"){ openExpenseModal(i); return; }
@@ -6470,6 +6474,7 @@ function buildShareText(){
       const extras = [row.transport, row.stayInfo].filter(Boolean).join("，");
       const suffix = extras ? `（${extras}）` : "";
       lines.push(`${timeStr} ${row.name}${suffix}`);
+      if(row.memo) lines.push("　📝 " + String(row.memo).replace(/\s+/g," "));
       lines.push("");
     });
   });
