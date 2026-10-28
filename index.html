@@ -923,6 +923,7 @@ header #mapBtn, header #settingsBtn{
         <div class="chip" data-v="subway" id="subwayChip">🚇 地鐵/公車</div>
         <div class="chip" data-v="taxi">🚕 計程車</div>
         <div class="chip" data-v="walk">🚶 步行</div>
+        <div class="chip" data-v="bike">🚲 腳踏車</div>
         <div class="chip" data-v="train" id="trainChip">🚄 高鐵/新幹線</div>
         <div class="chip" data-v="ferry">🚢 船/渡輪</div>
         <div class="chip" data-v="cable">🚡 纜車</div>
@@ -1261,8 +1262,8 @@ let _firebaseReady = false;
 _firebaseReady = !!db;
 
 const HOLDING = "_holding";
-const TRANSPORT_ICON = { jr:"🚃", subway:"🚇", taxi:"🚕", walk:"🚶", train:"🚄", drive:"🚗", ferry:"🚢", cable:"🚡", shuttle:"🚐" };
-const TRANSPORT_LABEL_BASE = { jr:"JR", subway:"地鐵/公車", taxi:"計程車", walk:"步行", train:"高鐵/新幹線", drive:"自駕", ferry:"船/渡輪", cable:"纜車", shuttle:"接駁車" };
+const TRANSPORT_ICON = { jr:"🚃", subway:"🚇", taxi:"🚕", walk:"🚶", bike:"🚲", train:"🚄", drive:"🚗", ferry:"🚢", cable:"🚡", shuttle:"🚐" };
+const TRANSPORT_LABEL_BASE = { jr:"JR", subway:"地鐵/公車", taxi:"計程車", walk:"步行", bike:"腳踏車", train:"高鐵/新幹線", drive:"自駕", ferry:"船/渡輪", cable:"纜車", shuttle:"接駁車" };
 function isTaiwanTrip(){ const t = getActiveTrip(); return !!(t && t.region==="taiwan"); }
 // 輸入框的範例文字：依行程地區顯示當地的例子（日本／大陸／台灣）
 const REGION_EXAMPLES = {
@@ -1459,7 +1460,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-208";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-211";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2750,7 +2751,7 @@ function buildSpotCard(it, d){
       <button class="up" title="上移">▲</button>
       <button class="down" title="下移">▼</button>
       <button class="copy" title="複製">⧉</button>
-      ${it.category==="飯店" ? "" : `<button class="expbtn" title="記一筆花費">💰</button>`}
+      ${it.category==="飯店" ? "" : `<button class="expbtn" title="記一筆花費">💰</button><button class="visbtn" title="${it.visited ? "取消去過" : "標示去過"}">${it.visited ? "✅" : "☐"}</button>`}
       <button class="edit">✎</button>
       <button class="del">🗑</button>
     </div>
@@ -2760,6 +2761,13 @@ function buildSpotCard(it, d){
   card.querySelector(".up").addEventListener("click", ()=>moveSpot(it, -1));
   card.querySelector(".down").addEventListener("click", ()=>moveSpot(it, 1));
   card.querySelector(".copy").addEventListener("click", ()=>openCopySpotPicker(it));
+  { const _vb = card.querySelector(".visbtn");
+    if(_vb) _vb.addEventListener("click", async ()=>{
+      const nv = !it.visited; it.visited = nv; renderAll();   // 先換畫面，存失敗再提示
+      try{ await db.collection(COLLECTION).doc(it.id).update({ visited: nv }); }
+      catch(e){ it.visited = !nv; renderAll(); console.error("toggle visited failed", e); if(!(e && e.message==="READ_ONLY")) travelToast(failMsg("儲存", e)); }
+    });
+    if(it.visited){ const _sm = card.querySelector(".spot-main"); if(_sm) _sm.style.opacity = "0.62"; const _nm = card.querySelector(".spot-name"); if(_nm) _nm.textContent = "✅ " + it.name; } }
   { const _eb = card.querySelector(".expbtn");
     if(_eb) _eb.addEventListener("click", ()=>{
       if(needAdvanced("花費彙總")) return;
@@ -3441,7 +3449,7 @@ function openPhotoLightbox(src){
 let spotDrag = null;
 function attachSpotDrag(card, it){
   let timer = null, sx = 0, sy = 0;
-  const start = (x,y,touch)=>{ sx=x; sy=y; clearTimeout(timer); timer = setTimeout(()=>{ timer=null; beginSpotDrag(card, it, x, y, touch); }, 450); };
+  const start = (x,y,touch)=>{ sx=x; sy=y; clearTimeout(timer); timer = setTimeout(()=>{ timer=null; beginSpotDrag(card, it, x, y, touch); }, 550); };
   const cancel = ()=>{ clearTimeout(timer); timer = null; };
   card.addEventListener("touchstart", e=>{ if(e.touches.length!==1 || e.target.closest(".spot-actions")) return; start(e.touches[0].clientX, e.touches[0].clientY, true); }, { passive:true });
   card.addEventListener("touchmove", e=>{ if(spotDrag) return; const t=e.touches[0]; if(timer && Math.hypot(t.clientX-sx, t.clientY-sy) > 10) cancel(); }, { passive:true });
@@ -3463,14 +3471,15 @@ function beginSpotDrag(card, it, x, y, touch){
   try{ if(navigator.vibrate) navigator.vibrate(30); }catch(_){}
   const move = e=>{ const p = e.touches ? e.touches[0] : e; spotDrag.curY = p.clientY; if(e.cancelable) e.preventDefault(); };
   const end = ()=>finishSpotDrag(move, end);
+  const endCancel = ()=>{ if(spotDrag) spotDrag.k = spotDrag.srcIdx; finishSpotDrag(); };   // 系統中斷（touchcancel）：不換位，只還原
   const noMenu = e=>e.preventDefault();
   spotDrag.cleanup = ()=>{
     document.removeEventListener("touchmove", move); document.removeEventListener("mousemove", move);
-    document.removeEventListener("touchend", end); document.removeEventListener("touchcancel", end); document.removeEventListener("mouseup", end);
+    document.removeEventListener("touchend", end); document.removeEventListener("touchcancel", endCancel); document.removeEventListener("mouseup", end);
     document.removeEventListener("contextmenu", noMenu);
   };
   document.addEventListener("touchmove", move, { passive:false }); document.addEventListener("mousemove", move);
-  document.addEventListener("touchend", end); document.addEventListener("touchcancel", end); document.addEventListener("mouseup", end);
+  document.addEventListener("touchend", end); document.addEventListener("touchcancel", endCancel); document.addEventListener("mouseup", end);
   document.addEventListener("contextmenu", noMenu);
   const loop = ()=>{
     if(!spotDrag) return;
@@ -3479,6 +3488,7 @@ function beginSpotDrag(card, it, x, y, touch){
     d.card.style.transform = `translateY(${d.curY + window.scrollY - d.cy0}px)`;
     const others = d.cards.filter(c=>c!==d.card), rects = others.map(c=>c.getBoundingClientRect());
     let k = 0; rects.forEach(rc=>{ if(rc.top + rc.height/2 < d.curY) k++; });
+    if(Math.abs((d.curY - d.startY) + (window.scrollY - d.startScroll)) < 24) k = d.srcIdx;   // 手指還沒真的移動：不換位（清單縮小後卡片位置會變，不能因此就算成換位）
     d.k = k;
     const lr = list.getBoundingClientRect();
     const ly = k===0 ? rects[0].top - 5 : (k>=rects.length ? rects[rects.length-1].bottom + 3 : (rects[k-1].bottom + rects[k].top)/2 - 2);
@@ -3827,6 +3837,7 @@ function estimateDurationMinutes(mode, km){
   if(mode==="ferry")   return Math.max(10, Math.round((km*1.2)/15*60) + 10);
   if(mode==="cable")   return Math.max(5,  Math.round((km*1.2)/15*60) + 5);
   if(mode==="shuttle") return Math.max(10, Math.round((km*1.3)/25*60) + 10);
+  if(mode==="bike")    return Math.max(3,  Math.round((km*1.3)/12*60) + 3);   // 腳踏車：每小時約 12 公里、路程係數 1.3，加上取車還車 3 分鐘；僅供參考
   return null;
 }
 
@@ -4130,7 +4141,7 @@ function updateGmapLink(){
   const place = x => (x && x.lat!=null && x.lng!=null) ? (x.lat + "," + x.lng) : ((x && (x.name || x.note)) ? String(x.name || x.note) : "");
   const o = place(p), d = place(n);
   if(!o || !d || jpRailHasLink || isChina || !selectedMode){ wrap.style.display = "none"; return; }
-  const modeMap = { subway:"transit", jr:"transit", train:"transit", taxi:"driving", drive:"driving", walk:"walking" };
+  const modeMap = { subway:"transit", jr:"transit", train:"transit", taxi:"driving", drive:"driving", walk:"walking", bike:"bicycling" };
   a.href = "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(o) + "&destination=" + encodeURIComponent(d) + "&travelmode=" + (modeMap[selectedMode] || "transit");
   wrap.style.display = "block";
 }
@@ -4364,7 +4375,7 @@ function dropStaleTransports(day, before, batch){
 function recalcAdjacentTaxiWalkTransports(day, batch){
   const arr = dayItems(day);
   arr.forEach((it, idx)=>{
-    if(it.type==="transport" && (it.mode==="taxi" || it.mode==="walk" || it.mode==="drive")){
+    if(it.type==="transport" && (it.mode==="taxi" || it.mode==="walk" || it.mode==="drive" || it.mode==="bike")){
       const prev = idx>0 ? arr[idx-1] : null;
       const next = idx<arr.length-1 ? arr[idx+1] : null;
       if(prev && next && prev.type==="spot" && next.type==="spot" && prev.lat!=null && next.lat!=null){
@@ -4507,7 +4518,7 @@ async function copyItemsToDay(sourceItems, targetDay){
   sourceItems.forEach((it, idx)=>{
     const ref = db.collection(COLLECTION).doc();
     const data = { ...it };
-    delete data.id; delete data.noTransportBefore;   // 複製過去的地點，前後鄰居不同了，不沿用「不需要交通」
+    delete data.id; delete data.noTransportBefore; delete data.visited;   // 複製過去的是新的一筆，「去過」重新開始   // 複製過去的地點，前後鄰居不同了，不沿用「不需要交通」
     data.day = targetDay;
     data.order = baseOrder + idx*1000;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
