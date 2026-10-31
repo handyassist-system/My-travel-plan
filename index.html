@@ -397,6 +397,7 @@
   .chip{padding:9px 15px; border-radius:999px; border:1px solid var(--line); background:var(--bg); font-size:13px; color:var(--sub);}
   .chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
   .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  #billModalMask .modal-actions{position:sticky; bottom:-1px; padding:10px 0 4px; background:var(--card, var(--bg)); z-index:2;}   /* 貼上帳單：預覽很長時，按鈕固定在視窗底部 */
   .btn{flex:1; padding:14px; border-radius:var(--radius-md); border:none; font-size:15px; font-weight:600;}
   .btn-primary{background:var(--accent); color:#fff;}
   .btn-ghost{background:var(--bg); color:var(--ink);}
@@ -643,7 +644,7 @@ header #mapBtn, header #settingsBtn{
         <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:12px;">更新匯率</button></div>
       </div>
       <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
-        <button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
+        <button type="button" id="billPasteBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">📋 貼上帳單</button><button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
       </div>
       <div class="exp-cats" id="expCats" data-h="分類"></div>
       <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
@@ -897,7 +898,7 @@ header #mapBtn, header #settingsBtn{
     <button type="button" id="fMoreToggle" style="display:block; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（照片）</button>
     <div class="sec-card" id="fMoreFields" style="display:none;"><div class="sec-h">📷 照片</div>
     <div class="field"><label>照片（例如菜單、地圖截圖）</label>
-      <input id="fPhotoInput" type="file" accept="image/*" style="display:none;">
+      <input id="fPhotoInput" type="file" accept="image/*" multiple style="display:none;">
       <div id="fPhotoList" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px;"></div>
       <button type="button" id="fPhotoPickBtn" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 加照片（最多 3 張）</button>
       <p id="fPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
@@ -1052,6 +1053,31 @@ header #mapBtn, header #settingsBtn{
       <button class="btn btn-ghost" id="eDelete" style="display:none; color:#d9534f;">刪除</button>
       <button class="btn btn-ghost" id="eCancel">取消</button>
       <button class="btn btn-primary" id="eSave">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 貼上支付寶／微信帳單，一次建成多筆花費 -->
+<div class="modal-mask" id="billModalMask">
+  <div class="modal">
+    <button class="close-x" id="billClose">✕</button>
+    <h2>貼上帳單</h2>
+    <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px; line-height:1.6;">把支付寶或微信的交易紀錄文字貼進來（店名、金額、時間各一行即可），也可以一行一筆，例如「全家 23.5」。先預覽、確認後才會建立。</p>
+    <div class="field"><textarea id="billText" rows="6" placeholder="貼在這裡"></textarea></div>
+    <button class="btn btn-ghost" id="billParseBtn" type="button" style="width:100%; margin-bottom:12px;">辨識</button>
+    <div id="billPreview" style="display:none;">
+      <div class="sec-card"><div class="sec-h">🔧 全部一起設定</div>
+        <div class="field"><label>幣別</label><div class="chip-row" id="billCurrencyChips"></div></div>
+        <div class="field" id="billPayerWrap" style="display:none;"><label>付款人</label><select id="billPayer"></select></div>
+        <div class="field" id="billShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="billShareChips"></div></div>
+        <div class="field"><label>沒有日期的帳單用這一天</label><input id="billDefaultDate" type="date"></div>
+      </div>
+      <p id="billSummary" style="font-size:13px; color:var(--sub); margin:8px 0;"></p>
+      <div id="billRows"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="billCancel">取消</button>
+      <button class="btn btn-primary" id="billSave" style="display:none;">全部建立</button>
     </div>
   </div>
 </div>
@@ -1460,7 +1486,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-211";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-219";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2450,8 +2476,22 @@ function dayItems(day){
 // 「拍照」類預設只是拍照、不用走到：不產生交通、前後地點直接相接。
 // 個別拍照地點如果需要知道怎麼去，編輯時關掉「這裡不用走到」（存成 needTransport:true），就和一般地點一樣
 function skipsTransport(it){ return !!it && it.category==="拍照" && !it.needTransport; }
-function effectiveItems(day){
-  const arr = dayItems(day);
+// 「沒去」的地點（skipped）不算進時間：連同前後貼著它的交通一起先拿掉，算完時間再視需要放回（includeDead=true，只有行程頁用來顯示）
+function effectiveItems(day, includeDead){
+  const all = dayItems(day);
+  const isSk = x=>x.type==="spot" && x.skipped;
+  const deadIds = new Set();
+  all.forEach((x,k)=>{
+    if(isSk(x)) deadIds.add(x.id);
+    else if(x.type==="transport" && ((all[k-1] && isSk(all[k-1])) || (all[k+1] && isSk(all[k+1])))) deadIds.add(x.id);
+  });
+  const arr = deadIds.size ? all.filter(x=>!deadIds.has(x.id)) : all;
+  const live = _effectiveLive(day, arr);
+  if(!includeDead || !deadIds.size) return live;
+  const dead = all.filter(x=>deadIds.has(x.id));
+  return live.concat(dead).sort((a,b)=>a.order-b.order);
+}
+function _effectiveLive(day, arr){
   if(!canUseAdvanced()) return arr;
   const out = [];
   for(let i=0; i<arr.length; i++){
@@ -2550,6 +2590,7 @@ function computeDerivedTimes(day){
       clock = arrive || clock;
     }
   });
+  dayItems(day).forEach(x=>{ if(x.type==="spot" && x.skipped) map[x.id] = { arrival:"", leave:"", isFirst:false, stay:0, warn:"", earliest:"", skipped:true }; });
   return map;
 }
 
@@ -2621,6 +2662,7 @@ function renderDayList(){
   const derived = computeDerivedTimes(currentDay);
   const s = flightSettings || {};
   const arr = effectiveItems(currentDay);
+  const arrAll = effectiveItems(currentDay, true);   // 含「沒去」的卡片（只用來顯示）
 
   { const _tn = getActiveTrip(); if(_tn && _tn.notes){ const d = document.createElement("p"); d.id = "tripNoteLine"; d.className = "spot-note"; d.style.cssText = "margin:0 0 8px; white-space:pre-wrap;"; d.textContent = "📝 " + _tn.notes; list.appendChild(d); } }   // 旅程備註（建立旅程時填的）
   { const _mh = mealStatusHtml(currentDay, derived);
@@ -2644,7 +2686,7 @@ function renderDayList(){
   const notes = dayNotes(currentDay);
   let _ni = 0;
   const flushNotes = upTo=>{ while(_ni<notes.length && (upTo==null || notes[_ni].order < upTo)){ list.appendChild(buildNoteCard(notes[_ni])); _ni++; } };
-  if(arr.length===0 && notes.length===0){
+  if(arrAll.length===0 && notes.length===0){
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.innerHTML = `<span class="emoji">🗺️</span>「${dayLabel(currentDay)}」還沒有安排行程<span class="esub">點右下角「＋」新增</span>`;
@@ -2655,13 +2697,14 @@ function renderDayList(){
     }
     return;
   }
-  for(let idx=0; idx<arr.length; idx++){
-    const it = arr[idx];
+  for(let idx=0; idx<arrAll.length; idx++){
+    const it = arrAll[idx];
     flushNotes(it.order);
+    if(it.type==="transport" && !it.virtual && !arr.includes(it)) continue;   // 貼著「沒去」地點的交通不顯示
     if(it.type==="spot"){
       list.appendChild(buildSpotCard(it, derived[it.id]));
-      const next = arr[idx+1];
-      if(next && next.type==="spot" && !skipsTransport(it) && !skipsTransport(next) && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
+      const next = arrAll[idx+1];
+      if(!it.skipped && next && next.type==="spot" && !next.skipped && !skipsTransport(it) && !skipsTransport(next) && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
         list.appendChild(buildAddTransportGhost(it, next, derived));
       }
     } else if(it.type==="transport"){
@@ -2751,7 +2794,7 @@ function buildSpotCard(it, d){
       <button class="up" title="上移">▲</button>
       <button class="down" title="下移">▼</button>
       <button class="copy" title="複製">⧉</button>
-      ${it.category==="飯店" ? "" : `<button class="expbtn" title="記一筆花費">💰</button><button class="visbtn" title="${it.visited ? "取消去過" : "標示去過"}">${it.visited ? "✅" : "☐"}</button>`}
+      ${`${it.category==="飯店" ? "" : `<button class="expbtn" title="記一筆花費">💰</button>`}<button class="visbtn" title="${it.skipped ? "沒去（再點一下取消）" : it.visited ? "去過（再點一下改成沒去）" : "標示去過"}">${it.skipped ? "⛔" : it.visited ? "✅" : "☐"}</button>`}
       <button class="edit">✎</button>
       <button class="del">🗑</button>
     </div>
@@ -2763,11 +2806,16 @@ function buildSpotCard(it, d){
   card.querySelector(".copy").addEventListener("click", ()=>openCopySpotPicker(it));
   { const _vb = card.querySelector(".visbtn");
     if(_vb) _vb.addEventListener("click", async ()=>{
-      const nv = !it.visited; it.visited = nv; renderAll();   // 先換畫面，存失敗再提示
-      try{ await db.collection(COLLECTION).doc(it.id).update({ visited: nv }); }
-      catch(e){ it.visited = !nv; renderAll(); console.error("toggle visited failed", e); if(!(e && e.message==="READ_ONLY")) travelToast(failMsg("儲存", e)); }
+      // ☐ 未標示 → ✅ 去過 → ⛔ 沒去（不算進時間、PDF 不列）→ ☐；飯店只有 ☐／✅
+      const was = { visited: !!it.visited, skipped: !!it.skipped };
+      const nx = (!was.visited && !was.skipped) ? { visited:true, skipped:false }
+               : (was.visited ? (it.category==="飯店" ? { visited:false, skipped:false } : { visited:false, skipped:true }) : { visited:false, skipped:false });
+      it.visited = nx.visited; it.skipped = nx.skipped; renderAll();   // 先換畫面，存失敗再提示
+      try{ await db.collection(COLLECTION).doc(it.id).update(nx); }
+      catch(e){ it.visited = was.visited; it.skipped = was.skipped; renderAll(); console.error("toggle visited failed", e); if(!(e && e.message==="READ_ONLY")) travelToast(failMsg("儲存", e)); }
     });
-    if(it.visited){ const _sm = card.querySelector(".spot-main"); if(_sm) _sm.style.opacity = "0.62"; const _nm = card.querySelector(".spot-name"); if(_nm) _nm.textContent = "✅ " + it.name; } }
+    if(it.visited){ const _sm = card.querySelector(".spot-main"); if(_sm) _sm.style.opacity = "0.62"; const _nm = card.querySelector(".spot-name"); if(_nm) _nm.textContent = "✅ " + it.name; }
+    if(it.skipped){ const _sm = card.querySelector(".spot-main"); if(_sm) _sm.style.opacity = "0.45"; const _nm = card.querySelector(".spot-name"); if(_nm){ _nm.textContent = "⛔ " + it.name; _nm.style.textDecoration = "line-through"; } } }
   { const _eb = card.querySelector(".expbtn");
     if(_eb) _eb.addEventListener("click", ()=>{
       if(needAdvanced("花費彙總")) return;
@@ -2886,11 +2934,11 @@ document.getElementById("noteSave").addEventListener("click", async ()=>{
   if(!text){ document.getElementById("noteText").focus(); return; }
   try{
     if(editingNoteId){
-      await db.collection(COLLECTION).doc(editingNoteId).update({ text });
+      await fsw(db.collection(COLLECTION).doc(editingNoteId).update({ text }));
     } else {
       const all = items.filter(i=>i.tripId===activeTripId && i.day===currentDay && (i.type==="spot"||i.type==="transport"||i.type==="note"));
       const order = all.length ? Math.max(...all.map(i=>i.order||0)) + 1000 : 1000;
-      await db.collection(COLLECTION).add({ type:"note", tripId: activeTripId, day: currentDay, order, text, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      await fsw(db.collection(COLLECTION).add({ type:"note", tripId: activeTripId, day: currentDay, order, text, createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
     }
     closeNoteModal();
   }catch(e){ console.error("save note failed", e); travelToast(failMsg("儲存", e)); }
@@ -3113,25 +3161,30 @@ function setSpotPhotos(arr){
 }
 document.getElementById("fPhotoPickBtn").addEventListener("click", ()=>document.getElementById("fPhotoInput").click());
 document.getElementById("fPhotoInput").addEventListener("change", async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
+  // 一次可以選多張：照順序加入，剩幾格收幾張，多的略過並提示
+  const files = [...(e.target.files || [])];
+  if(!files.length) return;
   const status = document.getElementById("fPhotoStatus");
   status.style.display = "block"; status.textContent = "處理中...";
-  try{
-    let dataUrl = "";
-    for(const mw of [500, 400, 320]){ dataUrl = await compressImageFile(file, mw); if(dataUrl.length <= SPOT_PHOTO_BYTES) break; }
-    // Firestore 一筆資料上限 1MB：每張壓到 150KB 內，最多 3 張，其他欄位一定放得下
-    if(dataUrl.length > SPOT_PHOTO_BYTES){
-      status.textContent = "圖片壓縮後仍太大，請換一張較小的圖片";
-      e.target.value = ""; return;
-    }
-    if(currentSpotPhotos.length >= SPOT_PHOTO_MAX){ status.textContent = "最多 3 張"; e.target.value = ""; return; }
-    setSpotPhotos(currentSpotPhotos.concat([dataUrl]));
-    status.style.display = "none";
-  }catch(err){
-    console.error("compress image failed", err);
-    status.textContent = "圖片無法處理，請換一張圖片";
+  const room = SPOT_PHOTO_MAX - currentSpotPhotos.length;
+  const picked = files.slice(0, Math.max(0, room));
+  let added = 0, tooBig = 0, failed = 0;
+  let list = currentSpotPhotos.slice();
+  for(const file of picked){
+    try{
+      let dataUrl = "";
+      for(const mw of [500, 400, 320]){ dataUrl = await compressImageFile(file, mw); if(dataUrl.length <= SPOT_PHOTO_BYTES) break; }
+      // Firestore 一筆資料上限 1MB：每張壓到 150KB 內，最多 3 張，其他欄位一定放得下
+      if(dataUrl.length > SPOT_PHOTO_BYTES){ tooBig++; continue; }
+      list.push(dataUrl); added++;
+    }catch(err){ console.error("compress image failed", err); failed++; }
   }
+  if(added) setSpotPhotos(list);
+  const msgs = [];
+  if(files.length > picked.length) msgs.push("最多 3 張，多選的 " + (files.length - picked.length) + " 張沒有加入");
+  if(tooBig) msgs.push(tooBig + " 張壓縮後仍太大，沒有加入");
+  if(failed) msgs.push(failed + " 張無法處理");
+  if(msgs.length){ status.textContent = msgs.join("；"); } else { status.style.display = "none"; }
   e.target.value = "";
 });
 
@@ -3612,8 +3665,11 @@ document.getElementById("spotCancel").addEventListener("click", closeSpotModal);
 spotModalMask.addEventListener("click",(e)=>{ if(e.target===spotModalMask) closeSpotModal(); });
 
 let geocoder = null;
+// 寫入 Firestore 時若離線或網路慢，promise 不會結束；最多等 3.5 秒就當作已送出（資料會暫存本機、連線後自動同步），視窗照常關閉
+const fsw = p => Promise.race([p, new Promise(r=>setTimeout(r,3500))]);
 function geocodeAddress(address){
   return new Promise((resolve)=>{
+    setTimeout(()=>resolve(null), 3500);   // 網路不通時 Google 不回應，不能讓儲存卡住
     try{
       if(!window.google || !google.maps || !address){ resolve(null); return; }
       if(!geocoder) geocoder = new google.maps.Geocoder();
@@ -3688,10 +3744,10 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
     }
     if(extra.length===0){
       if(editing){
-        await db.collection(COLLECTION).doc(editingSpotId).update(data);
+        await fsw(db.collection(COLLECTION).doc(editingSpotId).update(data));
       } else {
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        await db.collection(COLLECTION).add(data);
+        await fsw(db.collection(COLLECTION).add(data));
       }
     } else {
       const batch = db.batch();
@@ -3702,7 +3758,7 @@ document.getElementById("spotSave").addEventListener("click", async ()=>{
         batch.set(db.collection(COLLECTION).doc(), data);
       }
       extra.forEach(function(e){ batch.update(db.collection(COLLECTION).doc(e[0]), { departTime: e[1] }); });
-      await batch.commit();
+      await fsw(batch.commit());
     }
     if(pendingConvertNote && !editing){ try{ await db.collection(COLLECTION).doc(pendingConvertNote.id).delete(); }catch(e){ console.error("remove converted note failed", e); } }
     closeSpotModal();
@@ -3810,14 +3866,14 @@ function estimateAirportLegMinutes(mode, km){
   return null;
 }
 function estimateDurationMinutes(mode, km){
-  if(mode==="drive"){
-    // 自駕：15 公里內與計程車同一算法（市區每小時 20 公里、路程係數 1.3）；
-    // 超過的部分多半是跨縣市高速公路，改用每小時 70 公里，避免長途被估成好幾倍
-    const near = Math.min(km, 15), far = Math.max(0, km - 15);
-    return Math.max(1, Math.round((near*1.3)/20*60 + (far*1.3)/70*60));
+  if(mode==="drive" || mode==="taxi"){
+    // 計程車／自駕：前 5 公里是市區慢速（每小時 20 公里），超過的部分多半上快速道路或高速公路（每小時 55 公里）；
+    // 路程係數 1.25。避免遠距離（例如飯店到迪士尼）被全程用市區速度估成一小時以上
+    const near = Math.min(km, 5), far = Math.max(0, km - 5);
+    return Math.max(1, Math.round((near*1.25)/20*60 + (far*1.25)/55*60));
   }
-  if(mode==="walk" || mode==="taxi"){
-    const speedKmh = mode==="walk" ? 4.5 : 20;
+  if(mode==="walk"){
+    const speedKmh = 4.5;
     const routingFactor = 1.3; // roads aren't straight lines
     return Math.max(1, Math.round((km*routingFactor) / speedKmh * 60));
   }
@@ -4278,12 +4334,12 @@ document.getElementById("transSave").addEventListener("click", async ()=>{
   };
   try{
     if(pendingTransport.id){
-      await db.collection(COLLECTION).doc(pendingTransport.id).update(data);
+      await fsw(db.collection(COLLECTION).doc(pendingTransport.id).update(data));
     } else {
       data.day = pendingTransport.day;
       data.order = pendingTransport.order;
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection(COLLECTION).add(data);
+      await fsw(db.collection(COLLECTION).add(data));
     }
     // 自己新增交通＝這段需要交通，取消「不需要交通」標記
     if(currentTransportNextSpot && currentTransportNextSpot.id && currentTransportNextSpot.noTransportBefore){ await markNoTransportBefore(currentTransportNextSpot, false); }
@@ -4518,7 +4574,7 @@ async function copyItemsToDay(sourceItems, targetDay){
   sourceItems.forEach((it, idx)=>{
     const ref = db.collection(COLLECTION).doc();
     const data = { ...it };
-    delete data.id; delete data.noTransportBefore; delete data.visited;   // 複製過去的是新的一筆，「去過」重新開始   // 複製過去的地點，前後鄰居不同了，不沿用「不需要交通」
+    delete data.id; delete data.noTransportBefore; delete data.visited; delete data.skipped;   // 複製過去的是新的一筆，「去過」重新開始   // 複製過去的地點，前後鄰居不同了，不沿用「不需要交通」
     data.day = targetDay;
     data.order = baseOrder + idx*1000;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -4658,7 +4714,7 @@ document.getElementById("holdSave").addEventListener("click", async ()=>{
         upd.category = selectedHoldCategory;
         if(hSelectedLatLng){ upd.lat = hSelectedLatLng.lat; upd.lng = hSelectedLatLng.lng; }
       }
-      await db.collection(COLLECTION).doc(holdEditingId).update(upd);
+      await fsw(db.collection(COLLECTION).doc(holdEditingId).update(upd));
     } else {
       const data = {
         type:"holding", tripId: activeTripId, day: HOLDING, name, note: document.getElementById("hNote").value.trim(), memo: document.getElementById("hMemo").value.trim(),
@@ -4669,7 +4725,7 @@ document.getElementById("holdSave").addEventListener("click", async ()=>{
         data.lat = hSelectedLatLng ? hSelectedLatLng.lat : null;
         data.lng = hSelectedLatLng ? hSelectedLatLng.lng : null;
       }
-      await db.collection(COLLECTION).add(data);
+      await fsw(db.collection(COLLECTION).add(data));
     }
     hSelectedLatLng = null;
     renderHolding();
@@ -4695,7 +4751,7 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
   const category = (holdItem && holdItem.category) || "其他";
   try{
     const _stay = (holdItem && holdItem.stayMinutes) ? holdItem.stayMinutes : (SPOT_STAY_DEFAULT[category] || 0);   // 備忘錄排進行程：依類別帶預設停留
-    await db.collection(COLLECTION).doc(assigningHoldId).update({ type:"spot", day, order, category, stayMinutes:_stay, time:"", expense:{amount:0,category:"",payer:"",currency:primaryCurrencyForTrip()} });
+    await fsw(db.collection(COLLECTION).doc(assigningHoldId).update({ type:"spot", day, order, category, stayMinutes:_stay, time:"", expense:{amount:0,category:"",payer:"",currency:primaryCurrencyForTrip()} }));
     assignModalMask.classList.remove("show");
   }catch(e){ console.error(e); travelToast(failMsg("排入", e)); }
 });
@@ -5071,11 +5127,11 @@ document.getElementById("eSave").addEventListener("click", async ()=>{
   };
   try{
     if(editingExpenseId){
-      await db.collection(COLLECTION).doc(editingExpenseId).update(data);
+      await fsw(db.collection(COLLECTION).doc(editingExpenseId).update(data));
     } else {
       data.order = Date.now();
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection(COLLECTION).add(data);
+      await fsw(db.collection(COLLECTION).add(data));
     }
     closeExpenseModal();
   }catch(err){ console.error("save expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("儲存", err)); }
@@ -5087,6 +5143,152 @@ document.getElementById("eDelete").addEventListener("click", async ()=>{
     await db.collection(COLLECTION).doc(editingExpenseId).delete();
     closeExpenseModal();
   }catch(err){ console.error("delete expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
+});
+
+// ================= 貼上帳單（支付寶／微信）=================
+const BILL_CATS = ["餐飲","交通","購物","門票","行前採買","其他"];
+const BILL_HEADER_WORDS = new Set(["支出","收入","餘額","合計","總計","共計","全部","轉賬","轉帳","退款","篩選","筛选","收支分析","貼紙","贴纸","搜尋","搜索","搜尋交易記錄","账单","帳單"]);
+function billMapCategory(alipayCat, name){
+  const c = alipayCat || "", n = name || "";
+  if(/餐飲|餐饮|美食/.test(c)) return "餐飲";
+  if(/交通|出行|打車|打车/.test(c)) return "交通";
+  if(/日用|購物|购物|服飾|服饰|數碼|数码|家居|美容/.test(c)) return "購物";
+  if(/門票|门票/.test(c) || /票/.test(n) && /迪士尼|樂園|乐园|景區|景区/.test(n)) return "門票";
+  if(/滴滴|地鐵|地铁|打车|出租|公交|高铁|火车/.test(n)) return "交通";
+  if(/咖啡|奶茶|茶|餐|饭|飯|面|麵|粥|烧烤|燒烤|小吃|美团|美團|饿了么|餓了麼|奶|柠檬|檸檬|食品|超市|便利/.test(n) && !/手礼|手禮/.test(n)) return "餐飲";
+  return "其他";
+}
+function billIso(d){ const p2=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()); }
+function billParseDate(s){
+  if(!s) return "";
+  const now = new Date(); now.setHours(0,0,0,0);
+  let m;
+  if(/今天/.test(s)) return billIso(now);
+  if(/昨天/.test(s)){ now.setDate(now.getDate()-1); return billIso(now); }
+  if(/前天/.test(s)){ now.setDate(now.getDate()-2); return billIso(now); }
+  if((m = s.match(/(\d{4})[-\/.年](\d{1,2})[-\/.月](\d{1,2})/))) return billIso(new Date(+m[1], +m[2]-1, +m[3]));
+  if((m = s.match(/(\d{1,2})月(\d{1,2})日?/)) || (m = s.match(/\b(\d{1,2})[-\/](\d{1,2})\b/))){
+    const d = new Date(now.getFullYear(), +m[1]-1, +m[2]); if(d > now) d.setFullYear(d.getFullYear()-1); return billIso(d);
+  }
+  return "";
+}
+// 回傳 [{name, amount, category, date, time}]；看不懂的行直接略過，預覽時使用者可以自己補
+function parseBillText(text){
+  const lines = String(text||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const out = [];
+  const amtOnly = /^([-−–+])?\s*[¥￥]?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:元|CNY|RMB)?$/;
+  const amtTail = /^(.*\S)\s+([-−–+])?\s*[¥￥]?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:元|CNY|RMB)?$/;
+  const timeRe = /^(?:(?:今天|昨天|前天)|(?:\d{4}[-\/.年])?\d{1,2}[-\/月]\d{1,2}日?)?\s*\d{1,2}:\d{2}(?::\d{2})?$/;
+  const catRe = /^(餐飲美食|餐饮美食|交通出行|文化休閒|文化休闲|日用百貨|日用百货|購物|购物|服飾裝扮|服饰装扮|數碼電器|数码电器|生活服務|生活服务|旅遊度假|旅游度假|醫療健康|医疗健康|教育培訓|教育培训|充值繳費|充值缴费|運動戶外|运动户外|其他|美容美髮|美容美发|家居家裝|家居家装|母嬰親子|母婴亲子)$/;
+  let name = "", cat = "", when = "";
+  const emit = (n, amt, sign)=>{
+    const nm = (n||"").trim();
+    if(sign==="+" || !(amt>0) || !nm || BILL_HEADER_WORDS.has(nm) || /^\d{1,2}月$/.test(nm)){ name = ""; cat = ""; when = ""; return; }
+    out.push({ name: nm, amount: amt, category: billMapCategory(cat, nm), date: billParseDate(when), time: (when.match(/\d{1,2}:\d{2}/)||[""])[0] });
+    name = ""; cat = ""; when = "";
+  };
+  for(const ln of lines){
+    let m;
+    if(timeRe.test(ln)){ when = ln; continue; }
+    if(catRe.test(ln)){ cat = ln; continue; }
+    if((m = ln.match(amtOnly))){ emit(name, parseFloat(m[2].replace(/,/g,"")), m[1]||""); continue; }
+    if((m = ln.match(amtTail))){
+      // 「店名 -5.01」同一行；日期若夾在後面（例：全家 10/30 12:20 -5）交給時間行判斷，這裡只收尾端金額
+      emit(m[1], parseFloat(m[3].replace(/,/g,"")), m[2]||""); continue;
+    }
+    name = ln;   // 其他文字當作店名候選（保留最近一行）
+  }
+  return out;
+}
+let billRowsData = [];
+const billModalMask = document.getElementById("billModalMask");
+function openBillModal(){
+  if(!getActiveTrip()) return;
+  document.getElementById("billText").value = "";
+  document.getElementById("billPreview").style.display = "none";
+  document.getElementById("billSave").style.display = "none";
+  billRowsData = [];
+  setCurrencyChip(document.getElementById("billCurrencyChips"), primaryCurrencyForTrip());
+  populatePayerSelect(document.getElementById("billPayer"), document.getElementById("billPayerWrap"), lastExpensePayer());
+  renderShareChipsIn("billShareWrap", "billShareChips", null);
+  document.getElementById("billDefaultDate").value = billIso(new Date());
+  billModalMask.classList.add("show");
+}
+function closeBillModal(){ billModalMask.classList.remove("show"); }
+function renderBillRows(){
+  const box = document.getElementById("billRows"); box.innerHTML = "";
+  billRowsData.forEach((r, i)=>{
+    const row = document.createElement("div");
+    row.className = "sec-card"; row.style.cssText = "margin-bottom:8px; padding:10px 12px;";
+    row.innerHTML = `<label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13px;"><input type="checkbox" data-k="on" ${r.on?"checked":""}> 建立這一筆${r.time ? `<span style="color:var(--sub);">（帳單時間 ${escapeHtml(r.time)}）</span>` : ""}</label>
+      <input type="text" data-k="name" value="${escapeHtml(r.name)}" style="width:100%; margin-bottom:6px;">
+      <div style="display:flex; gap:8px;">
+        <input type="number" inputmode="decimal" data-k="amount" value="${r.amount}" style="flex:1; min-width:0;">
+        <select data-k="category" style="flex:1; min-width:0;">${BILL_CATS.map(c=>`<option value="${c}"${c===r.category?" selected":""}>${(EXP_CAT_ICON[c]||"📌")+" "+c}</option>`).join("")}</select>
+      </div>
+      <input type="date" data-k="date" value="${r.date||""}" style="width:100%; margin-top:6px;">`;
+    row.querySelectorAll("[data-k]").forEach(el=>{
+      const k = el.dataset.k;
+      el.addEventListener(k==="on" ? "change" : "input", ()=>{
+        r[k] = k==="on" ? el.checked : (k==="amount" ? Number(el.value) : el.value);
+        updateBillSummary();
+      });
+    });
+    box.appendChild(row);
+  });
+  updateBillSummary();
+}
+function updateBillSummary(){
+  const on = billRowsData.filter(r=>r.on && r.name && r.amount>0);
+  const sum = on.reduce((n,r)=>n+r.amount, 0);
+  const cur = getCurrencyChip(document.getElementById("billCurrencyChips"));
+  document.getElementById("billSummary").textContent = billRowsData.length
+    ? "共辨識 " + billRowsData.length + " 筆，將建立 " + on.length + " 筆，合計 " + currencySymbol(cur) + (Math.round(sum*100)/100)
+    : "沒有辨識到任何一筆。請確認每筆都有店名和金額，或改成一行一筆（例：全家 23.5）。";
+  document.getElementById("billSave").style.display = on.length ? "" : "none";
+}
+document.getElementById("billPasteBtn").addEventListener("click", openBillModal);
+document.getElementById("billClose").addEventListener("click", closeBillModal);
+document.getElementById("billCancel").addEventListener("click", closeBillModal);
+billModalMask.addEventListener("click",(ev)=>{ if(ev.target===billModalMask) closeBillModal(); });
+document.getElementById("billCurrencyChips").addEventListener("click", ()=>setTimeout(updateBillSummary,0));
+document.getElementById("billParseBtn").addEventListener("click", ()=>{
+  const def = document.getElementById("billDefaultDate").value || "";
+  billRowsData = parseBillText(document.getElementById("billText").value).map(r=>Object.assign(r, { on:true, hadDate: !!r.date, date: r.date || def }));
+  document.getElementById("billPreview").style.display = "block";
+  renderBillRows();
+});
+document.getElementById("billDefaultDate").addEventListener("change", ()=>{
+  const def = document.getElementById("billDefaultDate").value || "";
+  billRowsData.forEach(r=>{ if(!r.hadDate) r.date = def; }); renderBillRows();
+});
+document.getElementById("billSave").addEventListener("click", async ()=>{
+  const trip = getActiveTrip(); if(!trip) return;
+  const rows = billRowsData.filter(r=>r.on && r.name && r.amount>0);
+  if(!rows.length) return;
+  const members = trip.members || [];
+  let sharedBy = [];
+  if(members.length>=2){
+    const picked = [...document.querySelectorAll("#billShareChips .chip.active")].map(c=>c.dataset.m);
+    if(picked.length===0){ travelToast("請至少選一位分攤對象"); return; }
+    sharedBy = (picked.length===members.length) ? [] : picked;
+  }
+  const currency = getCurrencyChip(document.getElementById("billCurrencyChips"));
+  const payer = document.getElementById("billPayer").value || "";
+  try{
+    const batch = db.batch();
+    const base = Date.now();
+    rows.forEach((r, i)=>{
+      batch.set(db.collection(COLLECTION).doc(), {
+        type:"expense", tripId: activeTripId, name: r.name.trim(), date: r.date || "", note: "支付帳單匯入" + (r.time ? " " + r.time : ""),
+        expense: { amount: Math.round(r.amount*100)/100, category: r.category, payer, currency, sharedBy },
+        order: base + i, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await fsw(batch.commit());
+    closeBillModal();
+    travelToast("已建立 " + rows.length + " 筆花費");
+  }catch(err){ console.error("bill import failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("儲存", err)); }
 });
 
 // ================= FLIGHT =================
@@ -5308,67 +5510,86 @@ function renderFlightForm(){
   renderFlightExpenseTitle();
   renderFlightPhotos();
 }
-// ---------- 機票／航班動態截圖（去程、回程各一張；只放在航班頁，不進 PDF 和分享文字）----------
-const FLIGHT_PHOTO_MAX = 380000;   // 兩張都存在同一份航班資料裡，單張限制小一點，避免超過 Firestore 1MB
+// ---------- 機票／航班動態截圖（去程、回程各最多 3 張；只放在航班頁，不進 PDF 和分享文字）----------
+// 6 張都存在同一份航班資料裡（Firestore 一筆上限 1MB）：單張壓到約 130KB，兩趟合計另外設上限
+const FLIGHT_PHOTO_MAX = 130000, FLIGHT_PHOTO_COUNT = 3, FLIGHT_PHOTO_TOTAL = 850000;
+// 新格式 outPhotos / retPhotos：[{u, at}]；舊資料只有單張 outPhoto / outPhotoAt，照樣讀得到
+function flightPhotosOf(dir){
+  const s = flightSettings || {}, k = dir.toLowerCase();
+  if(Array.isArray(s[k+"Photos"])) return s[k+"Photos"].filter(x=>x && x.u);
+  return s[k+"Photo"] ? [{ u: s[k+"Photo"], at: s[k+"PhotoAt"] || "" }] : [];
+}
+function flightPhotosBytes(){ return ["Out","Ret"].reduce((n,d)=>n + flightPhotosOf(d).reduce((m,x)=>m + x.u.length, 0), 0); }
 function flightPhotoWrap(dir){
   const id = "fs"+dir+"PhotoWrap";
   let w = document.getElementById(id);
   if(w) return w;
   const card = document.getElementById(dir==="Out" ? "fsOutCard" : "fsRetCard"); if(!card) return null;
   w = document.createElement("div"); w.className = "field"; w.id = id;
-  w.innerHTML = `<label>📷 機票／航班動態截圖（選填）</label>
-    <input type="file" accept="image/*" id="fs${dir}PhotoInput" style="display:none;">
-    <div id="fs${dir}PhotoView" style="display:none;">
-      <img id="fs${dir}PhotoImg" style="width:100%; max-width:260px; border-radius:12px; display:block; cursor:zoom-in;">
-      <p id="fs${dir}PhotoAt" style="font-size:12px; color:var(--sub); margin:6px 0;"></p>
-      <div style="display:flex; gap:8px;">
-        <button type="button" id="fs${dir}PhotoChange" style="flex:1; padding:10px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">更換照片</button>
-        <button type="button" id="fs${dir}PhotoDel" style="flex:1; padding:10px; border:1px solid var(--line); background:var(--bg); color:var(--danger); border-radius:var(--radius-md); font-size:13px;">刪除</button>
-      </div>
-    </div>
-    <button type="button" id="fs${dir}PhotoPick" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片</button>
+  w.innerHTML = `<label>📷 機票／航班動態截圖（選填，最多 ${FLIGHT_PHOTO_COUNT} 張）</label>
+    <input type="file" accept="image/*" multiple id="fs${dir}PhotoInput" style="display:none;">
+    <div id="fs${dir}PhotoList" style="display:flex; flex-direction:column; gap:12px; margin-bottom:8px;"></div>
+    <button type="button" id="fs${dir}PhotoPick" style="width:100%; padding:12px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px;">📷 選擇照片（可一次選多張）</button>
     <p id="fs${dir}PhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>`;
   card.appendChild(w);
   const inp = w.querySelector("#fs"+dir+"PhotoInput");
   w.querySelector("#fs"+dir+"PhotoPick").addEventListener("click", ()=>inp.click());
-  w.querySelector("#fs"+dir+"PhotoChange").addEventListener("click", ()=>inp.click());
-  w.querySelector("#fs"+dir+"PhotoImg").addEventListener("click", ()=>openPhotoLightbox((flightSettings||{})[dir.toLowerCase()+"Photo"]));
-  w.querySelector("#fs"+dir+"PhotoDel").addEventListener("click", async ()=>{
-    if(!await askConfirm("刪除這張照片", "刪除後無法復原。", "刪除")) return;
-    await saveFlightPhoto(dir, "");
-  });
   inp.addEventListener("change", async (e)=>{
-    const file = e.target.files[0]; if(!file) return;
+    const files = [...(e.target.files || [])]; if(!files.length) return;
     const st = w.querySelector("#fs"+dir+"PhotoStatus");
     st.style.display = "block"; st.textContent = "處理中...";
-    try{
-      let url = "";
-      for(const mw of [800, 640, 500]){ url = await compressImageFile(file, mw); if(url.length <= FLIGHT_PHOTO_MAX) break; }
-      if(url.length > FLIGHT_PHOTO_MAX){ st.textContent = "圖片壓縮後仍太大，請換一張較小的圖片"; e.target.value = ""; return; }
-      await saveFlightPhoto(dir, url);
-      st.style.display = "none";
-    }catch(err){ console.error("flight photo failed", err); st.textContent = "圖片無法處理，請換一張圖片"; }
+    const list = flightPhotosOf(dir).slice();
+    const room = FLIGHT_PHOTO_COUNT - list.length;
+    const picked = files.slice(0, Math.max(0, room));
+    const p2 = n=>String(n).padStart(2,"0"), d = new Date();
+    const at = (d.getMonth()+1)+"/"+d.getDate()+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+    let added = 0, tooBig = 0, failed = 0, full = 0, total = flightPhotosBytes();
+    for(const file of picked){
+      try{
+        let url = "";
+        for(const mw of [800, 640, 500, 400]){ url = await compressImageFile(file, mw); if(url.length <= FLIGHT_PHOTO_MAX) break; }
+        if(url.length > FLIGHT_PHOTO_MAX){ tooBig++; continue; }
+        if(total + url.length > FLIGHT_PHOTO_TOTAL){ full++; continue; }
+        list.push({ u:url, at }); total += url.length; added++;
+      }catch(err){ console.error("flight photo failed", err); failed++; }
+    }
+    if(added) await saveFlightPhotos(dir, list);
+    const msgs = [];
+    if(files.length > picked.length) msgs.push("最多 " + FLIGHT_PHOTO_COUNT + " 張，多選的 " + (files.length - picked.length) + " 張沒有加入");
+    if(tooBig) msgs.push(tooBig + " 張壓縮後仍太大，沒有加入");
+    if(full) msgs.push(full + " 張因為航班頁照片總量已滿，沒有加入（請先刪除舊的）");
+    if(failed) msgs.push(failed + " 張無法處理");
+    if(msgs.length){ st.textContent = msgs.join("；"); } else { st.style.display = "none"; }
     e.target.value = "";
   });
   return w;
 }
-async function saveFlightPhoto(dir, url){
+async function saveFlightPhotos(dir, list){
   if(!activeTripId) return;
   const k = dir.toLowerCase();
-  const p2 = n=>String(n).padStart(2,"0"), d = new Date();
-  const at = url ? (d.getMonth()+1)+"/"+d.getDate()+" "+p2(d.getHours())+":"+p2(d.getMinutes()) : "";
   try{
-    await db.collection(COLLECTION).doc("flight_"+activeTripId).set({ [k+"Photo"]: url, [k+"PhotoAt"]: at }, { merge:true });
+    // 舊的單張欄位清空，之後只讀新格式
+    await db.collection(COLLECTION).doc("flight_"+activeTripId).set({ [k+"Photos"]: list, [k+"Photo"]: "", [k+"PhotoAt"]: "" }, { merge:true });
   }catch(e){ console.error("save flight photo failed", e); travelToast(failMsg("儲存", e)); }
 }
 function renderFlightPhotos(){
-  const s = flightSettings || {};
   ["Out","Ret"].forEach(dir=>{
     const w = flightPhotoWrap(dir); if(!w) return;
-    const k = dir.toLowerCase(), url = s[k+"Photo"] || "";
-    w.querySelector("#fs"+dir+"PhotoView").style.display = url ? "block" : "none";
-    w.querySelector("#fs"+dir+"PhotoPick").style.display = url ? "none" : "block";
-    if(url){ w.querySelector("#fs"+dir+"PhotoImg").src = url; w.querySelector("#fs"+dir+"PhotoAt").textContent = s[k+"PhotoAt"] ? "更新於 " + s[k+"PhotoAt"] : ""; }
+    const list = flightPhotosOf(dir);
+    const box = w.querySelector("#fs"+dir+"PhotoList"); box.innerHTML = "";
+    list.forEach((x, i)=>{
+      const row = document.createElement("div");
+      row.innerHTML = `<img src="${x.u}" style="width:100%; max-width:260px; border-radius:12px; display:block; cursor:zoom-in;">
+        <p style="font-size:12px; color:var(--sub); margin:6px 0;">${x.at ? "更新於 " + x.at : ""}</p>
+        <button type="button" style="padding:8px 14px; border:1px solid var(--line); background:var(--bg); color:var(--danger); border-radius:var(--radius-md); font-size:13px;">刪除</button>`;
+      row.querySelector("img").addEventListener("click", ()=>openPhotoLightbox(x.u));
+      row.querySelector("button").addEventListener("click", async ()=>{
+        if(!await askConfirm("刪除這張照片", "刪除後無法復原。", "刪除")) return;
+        const a = flightPhotosOf(dir).slice(); a.splice(i,1); await saveFlightPhotos(dir, a);
+      });
+      box.appendChild(row);
+    });
+    w.querySelector("#fs"+dir+"PhotoPick").style.display = list.length < FLIGHT_PHOTO_COUNT ? "block" : "none";
   });
 }
 
@@ -5757,12 +5978,12 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
       : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
-      await db.collection(COLLECTION).doc(editingPackId).update(data);
+      await fsw(db.collection(COLLECTION).doc(editingPackId).update(data));
     } else {
       data.checked = false;
       data.order = Date.now();
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection(COLLECTION).add(data);
+      await fsw(db.collection(COLLECTION).add(data));
     }
     packModalMask.classList.remove("show");
   }catch(e){ console.error("save packing failed", e); travelToast(failMsg("儲存", e)); }
@@ -6385,10 +6606,17 @@ document.getElementById("tripSelBtn").addEventListener("click", ()=>{
 document.getElementById("tripListClose").addEventListener("click", ()=>tripListMask.classList.remove("show"));
 tripListMask.addEventListener("click",(e)=>{ if(e.target===tripListMask) tripListMask.classList.remove("show"); });
 
+// 已結束的旅程（結束日早於今天）收進最下面的摺疊區，列表只留進行中和還沒出發的
+let _endedTripsOpen = false;
+function tripIsEnded(t){
+  if(!t || !t.endDate) return false;
+  const d = new Date(), today = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  return String(t.endDate) < today;
+}
 function renderTripListBody(){
   const body = document.getElementById("tripListBody");
   body.innerHTML = "";
-  trips.forEach(t=>{
+  const addRow = (t, host)=>{
     const row = document.createElement("div");
     row.className = "hold-card";
     const range = (t.startDate||t.endDate) ? `<p class="hnote">${escapeHtml(t.startDate||"")} ~ ${escapeHtml(t.endDate||"")}</p>` : "";
@@ -6412,8 +6640,22 @@ function renderTripListBody(){
     });
     editBtn.addEventListener("click", ()=>openTripModal(t));
     delBtn.addEventListener("click", ()=>deleteTrip(t.id));
-    body.appendChild(row);
-  });
+    host.appendChild(row);
+  };
+  const current = trips.filter(t=>!tripIsEnded(t)), ended = trips.filter(tripIsEnded);
+  current.forEach(t=>addRow(t, body));
+  if(ended.length){
+    ended.sort((x,y)=>String(y.endDate).localeCompare(String(x.endDate)));   // 最近結束的在前
+    const open = _endedTripsOpen || ended.some(t=>t.id===activeTripId);
+    const head = document.createElement("button");
+    head.type = "button"; head.id = "endedTripsToggle";
+    head.style.cssText = "width:100%; text-align:left; padding:12px 14px; margin:8px 0; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:14px; font-weight:600;";
+    head.textContent = (open ? "▾ " : "▸ ") + "已結束的旅程（" + ended.length + "）";
+    const box = document.createElement("div"); box.id = "endedTripsBox"; box.style.display = open ? "block" : "none";
+    ended.forEach(t=>addRow(t, box));
+    head.addEventListener("click", ()=>{ _endedTripsOpen = box.style.display==="none"; renderTripListBody(); });
+    body.appendChild(head); body.appendChild(box);
+  }
 }
 
 document.getElementById("tripAddBtn").addEventListener("click", ()=>{
