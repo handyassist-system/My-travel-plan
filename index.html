@@ -397,7 +397,7 @@
   .chip{padding:9px 15px; border-radius:999px; border:1px solid var(--line); background:var(--bg); font-size:13px; color:var(--sub);}
   .chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
   .modal-actions{display:flex; gap:10px; margin-top:6px;}
-  #billModalMask .modal-actions{position:sticky; bottom:-1px; padding:10px 0 4px; background:var(--card, var(--bg)); z-index:2;}   /* 貼上帳單：預覽很長時，按鈕固定在視窗底部 */
+  #expModalMask .modal-actions, #billModalMask .modal-actions, #packModalMask .modal-actions{position:sticky; bottom:-1px; padding:10px 0 4px; background:var(--card, var(--bg)); z-index:2;}   /* 貼上帳單：預覽很長時，按鈕固定在視窗底部 */
   .btn{flex:1; padding:14px; border-radius:var(--radius-md); border:none; font-size:15px; font-weight:600;}
   .btn-primary{background:var(--accent); color:#fff;}
   .btn-ghost{background:var(--bg); color:var(--ink);}
@@ -1229,6 +1229,7 @@ header #mapBtn, header #settingsBtn{
       <p id="packPhotoStatus" style="font-size:12px; color:var(--sub); margin:4px 0 0; display:none;"></p>
     </div>
     <div class="modal-actions">
+      <button class="btn btn-ghost" id="packDelete" style="display:none; color:#d9534f;">刪除</button>
       <button class="btn btn-ghost" id="packCancel">取消</button>
       <button class="btn btn-primary" id="packSave">儲存</button>
     </div>
@@ -1486,7 +1487,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-219";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-222";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5196,6 +5197,8 @@ function parseBillText(text){
       // 「店名 -5.01」同一行；日期若夾在後面（例：全家 10/30 12:20 -5）交給時間行判斷，這裡只收尾端金額
       emit(m[1], parseFloat(m[3].replace(/,/g,"")), m[2]||""); continue;
     }
+    // 店名後面緊接著一行短文字、沒有數字，多半是支付寶沒收錄的分類（例：酒店旅遊、公益捐贈），當作分類而不是店名
+    if(name && !cat && !when && ln.length<=8 && !/[0-9]/.test(ln)){ cat = ln; continue; }
     name = ln;   // 其他文字當作店名候選（保留最近一行）
   }
   return out;
@@ -5912,6 +5915,7 @@ document.getElementById("sProxy").addEventListener("change", refreshSovUI);
 document.getElementById("sExpAmount").addEventListener("input", refreshSovUI);
 function openPackModal(item){
   editingPackId = item ? item.id : null;
+  document.getElementById("packDelete").style.display = item ? "" : "none";
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
   selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他用品");
   renderPackCatChips();
@@ -5987,6 +5991,16 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
     }
     packModalMask.classList.remove("show");
   }catch(e){ console.error("save packing failed", e); travelToast(failMsg("儲存", e)); }
+});
+
+document.getElementById("packDelete").addEventListener("click", async ()=>{
+  if(!editingPackId) return;
+  const it = items.find(i=>i.id===editingPackId);
+  if(!await askConfirm("刪除這個項目", "「" + ((it && it.name) || "這個項目") + "」會從清單刪除，記在上面的花費也會一起消失。刪除後無法復原。", "刪除")) return;
+  try{
+    await db.collection(COLLECTION).doc(editingPackId).delete();
+    packModalMask.classList.remove("show");
+  }catch(e){ console.error("delete packing failed", e); if(!(e && e.message==="READ_ONLY")) travelToast(failMsg("刪除", e)); }
 });
 
 async function togglePackChecked(item){
