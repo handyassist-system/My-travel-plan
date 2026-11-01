@@ -1101,10 +1101,10 @@ header #mapBtn, header #settingsBtn{
     <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px; line-height:1.6;">選擇支付寶或微信的帳單截圖，自動整理成清單。確認後才會建立。</p>
     <button class="btn btn-primary" id="billOcrBtn" type="button" style="width:100%; margin-bottom:6px;">📷 選擇帳單截圖（可多張）</button>
     <input type="file" id="billOcrFile" accept="image/*" multiple style="display:none;">
-    <p id="billOcrStatus" style="font-size:12px; color:var(--sub); margin:0 0 10px; line-height:1.6;">第一次使用需下載約 13MB 辨識資料，之後不用再下載。</p>
-    <details style="margin-bottom:10px;"><summary style="font-size:13px; color:var(--sub);">或手動貼上文字</summary>
-    <div class="field" style="margin-top:8px;"><textarea id="billText" rows="6" placeholder="貼在這裡"></textarea></div></details>
-    <button class="btn btn-ghost" id="billParseBtn" type="button" style="width:100%; margin-bottom:12px;">辨識</button>
+    <p id="billOcrStatus" style="font-size:13px; color:var(--seal); font-weight:600; margin:0 0 10px; line-height:1.6;">第一次使用需下載約 13MB 辨識資料，之後不用再下載。</p>
+    <details id="billManual" style="margin-bottom:10px;"><summary style="font-size:13px; color:var(--sub);">或手動貼上文字</summary>
+    <div class="field" style="margin-top:8px;"><textarea id="billText" rows="6" placeholder="貼在這裡"></textarea></div>
+    <button class="btn btn-ghost" id="billParseBtn" type="button" style="width:100%; margin-bottom:12px;">整理成清單</button></details>
     <div id="billPreview" style="display:none;">
       <div id="billThumbs" style="display:none; gap:6px; overflow-x:auto; margin-bottom:8px;"></div>
       <div class="sec-card"><div class="sec-h">🔧 全部一起設定</div>
@@ -1177,6 +1177,7 @@ header #mapBtn, header #settingsBtn{
         <input id="trNewMember" type="text" placeholder="輸入姓名" style="flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--line); font-size:15px; background:var(--bg);">
         <button id="trAddMemberBtn" class="btn btn-ghost" style="flex:0 0 auto; padding:0 16px;">加入</button>
       </div>
+      <div id="trRecoverWrap" style="display:none; margin-top:8px; padding:8px 12px; border-radius:10px; background:var(--seal-soft); font-size:13px; align-items:center; gap:8px;"><span id="trRecoverText" style="flex:1; min-width:0;"></span><button type="button" id="trRecoverBtn" class="btn btn-ghost" style="padding:6px 12px; font-size:13px;">加入</button></div>
     </div>
     <div class="field"><label>備註（選填）</label><textarea id="trNotes" placeholder="任何想記的事，例如簽證資訊、住宿地址、特殊注意事項..."></textarea></div>
     <div class="field" id="trBackfillWrap" style="display:none;"><button type="button" class="btn btn-ghost" id="trBackfillStay" style="width:100%;">補上舊景點的停留時間</button><p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.5;">只補「停留時間是空的」景點，依類別帶預設值；已經填過的不會動。</p></div>
@@ -1528,7 +1529,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-237";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-239";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2191,7 +2192,14 @@ function recomputeDays(){
 }
 
 // ---------- Trips ----------
-function getActiveTrip(){ return trips.find(t=>t.id===activeTripId) || null; }
+// 旅伴名單是空的、但花費上已有付款人／分攤對象時，先用花費上的名字當旅伴（只在畫面上用，不改資料；到「編輯行程」按「加入」才會存回去）
+function getActiveTrip(){
+  const t = trips.find(t=>t.id===activeTripId) || null;
+  if(!t || (t.members && t.members.length) || typeof items==="undefined") return t;
+  const names = [];
+  items.forEach(i=>{ if(i.tripId!==t.id || !i.expense) return; const add = n=>{ if(n && n!=="公費現金" && !names.includes(n)) names.push(n); }; add(i.expense.payer); (i.expense.sharedBy||[]).forEach(add); });
+  return names.length ? Object.assign({}, t, { members: names, _derivedMembers: true }) : t;
+}
 
 function startTripsListening(){
   if(tripsUnsubscribe) return;
@@ -3351,7 +3359,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   if(members.length===0){
     wrapEl.style.display = "none"; selectEl.innerHTML = "";
     // 沒有成員時不是壞掉：說明為什麼沒有付款人可選
-    if(!nm){ nm = document.createElement("p"); nm.className = "nomem-note"; nm.style.cssText = "font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;"; nm.textContent = "💡 還沒有旅伴，所以沒有「付款人」可選。到「編輯行程」加入旅伴後就會出現。"; wrapEl.parentNode.insertBefore(nm, wrapEl.nextSibling); }
+    if(!nm){ nm = document.createElement("p"); nm.className = "nomem-note"; nm.style.cssText = "font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;"; nm.innerHTML = '💡 還沒有旅伴，所以沒有「付款人」可選。 <button type="button" class="nomem-go" style="border:none; background:var(--seal); color:#fff; border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700;">加入旅伴</button>'; nm.querySelector(".nomem-go").addEventListener("click", ()=>{ const t = getActiveTrip(); if(t) openTripModal(t); }); wrapEl.parentNode.insertBefore(nm, wrapEl.nextSibling); }
     nm.style.display = "";
     return;
   }
@@ -5623,7 +5631,7 @@ async function runBillOcr(files){
     document.getElementById("billParseBtn").click();
   }catch(err){
     console.error("bill ocr failed", err);
-    st.textContent = "辨識失敗，請檢查網路後重試，或改用手動貼上。";
+    st.textContent = "辨識失敗（" + String((err && err.message) || "未知").slice(0,40) + "），請檢查網路後重試，或改用手動貼上。";
   }finally{
     if(worker){ try{ worker.terminate(); }catch(e){} }
     btn.disabled = false;
@@ -7496,8 +7504,22 @@ document.querySelectorAll("#trRegionChips .chip").forEach(chip=>{
     document.getElementById("trName").placeholder = "例：" + regionExample("trip", chip.dataset.v);
   });
 });
+// 從這個行程已記的花費找出付款人／分攤對象的名字，成員不見時可以一鍵找回
+function memberRecoverNames(){
+  const names = new Set();
+  items.forEach(i=>{ if(i.tripId!==activeTripId || !i.expense) return; const p = i.expense.payer; if(p && p!==POOL_PAYER) names.add(p); (i.expense.sharedBy||[]).forEach(n=>{ if(n) names.add(n); }); });
+  return [...names].filter(n=>!trMembersTemp.includes(n));
+}
+function renderMemberRecover(){
+  const w = document.getElementById("trRecoverWrap"); if(!w) return;
+  const miss = editingTripId ? memberRecoverNames() : [];
+  w.style.display = miss.length ? "flex" : "none";
+  document.getElementById("trRecoverText").textContent = "從花費紀錄找到：" + miss.join("、");
+}
+document.getElementById("trRecoverBtn").addEventListener("click", ()=>{ memberRecoverNames().forEach(n=>trMembersTemp.push(n)); renderMemberChips(); });
 function renderMemberChips(){
   trMembersChips.innerHTML = "";
+  setTimeout(renderMemberRecover, 0);
   trMembersTemp.forEach((m,idx)=>{
     const chip = document.createElement("div");
     chip.className = "chip active";
@@ -7523,6 +7545,7 @@ document.getElementById("trSave").addEventListener("click", async ()=>{
   const _s = document.getElementById("trStart").value, _e = document.getElementById("trEnd").value;
   if(_s && _e && _e < _s){ travelToast("結束日不能早於開始日，請重新選擇"); return; }
   const selectedRegion = document.querySelector("#trRegionChips .chip.active")?.dataset.v || "japan";
+  { const _nm = (document.getElementById("trNewMember").value||"").trim(); if(_nm && !trMembersTemp.includes(_nm)){ trMembersTemp.push(_nm); document.getElementById("trNewMember").value = ""; } }   // 打了名字但忘了按「加入」，存檔時一併加入
   const data = {
     name, startDate: document.getElementById("trStart").value, endDate: document.getElementById("trEnd").value,
     members: trMembersTemp, region: selectedRegion, notes: document.getElementById("trNotes").value.trim()
