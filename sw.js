@@ -1,4 +1,4 @@
-// build 1009-222 app 都改這行，瀏覽器才會偵測到新版並顯示「有新版本可用」）
+// build 1009-228 app 都改這行，瀏覽器才會偵測到新版並顯示「有新版本可用」）
 /* 旅遊計畫 Service Worker — 網路優先，離線才用快取 */
 var CACHE = 'travel-cache-v2';
 var CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
@@ -17,7 +17,7 @@ self.addEventListener('message', function(e){ if(e.data==='SKIP_WAITING') self.s
 self.addEventListener('fetch', function(e){
   if(e.request.method !== 'GET') return;
   var url = e.request.url;
-  if(url.indexOf('firebase') > -1 || url.indexOf('googleapis') > -1 || url.indexOf('gstatic') > -1) return;
+  if(url.indexOf('firebase') > -1 || url.indexOf('googleapis') > -1 || url.indexOf('gstatic') > -1 || url.indexOf('jsdelivr') > -1 || url.indexOf('projectnaptha') > -1) return;
   var bare = url.split('?')[0].split('#')[0];
   var isPage = e.request.mode === 'navigate' || /\.html$/.test(bare) || /\/$/.test(bare);
   var netReq = isPage ? fetch(url, { cache:'no-store', credentials:'same-origin' }) : fetch(e.request);

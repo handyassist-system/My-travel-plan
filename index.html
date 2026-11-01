@@ -644,7 +644,7 @@ header #mapBtn, header #settingsBtn{
         <div class="exp-rate">匯率 1<span id="rateFromLabel">¥</span> = <input id="rateInput" type="number" step="0.01"> NT$ <button id="rateFetchBtn" type="button" style="border:none; background:var(--seal-soft); color:var(--seal); border-radius:8px; padding:4px 8px; font-size:12px;">更新匯率</button></div>
       </div>
       <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
-        <button type="button" id="billPasteBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">📋 貼上帳單</button><button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
+        <button type="button" id="expSelBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">☑ 選取</button><button type="button" id="billPasteBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">📋 貼上帳單</button><button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
       </div>
       <div class="exp-cats" id="expCats" data-h="分類"></div>
       <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
@@ -1047,6 +1047,7 @@ header #mapBtn, header #settingsBtn{
     </div>
     <div class="sec-card"><div class="sec-h">📝 日期與備註</div>
     <div class="field"><label>日期（選填）</label><input id="eDate" type="date"></div>
+    <div class="field" id="eLinkWrap" style="display:none;"><label>歸屬到</label><select id="eLink"></select></div>
     <div class="field"><label>備註（選填）</label><textarea id="eNote" placeholder="補充說明"></textarea></div>
     </div>
     <div class="modal-actions">
@@ -1057,15 +1058,50 @@ header #mapBtn, header #settingsBtn{
   </div>
 </div>
 
+<!-- 花費歸屬：選掛在哪個景點或交通 -->
+<div class="modal-mask" id="linkModalMask">
+  <div class="modal">
+    <button class="close-x" id="linkSheetClose">✕</button>
+    <h2>歸屬到…</h2>
+    <p id="linkSheetInfo" style="font-size:13px; color:var(--sub); margin:-8px 0 8px;"></p>
+    <div id="linkSheetBody"></div>
+  </div>
+</div>
+
+<!-- 花費多選：底部操作列與批次付款人 -->
+<div id="expSelBar" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:250; max-width:520px; margin:0 auto; box-sizing:border-box;   /* 選取時蓋住底部導覽列 */  gap:8px; align-items:center; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); box-shadow:0 -4px 14px rgba(0,0,0,.12);">
+  <span id="expSelCount" style="font-size:13px; color:var(--sub); flex:1; min-width:0;">已選 0 筆</span>
+  <button type="button" id="expSelDup" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">找出重複</button>
+  <button type="button" id="expSelPayer" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">付款人</button>
+  <button type="button" id="expSelDel" class="btn btn-ghost" style="padding:8px 10px; font-size:13px; color:#d9534f;">刪除</button>
+</div>
+<div class="modal-mask" id="bulkPayerMask">
+  <div class="modal">
+    <button class="close-x" id="bulkPayerClose">✕</button>
+    <h2>設定付款人</h2>
+    <p id="bulkPayerInfo" style="font-size:13px; color:var(--sub); margin:-8px 0 12px;"></p>
+    <div class="field" id="bulkPayerWrap" style="display:none;"><label>付款人</label><select id="bulkPayerSel"></select></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="bulkPayerCancel">取消</button>
+      <button class="btn btn-primary" id="bulkPayerOk">套用</button>
+    </div>
+  </div>
+</div>
+
 <!-- 貼上支付寶／微信帳單，一次建成多筆花費 -->
 <div class="modal-mask" id="billModalMask">
   <div class="modal">
     <button class="close-x" id="billClose">✕</button>
     <h2>貼上帳單</h2>
     <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px; line-height:1.6;">把支付寶或微信的交易紀錄文字貼進來（店名、金額、時間各一行即可），也可以一行一筆，例如「全家 23.5」。先預覽、確認後才會建立。</p>
-    <div class="field"><textarea id="billText" rows="6" placeholder="貼在這裡"></textarea></div>
+    <button class="btn btn-primary" id="billOcrBtn" type="button" style="width:100%; margin-bottom:6px;">📷 選擇帳單截圖（可多張）</button>
+    <input type="file" id="billOcrFile" accept="image/*" multiple style="display:none;">
+    <p id="billOcrStatus" style="font-size:12px; color:var(--sub); margin:0 0 10px; line-height:1.6;">選截圖後自動辨識並整理成清單。第一次使用要下載辨識資料（約 13MB），之後會記住。</p>
+    <details style="margin-bottom:10px;"><summary style="font-size:13px; color:var(--sub);">或手動貼上文字</summary>
+    <div class="field" style="margin-top:8px;"><textarea id="billText" rows="6" placeholder="貼在這裡"></textarea></div></details>
     <button class="btn btn-ghost" id="billParseBtn" type="button" style="width:100%; margin-bottom:12px;">辨識</button>
     <div id="billPreview" style="display:none;">
+      <div id="billThumbs" style="display:none; gap:6px; overflow-x:auto; margin-bottom:8px;"></div>
       <div class="sec-card"><div class="sec-h">🔧 全部一起設定</div>
         <div class="field"><label>幣別</label><div class="chip-row" id="billCurrencyChips"></div></div>
         <div class="field" id="billPayerWrap" style="display:none;"><label>付款人</label><select id="billPayer"></select></div>
@@ -1487,7 +1523,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-222";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-228";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2368,7 +2404,7 @@ function renderMap(){
   const bounds = new google.maps.LatLngBounds();
   const infoWindow = new google.maps.InfoWindow();
   daysToShow.forEach(d=>{
-    const daySpots = dayItems(d).filter(i=>i.type==="spot" && i.lat!=null && i.lng!=null);
+    const daySpots = dayItems(d).filter(i=>i.type==="spot" && !i.skipped && i.lat!=null && i.lng!=null);   // 沒去的不畫進路線
     daySpots.forEach((s, idx)=>{
       const num = idx+1;
       const pos = { lat: s.lat, lng: s.lng };
@@ -2664,6 +2700,7 @@ function renderDayList(){
   const s = flightSettings || {};
   const arr = effectiveItems(currentDay);
   const arrAll = effectiveItems(currentDay, true);   // 含「沒去」的卡片（只用來顯示）
+  const linkMap = expenseLinkMap();
 
   { const _tn = getActiveTrip(); if(_tn && _tn.notes){ const d = document.createElement("p"); d.id = "tripNoteLine"; d.className = "spot-note"; d.style.cssText = "margin:0 0 8px; white-space:pre-wrap;"; d.textContent = "📝 " + _tn.notes; list.appendChild(d); } }   // 旅程備註（建立旅程時填的）
   { const _mh = mealStatusHtml(currentDay, derived);
@@ -2704,16 +2741,19 @@ function renderDayList(){
     if(it.type==="transport" && !it.virtual && !arr.includes(it)) continue;   // 貼著「沒去」地點的交通不顯示
     if(it.type==="spot"){
       list.appendChild(buildSpotCard(it, derived[it.id]));
+      { const _c = buildLinkedExpenseChips(it.id, linkMap); if(_c){ const _b = list.lastChild.querySelector(".spot-body"); (_b || list.lastChild).appendChild(_c); } }
       const next = arrAll[idx+1];
       if(!it.skipped && next && next.type==="spot" && !next.skipped && !skipsTransport(it) && !skipsTransport(next) && !next.noTransportBefore){   // 設為「不需要交通」的不再顯示＋交通；要還原到後一個地點的編輯視窗
         list.appendChild(buildAddTransportGhost(it, next, derived));
       }
     } else if(it.type==="transport"){
       list.appendChild(it.virtual ? buildVirtualTransportChip(it, derived[it.id]) : buildTransportChip(it, derived[it.id]));
+      if(!it.virtual){ const _c = buildLinkedExpenseChips(it.id, linkMap); if(_c){ list.lastChild.style.flexWrap = "wrap"; list.lastChild.appendChild(_c); } }
     }
   }
 
   flushNotes(null);
+  { const _u = buildUnlinkedExpenseSection(currentDay, linkMap); if(_u) list.appendChild(_u); }
   // 最後一天：最後一個地點 → 機場站（航班資訊在機場卡內）
   if(currentDay === days[days.length-1]){
     const lastItem = arr[arr.length-1];
@@ -2762,6 +2802,102 @@ function fmtMin(n){
   const h = Math.floor(n/60), m = n % 60;
   return m ? (h + " 小時 " + m + " 分") : (h + " 小時");
 }
+// ================= 花費歸屬：匯入的花費自動掛到那天的景點／交通 =================
+// 系統依「帳單日期＋時間」自動判定；你手動指定過（linkId）就以你為準，linkId:"none" 代表不歸屬。判定不寫入資料，只在畫面上算。
+function dayOfIso(iso){ return days.find(d=>isoDateForDay(d)===iso) || ""; }
+function expBillTime(e){ return e.billTime || ((String(e.note||"").match(/支付帳單匯入\s+(\d{1,2}:\d{2})/)||[])[1]) || ""; }
+function linkCandidates(day){   // 那天可以掛的項目（只含已存的景點與交通；沒去的、預估的不算）與其時間區間
+  const dv = computeDerivedTimes(day);
+  return effectiveItems(day).filter(x=>!x.virtual).map(x=>{
+    const d = dv[x.id] || {};
+    const a = x.type==="spot" ? d.arrival : d.depart, b = x.type==="spot" ? (d.leave || d.arrival) : (d.arrive || d.depart);
+    const s = timeToMinutes(a), e2 = timeToMinutes(b);
+    return { item:x, s: s==null ? null : s, e: s==null ? null : Math.max(e2==null ? s : e2, s) };
+  });
+}
+function expenseLinkMap(){
+  const map = new Map(), cache = {};
+  items.forEach(e=>{
+    if(e.tripId!==activeTripId || e.type!=="expense" || !e.expense || !(e.expense.amount>0)) return;
+    if(e.linkId==="none") return;
+    if(e.linkId){ const it = items.find(i=>i.id===e.linkId); if(it){ map.set(e.id, { itemId:e.linkId, auto:false }); return; } }
+    const tm = expBillTime(e); if(!tm || !e.date) return;
+    const day = dayOfIso(e.date); if(!day) return;
+    const t = timeToMinutes(tm); if(t==null) return;
+    const cands = (cache[day] = cache[day] || linkCandidates(day));
+    const isTransExp = (e.expense.category||"")==="交通";
+    let best = null;
+    cands.forEach(c=>{
+      if(c.s==null) return;
+      const dist = (t>=c.s && t<=c.e) ? 0 : Math.min(Math.abs(t-c.s), Math.abs(t-c.e));
+      const score = dist + ((c.item.type==="transport")===isTransExp ? 0 : 45);   // 交通類花費優先掛交通，其他優先掛景點
+      if(!best || score<best.score) best = { id:c.item.id, score };
+    });
+    if(best && best.score<=120) map.set(e.id, { itemId:best.id, auto:true });
+  });
+  return map;
+}
+function linkLabelOf(itemId){
+  const it = items.find(i=>i.id===itemId); if(!it) return "";
+  return it.type==="transport" ? ((TRANSPORT_ICON[it.mode]||"🚇") + " " + (TRANSPORT_LABEL[it.mode]||"交通")) : ((CATEGORY_ICON[it.category]||"📌") + " " + it.name);
+}
+function buildLinkedExpenseChips(itemId, linkMap){
+  const list = [...linkMap.entries()].filter(([,v])=>v.itemId===itemId).map(([id])=>items.find(i=>i.id===id)).filter(Boolean);
+  if(!list.length) return null;
+  const box = document.createElement("div");
+  box.className = "linked-exp"; box.style.cssText = "flex-basis:100%; display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;";
+  list.forEach(e=>{
+    const c = document.createElement("span");
+    c.style.cssText = "display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 10px; border-radius:999px; background:var(--seal-soft); color:var(--seal); font-size:12.5px; font-weight:600; cursor:pointer;";
+    c.textContent = "💰 " + e.name + " " + currencySymbol(e.expense.currency || primaryCurrencyForTrip()) + Number(e.expense.amount).toLocaleString();
+    c.addEventListener("click", (ev)=>{ ev.stopPropagation(); openExpenseModal(e); });
+    box.appendChild(c);
+  });
+  return box;
+}
+// 這天還沒歸屬的花費（日期是這一天、系統判定不出、你也沒選「不歸屬」）
+function buildUnlinkedExpenseSection(day, linkMap){
+  const list = items.filter(e=>e.tripId===activeTripId && e.type==="expense" && e.expense && e.expense.amount>0 && e.date && dayOfIso(e.date)===day && e.linkId!=="none" && !linkMap.has(e.id) && (e.expense.category||"")!=="兌換")
+    .sort((a,b)=>String(expBillTime(a)).localeCompare(String(expBillTime(b))) || (a.order||0)-(b.order||0));
+  if(!list.length) return null;
+  const box = document.createElement("div");
+  box.style.cssText = "margin:14px 0; border:1px dashed var(--seal); border-radius:14px; padding:10px 12px;";
+  box.innerHTML = `<div style="font-size:14px; font-weight:700; color:var(--seal); margin-bottom:4px;">📥 這天還沒歸屬的花費（${list.length}）</div>`;
+  list.forEach(e=>{
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); font-size:14px;";
+    const tm = expBillTime(e);
+    row.innerHTML = `<div style="min-width:0;"><div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(e.name)}</div><div style="font-size:12px; color:var(--sub);">${escapeHtml(tm ? tm + " ・ " : "")}${currencySymbol(e.expense.currency || primaryCurrencyForTrip())}${escapeHtml(Number(e.expense.amount).toLocaleString())}</div></div><button type="button" style="flex:none; padding:6px 12px; border:1px solid var(--seal); color:var(--seal); background:var(--card); border-radius:999px; font-size:13px; font-weight:600;">歸屬</button>`;
+    row.querySelector("button").addEventListener("click", ()=>openLinkSheet(e, day));
+    row.firstChild.addEventListener("click", ()=>openExpenseModal(e));
+    box.appendChild(row);
+  });
+  return box;
+}
+const linkModalMask = document.getElementById("linkModalMask");
+function openLinkSheet(e, day){
+  const body = document.getElementById("linkSheetBody"); body.innerHTML = "";
+  document.getElementById("linkSheetInfo").textContent = e.name + "　" + currencySymbol(e.expense.currency || primaryCurrencyForTrip()) + Number(e.expense.amount).toLocaleString();
+  const save = async (val)=>{
+    try{
+      await fsw(db.collection(COLLECTION).doc(e.id).update({ linkId: val }));
+      linkModalMask.classList.remove("show");
+    }catch(err){ console.error("link failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("儲存", err)); }
+  };
+  const opts = linkCandidates(day).map(c=>({ id:c.item.id, label:(c.s!=null ? addMinutesToTime("00:00", c.s) + "　" : "") + linkLabelOf(c.item.id) }));
+  opts.push({ id:"none", label:"不歸屬" });
+  opts.forEach(o=>{
+    const b = document.createElement("div");
+    b.style.cssText = "padding:13px 10px; border-bottom:1px solid var(--line); font-size:15px; cursor:pointer;";
+    b.textContent = o.label;
+    b.addEventListener("click", ()=>save(o.id));
+    body.appendChild(b);
+  });
+  linkModalMask.classList.add("show");
+}
+document.getElementById("linkSheetClose").addEventListener("click", ()=>linkModalMask.classList.remove("show"));
+linkModalMask.addEventListener("click",(ev)=>{ if(ev.target===linkModalMask) linkModalMask.classList.remove("show"); });
+
 function buildSpotCard(it, d){
   d = d || { arrival: it.time||"", leave: it.time||"", isFirst:true };
   const card = document.createElement("div");
@@ -2983,6 +3119,7 @@ const spotModalMask = document.getElementById("spotModalMask");
 const fTime = document.getElementById("fTime");
 const SPOT_BASE_CATS = ["景點","拍照","餐廳","小吃","咖啡廳","飲料","飯店","購物","超商","其他"];
 let selectedSpotCat = "景點";
+let fCurTouched = false, fCurLocked = false;
 
 function getAllSpotCategories(){
   return [...SPOT_BASE_CATS];   // 類別固定，不再開放自訂
@@ -3113,6 +3250,7 @@ function renderSpotCatChips(){
     chip.addEventListener("click", ()=>{
       const changed = (cat !== selectedSpotCat);
       selectedSpotCat = cat; renderSpotCatChips(); syncSpotExpCat();
+      if(!fCurTouched && !fCurLocked) setCurrencyChip(fCurrencyChips, cat==="飯店" ? lastLodgingCurrency() : primaryCurrencyForTrip(), ()=>{ fCurTouched = true; });
       // 換類型就依新類型更新停留時間（編輯舊地點也一樣）；點原本已選的類型，只有停留時間是空的才補。自己改過停留時間就不再自動動
       if(changed || !document.getElementById("fStayMinutes").value) syncSpotStay();
     });
@@ -3241,6 +3379,17 @@ function getCurrenciesForTrip(){
   const trip = getActiveTrip();
   if(trip && trip.region==="taiwan") return CURRENCY_SETS.taiwan;
   return (trip && trip.region==="japan") ? CURRENCY_SETS.japan : CURRENCY_SETS.china;
+}
+// 幣別依類別自動帶：行前採買／行前辦理／兌換／機票多半在出發前用台幣付；住宿兩種都有可能，沿用上一筆住宿用的幣別（第一次預設新台幣）；其他是在當地花的，用當地幣別
+function lastLodgingCurrency(){
+  const c = items.filter(i=>i.tripId===activeTripId && i.expense && i.expense.amount>0 && i.expense.currency && ((i.type==="spot" && i.category==="飯店") || (i.type==="expense" && i.expense.category==="住宿")))
+    .sort((a,b)=>{ const ta = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : (a.order||0); const tb = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : (b.order||0); return tb-ta; })[0];
+  return c ? c.expense.currency : "TWD";
+}
+function defaultCurrencyForCategory(cat){
+  if(cat==="行前採買" || cat==="行前辦理" || cat==="兌換") return "TWD";
+  if(cat==="住宿") return lastLodgingCurrency();
+  return primaryCurrencyForTrip();
 }
 function primaryCurrencyForTrip(){
   return getCurrenciesForTrip()[0].code;
@@ -3456,7 +3605,8 @@ function openSpotModal(spot){
   setSpotPhotos(spotPhotosOf(spot));
   document.getElementById("fPhotoStatus").style.display = "none";
   fExpAmount.value = spot && spot.expense ? (spot.expense.amount||"") : "";
-  setCurrencyChip(fCurrencyChips, spot && spot.expense ? spot.expense.currency : primaryCurrencyForTrip());
+  fCurTouched = false; fCurLocked = !!(spot && spot.expense && spot.expense.currency);
+  setCurrencyChip(fCurrencyChips, fCurLocked ? spot.expense.currency : (selectedSpotCat==="飯店" ? lastLodgingCurrency() : primaryCurrencyForTrip()), ()=>{ fCurTouched = true; });   // 住宿：沿用上一筆住宿的幣別，第一次預設新台幣
   populatePayerSelect(fExpPayer, fPayerWrap, spot && spot.expense ? spot.expense.payer : "");
   renderShareChipsIn("fShareWrap", "fShareChips", spot && spot.expense ? spot.expense.sharedBy : null);
   document.getElementById("fPaySub").style.display = (fPayerWrap.style.display!=="none") ? "block" : "none";
@@ -3667,7 +3817,12 @@ spotModalMask.addEventListener("click",(e)=>{ if(e.target===spotModalMask) close
 
 let geocoder = null;
 // 寫入 Firestore 時若離線或網路慢，promise 不會結束；最多等 3.5 秒就當作已送出（資料會暫存本機、連線後自動同步），視窗照常關閉
-const fsw = p => Promise.race([p, new Promise(r=>setTimeout(r,3500))]);
+const fsw = p => {
+  let late = false;
+  const tm = new Promise(r=>setTimeout(()=>{ late = true; r(); }, 3500));
+  Promise.resolve(p).catch(e=>{ if(late){ console.error("late write failed", e); if(!(e && e.message==="READ_ONLY")) travelToast(failMsg("儲存", e)); } });   // 視窗關了之後才失敗：仍然提示，不會悄悄丟掉
+  return Promise.race([p, tm]);
+};
 function geocodeAddress(address){
   return new Promise((resolve)=>{
     setTimeout(()=>resolve(null), 3500);   // 網路不通時 Google 不回應，不能讓儲存卡住
@@ -4760,8 +4915,14 @@ document.getElementById("assignSave").addEventListener("click", async ()=>{
 // ================= EXPENSE =================
 let expDisplayCurrency = localStorage.getItem("expDisplayCurrency") || "";
 
+// 明細與上方分類的固定順序：「其他」一律最後；沒列到的分類排在「其他」前面
+const EXP_CAT_ORDER = ["行前辦理","行前採買","住宿","交通","門票","購物","餐飲","衣物","代購","兌換","其他"];
+function expCatIdx(c){ const k = EXP_CAT_ORDER.indexOf(c); return k>=0 ? k : EXP_CAT_ORDER.length-1.5; }
+let expSelMode = false; const expSel = new Set();
 const EXP_CAT_ICON = { "代購":"🧳", "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
 function renderExpense(){
+  { const _ids = new Set(items.filter(i=>i.tripId===activeTripId && i.type==="expense").map(i=>i.id)); [...expSel].forEach(id=>{ if(!_ids.has(id)) expSel.delete(id); }); if(expSelMode) updateExpSelBar(); }   // 已被刪掉或換行程的選取要清掉，避免計數對不上
+  { const _b = document.getElementById("expSelBar"); if(_b) _b.style.display = expSelMode ? "flex" : "none"; const _s = document.getElementById("expSelBtn"); if(_s) _s.textContent = expSelMode ? "✕ 結束選取" : "☑ 選取"; }
   if(!getActiveTrip()){
     const listWrap = document.getElementById("expList");
     document.getElementById("expTotal").textContent = "¥0";
@@ -4824,10 +4985,10 @@ function renderExpense(){
   const cats = {}, catN = {};
   counted.forEach(i=>{ const c=i.expense.category||"其他"; cats[c]=(cats[c]||0)+converted(i); catN[c]=(catN[c]||0)+1; });
   // 明細分組的順序：金額大的排前面（影響大的先看），金額相同再看筆數
-  const catRank = Object.keys(cats).map(c=>({c, n:catN[c], amt:cats[c]})).sort((x,y)=> y.amt-x.amt || y.n-x.n);
+  const catRank = Object.keys(cats).map(c=>({c, n:catN[c], amt:cats[c]})).sort((x,y)=> expCatIdx(x.c)-expCatIdx(y.c));
   const catWrap = document.getElementById("expCats");
   catWrap.innerHTML = "";
-  Object.keys(cats).forEach(c=>{
+  Object.keys(cats).sort((a,b)=>expCatIdx(a)-expCatIdx(b)).forEach(c=>{
     const p = document.createElement("div");
     p.className = "exp-cat-pill";
     p.innerHTML = `<div class="c-label">${escapeHtml(c)}</div><div class="c-amt">${sym}${Math.round(cats[c]).toLocaleString()}</div>`;
@@ -4878,8 +5039,10 @@ function renderExpense(){
   const groupMeta = [...catRank];
   if(exchList.length) groupMeta.push({ c:"兌換", n:exchList.length, amt:exchSum, exch:true });
   if(proxyList.length) groupMeta.push({ c:"代購", n:proxyList.length, amt:proxySum, exch:true });
+  groupMeta.sort((a,b)=>((a.exch?1:0)-(b.exch?1:0)) || (expCatIdx(a.c)-expCatIdx(b.c)));   // 固定順序：行前→住宿→交通→門票→購物→餐飲…，「其他」是計入總額的最後一類；不計入總額的（兌換、代購）照舊放在最底下
   groupMeta.forEach(x=> sorted.forEach(i=>{ if(expCatOf(i)===x.c) ordered.push(i); }));
   let lastGrp = null;
+  const _lk = expenseLinkMap();
   ordered.forEach(i=>{
     const gc = expCatOf(i);
     if(gc!==lastGrp){
@@ -4902,9 +5065,21 @@ function renderExpense(){
     const sameCur = origCur===expDisplayCurrency;
     const amtMain = sym + (sameCur ? Number(i.expense.amount).toLocaleString() : Math.round(converted(i)).toLocaleString());
     const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
-    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
+    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}${(_lk && _lk.get(i.id)) ? " · 📍 " + escapeHtml(linkLabelOf(_lk.get(i.id).itemId)) : ""}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
+    if(expSelMode){
+      if(i.type==="expense"){
+        const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = expSel.has(i.id); cb.style.cssText = "width:20px; height:20px; flex:none; pointer-events:none;";
+        row.insertBefore(cb, row.firstChild); row.dataset.sel = i.id;
+      } else { row.style.opacity = "0.45"; }
+    }
     row.addEventListener("click", ()=>{
+      if(expSelMode){
+        if(i.type!=="expense"){ travelToast("這筆是在景點、清單或航班記的，請到原處刪除"); return; }
+        if(expSel.has(i.id)) expSel.delete(i.id); else expSel.add(i.id);
+        const cb = row.querySelector("input[type=checkbox]"); if(cb) cb.checked = expSel.has(i.id);
+        updateExpSelBar(); return;
+      }
       if(i.type==="expense"){ openExpenseModal(i); return; }
       if(i.type==="packing"){ openPackModal(i); return; }   // 行前辦理：到清單的編輯視窗修改
       // 景點／交通的花費：直接開啟該項目的編輯畫面
@@ -5022,6 +5197,7 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
 }
 
 let editingExpenseId = null;
+let eCurTouched = false;
 const expModalMask = document.getElementById("expModalMask");
 const eCurrencyChips = document.getElementById("eCurrencyChips");
 // 分攤的人：花費、清單、景點、交通、航班共用同一組選項（預設全員；空陣列＝全部成員）
@@ -5090,10 +5266,12 @@ function openExpenseModal(it, prefill){
   }
   eCatSel.value = e.category || "行前採買";
   if(!it && prefill && prefill.category && [...eCatSel.options].some(o=>o.value===prefill.category)) eCatSel.value = prefill.category;
-  setCurrencyChip(eCurrencyChips, it ? e.currency : (prefill ? primaryCurrencyForTrip() : "TWD"));   // 新增時預設新台幣（事前花費多半用台幣付）；從景點記帳是在當地花的，預設當地幣別
+  eCurTouched = false;
+  setCurrencyChip(eCurrencyChips, it ? e.currency : (prefill ? primaryCurrencyForTrip() : defaultCurrencyForCategory(eCatSel.value)), ()=>{ eCurTouched = true; });   // 新增時依類別帶幣別；你自己點過幣別就不再自動換；從景點記帳是在當地花的，預設當地幣別
   populatePayerSelect(document.getElementById("eExpPayer"), document.getElementById("ePayerWrap"), it ? (e.payer || "") : lastExpensePayer());
   renderShareChips(e.sharedBy);
   document.getElementById("eDate").value = it ? (it.date||"") : ((prefill && prefill.date) || "");
+  refreshExpLinkSelect(it ? (it.linkId||"") : "");
   document.getElementById("eNote").value = it ? (it.note||"") : "";
   if(!it && prefill && prefill.name) document.getElementById("eName").value = prefill.name;
   document.getElementById("eDelete").style.display = it ? "" : "none";
@@ -5102,6 +5280,24 @@ function openExpenseModal(it, prefill){
 }
 function closeExpenseModal(){ expModalMask.classList.remove("show"); editingExpenseId = null; }
 document.getElementById("expAddBtn").addEventListener("click", ()=>openExpenseModal(null));
+// 編輯視窗的「歸屬到」：依日期列出那天的景點與交通；預設「自動」（由系統用帳單時間判定）
+function refreshExpLinkSelect(current){
+  const wrap = document.getElementById("eLinkWrap"), sel = document.getElementById("eLink");
+  const day = dayOfIso(document.getElementById("eDate").value || "");
+  if(!day){ wrap.style.display = "none"; sel.innerHTML = ""; return; }
+  wrap.style.display = "block";
+  sel.innerHTML = "";
+  const add = (v, label)=>{ const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
+  add("", "自動（系統依帳單時間判定）");
+  linkCandidates(day).forEach(c=>add(c.item.id, (c.s!=null ? addMinutesToTime("00:00", c.s) + "　" : "") + linkLabelOf(c.item.id)));
+  add("none", "不歸屬");
+  sel.value = [...sel.options].some(o=>o.value===current) ? current : "";
+}
+document.getElementById("eDate").addEventListener("change", ()=>refreshExpLinkSelect(document.getElementById("eLink").value));
+document.getElementById("eCategory").addEventListener("change", ()=>{
+  if(editingExpenseId || eCurTouched) return;   // 編輯舊的花費、或你已經自己選過幣別：不動
+  setCurrencyChip(eCurrencyChips, defaultCurrencyForCategory(document.getElementById("eCategory").value), ()=>{ eCurTouched = true; });
+});
 document.getElementById("expModalClose").addEventListener("click", closeExpenseModal);
 document.getElementById("eCancel").addEventListener("click", closeExpenseModal);
 expModalMask.addEventListener("click",(ev)=>{ if(ev.target===expModalMask) closeExpenseModal(); });
@@ -5126,6 +5322,8 @@ document.getElementById("eSave").addEventListener("click", async ()=>{
                payer: document.getElementById("eExpPayer").value || "",
                currency: getCurrencyChip(eCurrencyChips), sharedBy }
   };
+  { const _lv = document.getElementById("eLinkWrap").style.display!=="none" ? document.getElementById("eLink").value : "";
+    if(_lv) data.linkId = _lv; else if(editingExpenseId) data.linkId = firebase.firestore.FieldValue.delete(); }
   try{
     if(editingExpenseId){
       await fsw(db.collection(COLLECTION).doc(editingExpenseId).update(data));
@@ -5144,6 +5342,69 @@ document.getElementById("eDelete").addEventListener("click", async ()=>{
     await db.collection(COLLECTION).doc(editingExpenseId).delete();
     closeExpenseModal();
   }catch(err){ console.error("delete expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
+});
+
+// ================= 花費多選：刪除、找重複、批次付款人 =================
+function updateExpSelBar(){
+  const n = expSel.size;
+  document.getElementById("expSelCount").textContent = "已選 " + n + " 筆";
+  document.getElementById("expSelDel").disabled = !n; document.getElementById("expSelPayer").disabled = !n;
+}
+function setExpSelMode(on){
+  expSelMode = !!on; if(!on) expSel.clear();
+  updateExpSelBar(); renderExpense();
+}
+document.getElementById("expSelBtn").addEventListener("click", ()=>setExpSelMode(!expSelMode));
+document.querySelectorAll("#bottomNav .nav-btn").forEach(b=>b.addEventListener("click", ()=>{ if(b.dataset.tab!=="expense" && expSelMode){ expSelMode = false; expSel.clear(); document.getElementById("expSelBar").style.display = "none"; } }));
+// 找出重複：有帳單時間的以「日期＋時間」判斷；沒有帳單時間的（手動記的）以「日期＋名稱＋金額」判斷。每組留最早記的那筆，其餘勾選
+document.getElementById("expSelDup").addEventListener("click", ()=>{
+  const list = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.amount>0).sort((a,b)=>(a.order||0)-(b.order||0));
+  const seen = new Set(); expSel.clear(); let n = 0;
+  list.forEach(i=>{
+    const tm = i.billTime || ((String(i.note||"").match(/支付帳單匯入\s+(\d{1,2}:\d{2})/)||[])[1]) || "";
+    const k = tm ? "T|" + (i.date||"") + "|" + tm.padStart(5,"0") : "N|" + (i.date||"") + "|" + String(i.name||"").trim() + "|" + i.expense.amount;
+    if(seen.has(k)){ expSel.add(i.id); n++; } else seen.add(k);
+  });
+  renderExpense(); updateExpSelBar();
+  travelToast(n ? ("找到 " + n + " 筆重複，已勾選（每組保留最早記的那筆）") : "沒有找到重複的花費");
+});
+document.getElementById("expSelDel").addEventListener("click", async ()=>{
+  const ids = [...expSel]; if(!ids.length) return;
+  if(!await askConfirm("刪除 " + ids.length + " 筆花費", "刪除後無法復原。", "刪除")) return;
+  try{
+    for(let s=0; s<ids.length; s+=400){
+      const batch = db.batch();
+      ids.slice(s, s+400).forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
+      await fsw(batch.commit());
+    }
+    travelToast("已刪除 " + ids.length + " 筆");
+    setExpSelMode(false);
+  }catch(err){ console.error("bulk delete failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
+});
+const bulkPayerMask = document.getElementById("bulkPayerMask");
+document.getElementById("expSelPayer").addEventListener("click", ()=>{
+  if(!expSel.size) return;
+  const trip = getActiveTrip();
+  if(!trip || !(trip.members||[]).length){ travelToast("還沒有旅伴，請先到行程設定加入旅伴"); return; }
+  document.getElementById("bulkPayerInfo").textContent = "把已選的 " + expSel.size + " 筆花費，付款人一起改成：";
+  populatePayerSelect(document.getElementById("bulkPayerSel"), document.getElementById("bulkPayerWrap"), "");
+  bulkPayerMask.classList.add("show");
+});
+["bulkPayerClose","bulkPayerCancel"].forEach(id=>document.getElementById(id).addEventListener("click", ()=>bulkPayerMask.classList.remove("show")));
+bulkPayerMask.addEventListener("click",(ev)=>{ if(ev.target===bulkPayerMask) bulkPayerMask.classList.remove("show"); });
+document.getElementById("bulkPayerOk").addEventListener("click", async ()=>{
+  const payer = document.getElementById("bulkPayerSel").value; if(!payer) return;
+  const ids = [...expSel];
+  try{
+    for(let s=0; s<ids.length; s+=400){
+      const batch = db.batch();
+      ids.slice(s, s+400).forEach(id=>batch.update(db.collection(COLLECTION).doc(id), { "expense.payer": payer }));
+      await fsw(batch.commit());
+    }
+    bulkPayerMask.classList.remove("show");
+    travelToast("已把 " + ids.length + " 筆的付款人改成 " + payer);
+    setExpSelMode(false);
+  }catch(err){ console.error("bulk payer failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("儲存", err)); }
 });
 
 // ================= 貼上帳單（支付寶／微信）=================
@@ -5174,40 +5435,159 @@ function billParseDate(s){
   return "";
 }
 // 回傳 [{name, amount, category, date, time}]；看不懂的行直接略過，預覽時使用者可以自己補
-function parseBillText(text){
+function parseBillText(text, opts){
+  const ocr = !!(opts && opts.ocr);
   const lines = String(text||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const out = [];
   const amtOnly = /^([-−–+])?\s*[¥￥]?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:元|CNY|RMB)?$/;
   const amtTail = /^(.*\S)\s+([-−–+])?\s*[¥￥]?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:元|CNY|RMB)?$/;
   const timeRe = /^(?:(?:今天|昨天|前天)|(?:\d{4}[-\/.年])?\d{1,2}[-\/月]\d{1,2}日?)?\s*\d{1,2}:\d{2}(?::\d{2})?$/;
   const catRe = /^(餐飲美食|餐饮美食|交通出行|文化休閒|文化休闲|日用百貨|日用百货|購物|购物|服飾裝扮|服饰装扮|數碼電器|数码电器|生活服務|生活服务|旅遊度假|旅游度假|醫療健康|医疗健康|教育培訓|教育培训|充值繳費|充值缴费|運動戶外|运动户外|其他|美容美髮|美容美发|家居家裝|家居家装|母嬰親子|母婴亲子)$/;
-  let name = "", cat = "", when = "";
-  const emit = (n, amt, sign)=>{
+  let name = "", cat = "", when = "", last = null;   // last：截圖版面是「店名 金額」在前、分類和時間在後，後面讀到的分類／時間要補進這一筆
+  const emit = (n, amt, sign, raw)=>{
     const nm = (n||"").trim();
+    const sus = {};
+    if(ocr){   // 支付寶金額一定有兩位小數；文字辨識常漏掉小數點，三位數以上的整數視為少了小數點
+      if(raw && !/\./.test(raw)){ sus.amount = true; const dg = raw.replace(/\D/g,""); if(dg.length>=3) amt = parseInt(dg,10)/100; }
+      if(!/[\u4e00-\u9fff]/.test(nm) && !/\s/.test(nm)) sus.name = true;
+      if(nm.length<2 || /[。~_|]|\([^)]*$|^[^(]*\)/.test(nm)) sus.name = true;
+    }
     if(sign==="+" || !(amt>0) || !nm || BILL_HEADER_WORDS.has(nm) || /^\d{1,2}月$/.test(nm)){ name = ""; cat = ""; when = ""; return; }
-    out.push({ name: nm, amount: amt, category: billMapCategory(cat, nm), date: billParseDate(when), time: (when.match(/\d{1,2}:\d{2}/)||[""])[0] });
+    if(ocr && /今天|昨天|前天/.test(when)) sus.date = true;   // 「昨天」是相對截圖當天，要自己確認日期
+    out.push({ name: nm, amount: amt, category: billMapCategory(cat, nm), date: billParseDate(when), time: (when.match(/\d{1,2}:\d{2}/)||[""])[0], sus: Object.assign(sus, ocr && !when ? {time:true} : {}) });
     name = ""; cat = ""; when = "";
+    last = out[out.length-1] || null; last._fill = { cat:false, time:false };
   };
   for(const ln of lines){
     let m;
-    if(timeRe.test(ln)){ when = ln; continue; }
-    if(catRe.test(ln)){ cat = ln; continue; }
-    if((m = ln.match(amtOnly))){ emit(name, parseFloat(m[2].replace(/,/g,"")), m[1]||""); continue; }
+    if(timeRe.test(ln)){
+      if(last && last._fill && !last._fill.time && !when){
+        last.date = billParseDate(ln); last.time = (ln.match(/\d{1,2}:\d{2}/)||[""])[0]; last._fill.time = true;
+        if(last.sus){ last.sus.time = false; if(/今天|昨天|前天/.test(ln)) last.sus.date = true; }
+        continue;
+      }
+      when = ln; continue;
+    }
+    if(catRe.test(ln)){
+      if(last && last._fill && !last._fill.cat && !cat){ last.category = billMapCategory(ln, last.name); last._fill.cat = true; continue; }
+      cat = ln; continue;
+    }
+    if((m = ln.match(amtOnly))){ emit(name, parseFloat(m[2].replace(/,/g,"")), m[1]||"", m[2]); last = null; continue; }
     if((m = ln.match(amtTail))){
       // 「店名 -5.01」同一行；日期若夾在後面（例：全家 10/30 12:20 -5）交給時間行判斷，這裡只收尾端金額
-      emit(m[1], parseFloat(m[3].replace(/,/g,"")), m[2]||""); continue;
+      emit(m[1], parseFloat(m[3].replace(/,/g,"")), m[2]||"", m[3]); continue;
     }
     // 店名後面緊接著一行短文字、沒有數字，多半是支付寶沒收錄的分類（例：酒店旅遊、公益捐贈），當作分類而不是店名
+    if(last && last._fill && !last._fill.cat && ln.length<=8 && !/[0-9]/.test(ln)){ last.category = billMapCategory(ln, last.name); last._fill.cat = true; continue; }
     if(name && !cat && !when && ln.length<=8 && !/[0-9]/.test(ln)){ cat = ln; continue; }
+    last = null;
     name = ln;   // 其他文字當作店名候選（保留最近一行）
   }
   return out;
 }
+
+// ---- 截圖文字辨識（Tesseract，需要時才下載）----
+let billOcrMode = false;
+function cleanOcrText(raw){
+  const CJK = "\\u4e00-\\u9fff";
+  return String(raw||"").split(/\r?\n/).map(l=>{
+    l = l.replace(/[　]/g," ").trim();
+    l = l.replace(new RegExp("(["+CJK+"])\\s+(?=["+CJK+"])","g"),"$1");        // 中文字之間的空白
+    l = l.replace(/^[\(\[（【][^\)\]）】]{0,3}[\)\]）】]\s*/,"");              // 開頭的圖示雜訊 (=) (2) io)
+    l = l.replace(/^[^\w一-鿿¥￥\-−+(]{1,3}\s*/,"");                   // 開頭的符號雜訊
+    l = l.replace(/^[^\s\u4e00-\u9fff]{1,3}[\)\]）】]\s*/,"");                     // i=) io) 之類
+    l = l.replace(/^[A-Za-z]{1,2}\s+(?=[\u4e00-\u9fff])/,"");                // 圖示被讀成 GO、oO
+    l = l.replace(/^[日曰口]\s+(?=\S)/,"");                                     // 圖示被讀成「日」
+    l = l.replace(/(\d),(\d{2})(?!\d)/g,"$1.$2");                              // 逗號被當小數點
+    l = l.replace(/[—–﹣－]\s*(?=[¥￥]?\d)/g,"-");                              // 各種減號
+    l = l.replace(/\s*[。\.]\s*(?=[-+]\s*[¥￥]?\d)/g," ");                     // 金額前的雜點
+    let m;
+    if((m = l.match(/^(今天|昨天|前天)\s*(\d{1,2})\s*[:.：;]\s*(\d{2})$/))) return m[1]+" "+m[2].padStart(2,"0")+":"+m[3];
+    if((m = l.match(/^(\d{1,2})\s*[-\/]\s*(\d{1,2})\s*(\d{1,2})\s*[:.：;]?\s*(\d{2})$/)) && +m[3]<24) return m[1]+"-"+m[2]+" "+m[3].padStart(2,"0")+":"+m[4];
+    if((m = l.match(/^(\d{1,2})\s*[-\/]\s*(\d{2})(\d{2})(\d{2})$/)) && +m[3]<24) return m[1]+"-"+m[2]+" "+m[3]+":"+m[4];   // 10-292144
+    return l;
+  }).filter(Boolean).join("\n");
+}
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  return new Promise((res, rej)=>{
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+    const t = setTimeout(()=>rej(new Error("timeout")), 30000);
+    s.onload = ()=>{ clearTimeout(t); window.Tesseract ? res(window.Tesseract) : rej(new Error("load")); };
+    s.onerror = ()=>{ clearTimeout(t); rej(new Error("load")); };
+    document.head.appendChild(s);
+  });
+}
+async function runBillOcr(files){
+  const st = document.getElementById("billOcrStatus"), btn = document.getElementById("billOcrBtn");
+  const list = [...files].filter(f=>/^image\//.test(f.type||"image/"));
+  if(!list.length) return;
+  btn.disabled = true;
+  let worker = null;
+  try{
+    st.textContent = "載入辨識功能…（第一次要下載，請保持網路）";
+    const T = await loadTesseract();
+    let cur = 0;
+    worker = await T.createWorker("chi_sim", 1, { logger: m=>{
+      if(m.status==="recognizing text") st.textContent = "辨識第 " + (cur+1) + "/" + list.length + " 張… " + Math.round((m.progress||0)*100) + "%";
+      else if(/loading|initializ/.test(m.status||"")) st.textContent = "準備辨識資料…（" + m.status + " " + Math.round((m.progress||0)*100) + "%）";
+    }});
+    await worker.setParameters({ tessedit_pageseg_mode:"6", preserve_interword_spaces:"1" });
+    const texts = [], thumbs = [];
+    for(cur=0; cur<list.length; cur++){
+      st.textContent = "辨識第 " + (cur+1) + "/" + list.length + " 張…";
+      const r = await worker.recognize(list[cur]);
+      texts.push(cleanOcrText(r && r.data && r.data.text));
+      thumbs.push(URL.createObjectURL(list[cur]));
+    }
+    billOcrMode = true;
+    document.getElementById("billText").value = texts.join("\n");
+    const tb = document.getElementById("billThumbs"); tb.innerHTML = "";
+    thumbs.forEach(u=>{ const im = document.createElement("img"); im.src = u; im.style.cssText = "height:90px; border-radius:6px; border:1px solid var(--line); flex:none;";
+      im.addEventListener("click", ()=>{ im.style.height = im.style.height==="90px" ? "auto" : "90px"; im.style.maxWidth = im.style.height==="auto" ? "100%" : ""; }); tb.appendChild(im); });
+    tb.style.display = "flex";
+    st.textContent = "辨識完成，請對照下面的原圖確認；橘色欄位是系統不確定的。";
+    document.getElementById("billParseBtn").click();
+  }catch(err){
+    console.error("bill ocr failed", err);
+    st.textContent = "辨識失敗（" + ((err && err.message) || "未知錯誤") + "）。請確認網路後再試，或改用「手動貼上文字」。";
+  }finally{
+    if(worker){ try{ worker.terminate(); }catch(e){} }
+    btn.disabled = false;
+    document.getElementById("billOcrFile").value = "";
+  }
+}
+document.getElementById("billOcrBtn").addEventListener("click", ()=>document.getElementById("billOcrFile").click());
+document.getElementById("billOcrFile").addEventListener("change", (ev)=>runBillOcr(ev.target.files||[]));
 let billRowsData = [];
+// 重複判斷：同一天、同一個時間（帳單上的交易時間）就視為同一筆；不同時間一定不同筆。沒有時間的帳單無從判斷，不標記
+function billExistingKeys(){
+  const keys = new Set();
+  items.forEach(i=>{
+    if(i.tripId!==activeTripId || i.type!=="expense") return;
+    let tm = i.billTime || ((String(i.note||"").match(/支付帳單匯入\s+(\d{1,2}:\d{2})/)||[])[1]) || "";
+    if(tm && i.date) keys.add(i.date + " " + tm.padStart(5,"0"));
+  });
+  return keys;
+}
+function markBillDuplicates(){
+  const existing = billExistingKeys(), seen = new Set();
+  billRowsData.forEach(r=>{
+    const k = (r.time && r.date) ? r.date + " " + r.time.padStart(5,"0") : "";
+    const was = r.dup;
+    r.dup = !!k && (existing.has(k) || seen.has(k));
+    if(k) seen.add(k);
+    if(r.dup !== was) r.on = !r.dup;   // 只在判斷結果改變時重設勾選，使用者手動勾過的不會被蓋掉
+  });
+}
 const billModalMask = document.getElementById("billModalMask");
 function openBillModal(){
   if(!getActiveTrip()) return;
   document.getElementById("billText").value = "";
+  billOcrMode = false;
+  document.getElementById("billThumbs").style.display = "none";
+  document.getElementById("billOcrStatus").textContent = "選截圖後自動辨識並整理成清單。第一次使用要下載辨識資料（約 13MB），之後會記住。";
   document.getElementById("billPreview").style.display = "none";
   document.getElementById("billSave").style.display = "none";
   billRowsData = [];
@@ -5220,20 +5600,23 @@ function openBillModal(){
 function closeBillModal(){ billModalMask.classList.remove("show"); }
 function renderBillRows(){
   const box = document.getElementById("billRows"); box.innerHTML = "";
+  const SUS = " border-color:#e08a00; background:rgba(224,138,0,.10);";
   billRowsData.forEach((r, i)=>{
+    const sus = r.sus || {};
     const row = document.createElement("div");
     row.className = "sec-card"; row.style.cssText = "margin-bottom:8px; padding:10px 12px;";
-    row.innerHTML = `<label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13px;"><input type="checkbox" data-k="on" ${r.on?"checked":""}> 建立這一筆${r.time ? `<span style="color:var(--sub);">（帳單時間 ${escapeHtml(r.time)}）</span>` : ""}</label>
-      <input type="text" data-k="name" value="${escapeHtml(r.name)}" style="width:100%; margin-bottom:6px;">
+    row.innerHTML = `<label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13px;"><input type="checkbox" data-k="on" ${r.on?"checked":""}> 建立這一筆${r.time ? `<span style="color:var(--sub);">（帳單時間 ${escapeHtml(r.time)}）</span>` : ""}${r.dup ? `<span style="color:#d9534f; font-weight:600;">　已存在，預設不建立</span>` : ""}</label>
+      <input type="text" data-k="name" value="${escapeHtml(r.name)}" style="width:100%; margin-bottom:6px;${sus.name?SUS:""}">
       <div style="display:flex; gap:8px;">
-        <input type="number" inputmode="decimal" data-k="amount" value="${r.amount}" style="flex:1; min-width:0;">
+        <input type="number" inputmode="decimal" data-k="amount" value="${r.amount}" style="flex:1; min-width:0;${sus.amount?SUS:""}">
         <select data-k="category" style="flex:1; min-width:0;">${BILL_CATS.map(c=>`<option value="${c}"${c===r.category?" selected":""}>${(EXP_CAT_ICON[c]||"📌")+" "+c}</option>`).join("")}</select>
       </div>
-      <input type="date" data-k="date" value="${r.date||""}" style="width:100%; margin-top:6px;">`;
+      <input type="date" data-k="date" value="${r.date||""}" style="width:100%; margin-top:6px;${(sus.date||sus.time)?SUS:""}">${(sus.time||sus.name||sus.amount||sus.date)?`<div style="font-size:12px; color:#e08a00; margin-top:4px;">⚠ ${[sus.name&&"店名",sus.amount&&"金額",(sus.time||sus.date)&&"日期時間"].filter(Boolean).join("、")}請對照原圖核對</div>`:""}`;
     row.querySelectorAll("[data-k]").forEach(el=>{
       const k = el.dataset.k;
       el.addEventListener(k==="on" ? "change" : "input", ()=>{
         r[k] = k==="on" ? el.checked : (k==="amount" ? Number(el.value) : el.value);
+        if(k!=="on" && r.sus && r.sus[k]){ r.sus[k] = false; el.style.borderColor = ""; el.style.background = ""; }
         updateBillSummary();
       });
     });
@@ -5246,7 +5629,7 @@ function updateBillSummary(){
   const sum = on.reduce((n,r)=>n+r.amount, 0);
   const cur = getCurrencyChip(document.getElementById("billCurrencyChips"));
   document.getElementById("billSummary").textContent = billRowsData.length
-    ? "共辨識 " + billRowsData.length + " 筆，將建立 " + on.length + " 筆，合計 " + currencySymbol(cur) + (Math.round(sum*100)/100)
+    ? "共辨識 " + billRowsData.length + " 筆" + (billRowsData.some(r=>r.dup) ? "（其中 " + billRowsData.filter(r=>r.dup).length + " 筆日期時間相同、已存在）" : "") + "，將建立 " + on.length + " 筆，合計 " + currencySymbol(cur) + (Math.round(sum*100)/100)
     : "沒有辨識到任何一筆。請確認每筆都有店名和金額，或改成一行一筆（例：全家 23.5）。";
   document.getElementById("billSave").style.display = on.length ? "" : "none";
 }
@@ -5257,13 +5640,14 @@ billModalMask.addEventListener("click",(ev)=>{ if(ev.target===billModalMask) clo
 document.getElementById("billCurrencyChips").addEventListener("click", ()=>setTimeout(updateBillSummary,0));
 document.getElementById("billParseBtn").addEventListener("click", ()=>{
   const def = document.getElementById("billDefaultDate").value || "";
-  billRowsData = parseBillText(document.getElementById("billText").value).map(r=>Object.assign(r, { on:true, hadDate: !!r.date, date: r.date || def }));
+  billRowsData = parseBillText(document.getElementById("billText").value, {ocr:billOcrMode}).map(r=>Object.assign(r, { on:true, hadDate: !!r.date, date: r.date || def }));
+  markBillDuplicates();
   document.getElementById("billPreview").style.display = "block";
   renderBillRows();
 });
 document.getElementById("billDefaultDate").addEventListener("change", ()=>{
   const def = document.getElementById("billDefaultDate").value || "";
-  billRowsData.forEach(r=>{ if(!r.hadDate) r.date = def; }); renderBillRows();
+  billRowsData.forEach(r=>{ if(!r.hadDate) r.date = def; }); markBillDuplicates(); renderBillRows();
 });
 document.getElementById("billSave").addEventListener("click", async ()=>{
   const trip = getActiveTrip(); if(!trip) return;
@@ -5283,7 +5667,7 @@ document.getElementById("billSave").addEventListener("click", async ()=>{
     const base = Date.now();
     rows.forEach((r, i)=>{
       batch.set(db.collection(COLLECTION).doc(), {
-        type:"expense", tripId: activeTripId, name: r.name.trim(), date: r.date || "", note: "支付帳單匯入" + (r.time ? " " + r.time : ""),
+        type:"expense", tripId: activeTripId, name: r.name.trim(), date: r.date || "", note: "支付帳單匯入" + (r.time ? " " + r.time : ""), billTime: r.time || "",
         expense: { amount: Math.round(r.amount*100)/100, category: r.category, payer, currency, sharedBy },
         order: base + i, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -5499,13 +5883,13 @@ function renderFlightForm(){
   renderFlightExpenseTitle();
   updateFlightHints();
   setv("fsExpense", s.expense);
-  setCurrencyChip(fsCurrencyChips, s.expenseCurrency, scheduleSaveFlight);
+  setCurrencyChip(fsCurrencyChips, s.expenseCurrency || (s.expense ? "" : "TWD"), scheduleSaveFlight);   // 機票多半先用台幣訂；已經有金額的舊資料維持原樣
   populatePayerSelect(document.getElementById("fsExpPayer"), document.getElementById("fsPayerWrap"), s.expensePayer);
   renderShareChipsIn("fsShareWrap", "fsShareChips", s.expenseSharedBy, scheduleSaveFlight);
   document.getElementById("fsPaySub").style.display = (document.getElementById("fsPayerWrap").style.display!=="none") ? "block" : "none";
   setv("fsExpDate", s.expenseDate); setv("fsExpNote", s.expenseNote);
   setv("fsrExpense", s.retExpense);
-  setCurrencyChip(document.getElementById("fsrCurrencyChips"), s.retExpenseCurrency, scheduleSaveFlight);
+  setCurrencyChip(document.getElementById("fsrCurrencyChips"), s.retExpenseCurrency || (s.retExpense ? "" : "TWD"), scheduleSaveFlight);
   populatePayerSelect(document.getElementById("fsrExpPayer"), document.getElementById("fsrPayerWrap"), s.retExpensePayer);
   renderShareChipsIn("fsrShareWrap", "fsrShareChips", s.retExpenseSharedBy, scheduleSaveFlight);
   document.getElementById("fsrPaySub").style.display = (document.getElementById("fsrPayerWrap").style.display!=="none") ? "block" : "none";
@@ -5939,7 +6323,7 @@ function openPackModal(item){
     if(cur) sel.value = cur;
     refreshPackExpUI();
   }
-  setCurrencyChip(document.getElementById("pCurrencyChips"), pe.currency);
+  setCurrencyChip(document.getElementById("pCurrencyChips"), pe.currency || (pe.amount>0 ? "" : "TWD"));   // 行前辦理多半用台幣付
   populatePayerSelect(document.getElementById("pExpPayer"), document.getElementById("pPayerWrap"), pe.payer || "");
   renderShareChipsIn("pShareWrap", "pShareChips", pe.sharedBy);
   document.getElementById("pPaySub").style.display = (document.getElementById("pPayerWrap").style.display!=="none") ? "block" : "none";
