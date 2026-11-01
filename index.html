@@ -144,6 +144,8 @@
   #loginError{color:var(--seal); font-size:13px; min-height:16px; margin-top:6px; line-height:1.6;}
 
   /* ---------- Header ---------- */
+  .exp-item.exp-dup{background:#d9534f !important; color:#fff !important; border-radius:10px;}
+  .exp-item.exp-dup *{color:#fff !important;}
   header{padding:22px 20px 4px; position:sticky; top:0; background:var(--paper); z-index:10;}
   header h1{font-size:22px; margin:0 0 8px; font-weight:800; letter-spacing:0;}
   header .sub{color:var(--sub); font-size:12px;}
@@ -646,9 +648,16 @@ header #mapBtn, header #settingsBtn{
       <div style="padding:0 20px 12px; display:flex; justify-content:flex-end;">
         <button type="button" id="expSelBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">☑ 選取</button><button type="button" id="billPasteBtn" style="padding:7px 16px; margin-right:8px; border:1px solid var(--line); background:var(--bg); color:var(--sub); border-radius:999px; font-size:14px; font-weight:600;">📋 貼上帳單</button><button type="button" id="expAddBtn" style="padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600;">＋ 新增花費</button>
       </div>
+      <div id="expSelBar" style="display:none; position:sticky; top:0; z-index:9; box-sizing:border-box; gap:8px; align-items:center; padding:10px 20px; background:var(--card); border-bottom:1px solid var(--line); box-shadow:0 4px 12px rgba(0,0,0,.10);">
+  <span id="expSelCount" style="font-size:13px; color:var(--sub); flex:1; min-width:0;">已選 0 筆</span>
+  <button type="button" id="expSelDup" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">找出重複</button>
+  <button type="button" id="expSelPayer" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">付款人</button>
+  <button type="button" id="expSelDel" class="btn btn-ghost" style="padding:8px 10px; font-size:13px; color:#d9534f;">刪除</button>
+</div>
       <div class="exp-cats" id="expCats" data-h="分類"></div>
       <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
       <div id="expSettle" style="margin:0 20px 14px;"></div>
+      <div id="expDupBanner" style="display:none; align-items:center; gap:10px; margin:0 20px 10px; padding:10px 12px; border-radius:10px; background:#d9534f; color:#fff; font-size:14px; font-weight:600;"><span id="expDupText" style="flex:1; min-width:0;"></span><button type="button" id="expDupDel" style="border:none; background:#fff; color:#d9534f; border-radius:8px; padding:7px 12px; font-size:14px; font-weight:700;">一鍵刪除重複</button></div>
       <div class="exp-list" id="expList" data-h="明細"></div>
     </div>
 
@@ -1069,12 +1078,6 @@ header #mapBtn, header #settingsBtn{
 </div>
 
 <!-- 花費多選：底部操作列與批次付款人 -->
-<div id="expSelBar" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:250; max-width:520px; margin:0 auto; box-sizing:border-box;   /* 選取時蓋住底部導覽列 */  gap:8px; align-items:center; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); box-shadow:0 -4px 14px rgba(0,0,0,.12);">
-  <span id="expSelCount" style="font-size:13px; color:var(--sub); flex:1; min-width:0;">已選 0 筆</span>
-  <button type="button" id="expSelDup" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">找出重複</button>
-  <button type="button" id="expSelPayer" class="btn btn-ghost" style="padding:8px 10px; font-size:13px;">付款人</button>
-  <button type="button" id="expSelDel" class="btn btn-ghost" style="padding:8px 10px; font-size:13px; color:#d9534f;">刪除</button>
-</div>
 <div class="modal-mask" id="bulkPayerMask">
   <div class="modal">
     <button class="close-x" id="bulkPayerClose">✕</button>
@@ -1523,7 +1526,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-228";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-231";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2293,6 +2296,7 @@ function renderAll(){
   if(!canUseAdvanced() && (currentTab==="map" || currentTab==="packing" || currentTab==="expense")) currentTab = "itinerary";
   document.getElementById("itineraryView").style.display = currentTab==="itinerary" ? "block":"none";
   document.getElementById("expenseView").style.display = currentTab==="expense" ? "block":"none";
+  if(currentTab!=="expense" && typeof expSelMode!=="undefined" && expSelMode){ expSelMode = false; expSel.clear(); }   // 離開花費頁就結束選取，不讓選取狀態跑到別的分頁
   document.getElementById("flightView").style.display = currentTab==="flight" ? "block":"none";
   document.getElementById("packingView").style.display = currentTab==="packing" ? "block":"none";
   document.getElementById("mapView").style.display = currentTab==="map" ? "block":"none";
@@ -4921,8 +4925,9 @@ function expCatIdx(c){ const k = EXP_CAT_ORDER.indexOf(c); return k>=0 ? k : EXP
 let expSelMode = false; const expSel = new Set();
 const EXP_CAT_ICON = { "代購":"🧳", "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
 function renderExpense(){
+  const _dup = expDupInfo(); updateExpDupBanner(getActiveTrip() ? _dup : null);
   { const _ids = new Set(items.filter(i=>i.tripId===activeTripId && i.type==="expense").map(i=>i.id)); [...expSel].forEach(id=>{ if(!_ids.has(id)) expSel.delete(id); }); if(expSelMode) updateExpSelBar(); }   // 已被刪掉或換行程的選取要清掉，避免計數對不上
-  { const _b = document.getElementById("expSelBar"); if(_b) _b.style.display = expSelMode ? "flex" : "none"; const _s = document.getElementById("expSelBtn"); if(_s) _s.textContent = expSelMode ? "✕ 結束選取" : "☑ 選取"; }
+  { const _b = document.getElementById("expSelBar"); if(_b){ _b.style.display = expSelMode ? "flex" : "none"; const _h = document.querySelector("header"); _b.style.top = (_h ? _h.offsetHeight : 0) + "px"; } const _s = document.getElementById("expSelBtn"); if(_s) _s.textContent = expSelMode ? "✕ 結束選取" : "☑ 選取"; }
   if(!getActiveTrip()){
     const listWrap = document.getElementById("expList");
     document.getElementById("expTotal").textContent = "¥0";
@@ -5055,7 +5060,7 @@ function renderExpense(){
       listWrap.appendChild(h);
     }
     const row = document.createElement("div");
-    row.className = "exp-item";
+    row.className = "exp-item" + ((i.type==="expense" && _dup.has(i.id)) ? " exp-dup" : "");
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
     const dayTxt = i.type==="expense" ? (i.date || "行程外") : ((i.expense && i.expense.date) ? i.expense.date : (i.type==="packing" ? (SOUVENIR_CATS.includes(i.category) ? ((i.category||"") + ((i.expense.category==="代購" && i.who) ? " · 給"+i.who : "")) : "行前") : dayLabel(i.day)));
@@ -5067,6 +5072,7 @@ function renderExpense(){
     const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
     row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}${(_lk && _lk.get(i.id)) ? " · 📍 " + escapeHtml(linkLabelOf(_lk.get(i.id).itemId)) : ""}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
+    if(row.classList.contains("exp-dup")){ const _l = row.querySelector(".l"); if(_l) _l.insertAdjacentHTML("afterbegin", "⚠ 重複　"); }
     if(expSelMode){
       if(i.type==="expense"){
         const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = expSel.has(i.id); cb.style.cssText = "width:20px; height:20px; flex:none; pointer-events:none;";
@@ -5344,6 +5350,29 @@ document.getElementById("eDelete").addEventListener("click", async ()=>{
   }catch(err){ console.error("delete expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
 });
 
+// 重複判斷（花費清單標示、一鍵刪除、找出重複共用）：有帳單時間的以「日期＋時間」；沒有的以「日期＋名稱＋金額」。每組留一筆（優先留已填付款人／已歸屬的，再留最早記的），其餘視為重複
+function expDupInfo(){
+  const list = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.amount>0);
+  const groups = new Map();
+  list.forEach(i=>{
+    const tm = i.billTime || ((String(i.note||"").match(/支付帳單匯入\s+(\d{1,2}:\d{2})/)||[])[1]) || "";
+    const k = tm ? "T|" + (i.date||"") + "|" + tm.padStart(5,"0") : "N|" + (i.date||"") + "|" + String(i.name||"").trim() + "|" + i.expense.amount;
+    if(!groups.has(k)) groups.set(k, []); groups.get(k).push(i);
+  });
+  const extra = new Set();
+  groups.forEach(g=>{
+    if(g.length<2) return;
+    const score = x=>(x.expense.payer?2:0) + ((x.linkId && x.linkId!=="none")?1:0);
+    g.sort((a,b)=>score(b)-score(a) || (a.order||0)-(b.order||0));
+    g.slice(1).forEach(x=>extra.add(x.id));
+  });
+  return extra;
+}
+function updateExpDupBanner(extra){
+  const b = document.getElementById("expDupBanner"); if(!b) return;
+  b.style.display = (extra && extra.size && !expSelMode) ? "flex" : "none";
+  const t = document.getElementById("expDupText"); if(t) t.textContent = "發現 " + (extra ? extra.size : 0) + " 筆重複（紅底標出）";
+}
 // ================= 花費多選：刪除、找重複、批次付款人 =================
 function updateExpSelBar(){
   const n = expSel.size;
@@ -5358,15 +5387,21 @@ document.getElementById("expSelBtn").addEventListener("click", ()=>setExpSelMode
 document.querySelectorAll("#bottomNav .nav-btn").forEach(b=>b.addEventListener("click", ()=>{ if(b.dataset.tab!=="expense" && expSelMode){ expSelMode = false; expSel.clear(); document.getElementById("expSelBar").style.display = "none"; } }));
 // 找出重複：有帳單時間的以「日期＋時間」判斷；沒有帳單時間的（手動記的）以「日期＋名稱＋金額」判斷。每組留最早記的那筆，其餘勾選
 document.getElementById("expSelDup").addEventListener("click", ()=>{
-  const list = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.amount>0).sort((a,b)=>(a.order||0)-(b.order||0));
-  const seen = new Set(); expSel.clear(); let n = 0;
-  list.forEach(i=>{
-    const tm = i.billTime || ((String(i.note||"").match(/支付帳單匯入\s+(\d{1,2}:\d{2})/)||[])[1]) || "";
-    const k = tm ? "T|" + (i.date||"") + "|" + tm.padStart(5,"0") : "N|" + (i.date||"") + "|" + String(i.name||"").trim() + "|" + i.expense.amount;
-    if(seen.has(k)){ expSel.add(i.id); n++; } else seen.add(k);
-  });
+  const extra = expDupInfo(); expSel.clear(); extra.forEach(id=>expSel.add(id)); const n = extra.size;
   renderExpense(); updateExpSelBar();
-  travelToast(n ? ("找到 " + n + " 筆重複，已勾選（每組保留最早記的那筆）") : "沒有找到重複的花費");
+  travelToast(n ? ("找到 " + n + " 筆重複，已勾選（每組保留一筆）") : "沒有找到重複的花費");
+});
+document.getElementById("expDupDel").addEventListener("click", async ()=>{
+  const ids = [...expDupInfo()]; if(!ids.length) return;
+  if(!await askConfirm("刪除 " + ids.length + " 筆重複花費", "每組重複只保留一筆（優先保留已填付款人的），其餘刪除後無法復原。", "刪除")) return;
+  try{
+    for(let s=0; s<ids.length; s+=400){
+      const batch = db.batch();
+      ids.slice(s, s+400).forEach(id=>batch.delete(db.collection(COLLECTION).doc(id)));
+      await fsw(batch.commit());
+    }
+    travelToast("已刪除 " + ids.length + " 筆重複");
+  }catch(err){ console.error("dup delete failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
 });
 document.getElementById("expSelDel").addEventListener("click", async ()=>{
   const ids = [...expSel]; if(!ids.length) return;
