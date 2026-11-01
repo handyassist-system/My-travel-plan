@@ -1532,7 +1532,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-246";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-247";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2834,12 +2834,12 @@ function linkCandidates(day){   // 那天可以掛的項目（只含已存的景
 }
 // ===== 匯入的花費對應到清單項目（伴手禮、紀念品、其他購物）：用帳單資料更新清單項目，不另外建立花費，避免重複 =====
 function packMergeCandidates(){
-  return items.filter(i=>i.tripId===activeTripId && i.type==="packing" && (SOUVENIR_CATS.includes(i.category) || i.category==="行前辦理" || (i.expense && i.expense.amount>0)))
+  return items.filter(i=>i.tripId===activeTripId && i.type==="packing" && SOUVENIR_CATS.includes(i.category))   // 只有伴手禮、紀念品、其他購物；匯入的帳單都是出國後花的，行前清單不用對應
     .sort((a,b)=>((a.expense&&a.expense.amount>0)?1:0)-((b.expense&&b.expense.amount>0)?1:0) || (a.order||0)-(b.order||0));
 }
 function packMergeLabel(i){
   const has = i.expense && i.expense.amount>0;
-  return (i.category==="行前辦理" ? "🧾 " : "🎁 ") + (i.name||"未命名") + (has ? "（已有金額 " + currencySymbol(i.expense.currency||primaryCurrencyForTrip()) + Number(i.expense.amount).toLocaleString() + "，會覆蓋）" : "（尚未買）");
+  return "🎁 " + (i.name||"未命名") + (has ? "（已有金額 " + currencySymbol(i.expense.currency||primaryCurrencyForTrip()) + Number(i.expense.amount).toLocaleString() + "，會覆蓋）" : "（尚未買）");
 }
 // 帳單資料寫進清單項目：金額、幣別、付款人、分攤、日期；標記已買；記下帳單時間，之後再匯入同一筆會被當成重複
 function packUpdateFromBill(pk, r){
@@ -6500,7 +6500,7 @@ document.getElementById("sExpAmount").addEventListener("input", refreshSovUI);
 function openPackModal(item){
   editingPackId = item ? item.id : null;
   document.getElementById("packDelete").style.display = item ? "" : "none";
-  document.getElementById("packPickBill").style.display = (item && importedExpenseList().length) ? "" : "none";
+  document.getElementById("packPickBill").style.display = (item && SOUVENIR_CATS.includes(item.category) && importedExpenseList().length) ? "" : "none";
   document.getElementById("packModalTitle").textContent = item ? "編輯項目" : "新增項目";
   selectedPackCat = item ? packCatOf(item) : (packingViewMode==="souvenir" ? SOUVENIR_CATS[0] : "其他用品");
   renderPackCatChips();
