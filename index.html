@@ -1536,7 +1536,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-250";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-251";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5187,7 +5187,7 @@ function renderExpense(){
     const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
     row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}${(_lk && _lk.get(i.id)) ? " · 📍 " + escapeHtml(linkLabelOf(_lk.get(i.id).itemId)) : ""}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
-    if(row.classList.contains("exp-dup")){ const _l = row.querySelector(".l"); if(_l) _l.insertAdjacentHTML("afterbegin", "⚠ 重複　"); }
+    if(row.classList.contains("exp-dup")){ const _l = row.querySelector(".l"); if(_l) _l.insertAdjacentHTML("afterbegin", "⚠ 重複　"); const _d = row.querySelector(".d"); if(_d) _d.insertAdjacentText("beforeend", " · " + (expDupWhy.get(i.id)||"")); }
     if(expSelMode){
       if(i.type==="expense"){
         const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = expSel.has(i.id); cb.style.cssText = "width:20px; height:20px; flex:none; pointer-events:none;";
@@ -5492,21 +5492,23 @@ document.getElementById("eDelete").addEventListener("click", async ()=>{
   }catch(err){ console.error("delete expense failed", err); if(!(err && err.message==="READ_ONLY")) travelToast(failMsg("刪除", err)); }
 });
 
-// 重複判斷（花費清單標示、一鍵刪除、找出重複共用）：有帳單時間的以「日期＋時間」；沒有的以「日期＋名稱＋金額」。每組留一筆（優先留已填付款人／已歸屬的，再留最早記的），其餘視為重複
+// 重複判斷（花費清單標示、一鍵刪除、找出重複共用）：只用「日期＋帳單時間」，沒有時間的不判斷。每組留一筆（優先留已填付款人／已歸屬的，再留最早記的），其餘視為重複
+const expDupWhy = new Map();
 function expDupInfo(){
   const list = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.amount>0);
   const groups = new Map();
   list.forEach(i=>{
     const tm = expBillTime(i);
-    const k = tm ? "T|" + (i.date||"") + "|" + tm.padStart(5,"0") : "N|" + (i.date||"") + "|" + String(i.name||"").trim() + "|" + i.expense.amount;
+    if(!tm || !i.date) return;   // 只看「同一天、同一個帳單時間」；沒有時間的（手動記的）不判斷，同名同金額可能是真的買了兩次（例如來回兩趟地鐵）
+    const k = "T|" + i.date + "|" + tm.padStart(5,"0");
     if(!groups.has(k)) groups.set(k, []); groups.get(k).push(i);
   });
-  const extra = new Set();
+  const extra = new Set(); expDupWhy.clear();
   groups.forEach(g=>{
     if(g.length<2) return;
     const score = x=>(x.expense.payer?2:0) + ((x.linkId && x.linkId!=="none")?1:0);
     g.sort((a,b)=>score(b)-score(a) || (a.order||0)-(b.order||0));
-    g.slice(1).forEach(x=>extra.add(x.id));
+    g.slice(1).forEach(x=>{ extra.add(x.id); expDupWhy.set(x.id, "與「" + (g[0].name||"") + "」同一天同一時間（" + String(g[0].date).slice(5) + " " + expBillTime(g[0]) + "）"); });
   });
   return extra;
 }
@@ -5828,6 +5830,7 @@ function renderBillRows(){
       el.addEventListener(k==="on" ? "change" : "input", ()=>{
         r[k] = k==="on" ? el.checked : (k==="amount" ? Number(el.value) : el.value);
         if(k==="packId") updateBillSummary();
+        if(k==="date"){ markBillDuplicates(); renderBillRows(); return; }   // 改日期後重新判斷是否已存在
         if(k!=="on" && r.sus && r.sus[k]){ r.sus[k] = false; el.style.borderColor = ""; el.style.background = ""; }
         updateBillSummary();
       });
