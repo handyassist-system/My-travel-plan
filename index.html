@@ -1197,6 +1197,8 @@ header #mapBtn, header #settingsBtn{
   <div class="modal">
     <button class="close-x" id="shareClose">✕</button>
     <h2>分享／匯出行程</h2>
+    <div class="chip-row" id="shareModeChips" style="margin-bottom:6px;"><div class="chip active" data-v="simple">簡易版</div><div class="chip" data-v="full">完整版</div></div>
+    <p id="shareModeNote" style="font-size:12px; color:var(--sub); margin:0 0 16px; line-height:1.6;"></p>
     <button type="button" class="btn btn-primary" id="shareTextBtn" style="width:100%; margin-bottom:6px;">💬 傳給朋友（文字）</button>
     <p style="font-size:12px; color:var(--sub); margin:0 0 16px; text-align:center;">用 LINE 等 App 傳送行程文字</p>
     <button type="button" class="btn btn-ghost" id="sharePdfBtn" style="width:100%; margin-bottom:6px;">📄 存成 PDF</button>
@@ -1534,7 +1536,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-249";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-250";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -7314,13 +7316,29 @@ function timeOfDayLabel(timeStr){
   return "晚上";
 }
 
+// 分享內容：簡易版只有日期、時間和景點名稱（給同事或朋友參考）；完整版含航班、交通、地址、備註、照片
+let shareSimple = true;
+try{ shareSimple = localStorage.getItem("shareMode")!=="full"; }catch(e){}
+function renderShareMode(){
+  document.querySelectorAll("#shareModeChips .chip").forEach(c=>c.classList.toggle("active", (c.dataset.v==="simple")===shareSimple));
+  document.getElementById("shareModeNote").textContent = shareSimple
+    ? "只有日期、時間和景點名稱。不含旅伴、航班、交通、地址、備註、照片和花費。"
+    : "含航班、交通、地址、備註和照片。不含花費。";
+}
+document.getElementById("shareModeChips").addEventListener("click",(ev)=>{
+  const c = ev.target.closest(".chip"); if(!c) return;
+  shareSimple = c.dataset.v==="simple";
+  try{ localStorage.setItem("shareMode", shareSimple ? "simple" : "full"); }catch(e){}
+  renderShareMode();
+});
 function buildShareText(){
+  const simple = shareSimple;
   const trip = getActiveTrip();
   const s = flightSettings || {};
   const lines = [];
   lines.push(trip ? trip.name : "行程");
 
-  if(legShown("out")){
+  if(!simple && legShown("out")){
     lines.push("");
     lines.push(legMode("out")==="hsr" ? "🚄 去程高鐵" : "✈️ 去程航班");
     lines.push(`${s.outAirline||""} ${s.outFlightNo||""}　${AIRPORTS[s.outFrom]||s.outFrom||""} ${s.outDepartTime||"--:--"} → ${AIRPORTS[s.outTo]||s.outTo||""} ${s.outArriveTime||"--:--"}`.trim());
@@ -7335,14 +7353,14 @@ function buildShareText(){
 
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
-    if(arr.length===0 && dayNotes(day).length===0){ lines.push("（尚未安排）"); return; }
+    if(arr.length===0 && (simple || dayNotes(day).length===0)){ lines.push("（尚未安排）"); return; }
 
     // Build display rows: each spot gets an optional "(交通方式 約X分)" suffix
     // from the transport that immediately precedes it.
     const rows = [];
     let pendingTransportLabel = null;
     let spotIndex = 0;
-    [...arr, ...dayNotes(day)].sort((a,b)=>a.order-b.order).forEach(it=>{
+    [...arr, ...(simple ? [] : dayNotes(day))].sort((a,b)=>a.order-b.order).forEach(it=>{
       if(it.type==="note"){
         rows.push({ isNote:true, text: it.text||"" });
       } else if(it.type==="transport"){
@@ -7367,10 +7385,10 @@ function buildShareText(){
         lastGroup = group;
       }
       const timeStr = row.time || "未定";
-      const extras = [row.transport, row.stayInfo].filter(Boolean).join("，");
+      const extras = simple ? "" : [row.transport, row.stayInfo].filter(Boolean).join("，");
       const suffix = extras ? `（${extras}）` : "";
       lines.push(`${timeStr} ${row.name}${suffix}`);
-      if(row.memo) lines.push("　📝 " + String(row.memo).replace(/\s+/g," "));
+      if(!simple && row.memo) lines.push("　📝 " + String(row.memo).replace(/\s+/g," "));
       lines.push("");
     });
   });
@@ -7378,7 +7396,7 @@ function buildShareText(){
     lines.push(""); lines.push("（第 "+(FREE_MAX_DAYS+1)+" 天起需升級完整版才能查看）");
   }
 
-  if(legShown("ret")){
+  if(!simple && legShown("ret")){
     lines.push("");
     lines.push(legMode("ret")==="hsr" ? "🚄 回程高鐵" : "✈️ 回程航班");
     lines.push(`${s.retAirline||""} ${s.retFlightNo||""}　${AIRPORTS[s.retFrom]||s.retFrom||""} ${s.retDepartTime||"--:--"} → ${AIRPORTS[s.retTo]||s.retTo||""} ${s.retArriveTime||"--:--"}`.trim());
@@ -7392,6 +7410,7 @@ function buildShareText(){
 const PDF_W = 794, PDF_H = 1123, PDF_PAD_X = 40, PDF_PAD_TOP = 36, PDF_PAD_BOTTOM = 44;   // A4 @96dpi
 const PDF_FONT = "'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif";
 function buildPdfBlocks(){
+  const simple = shareSimple;
   const trip = getActiveTrip();
   const s = flightSettings || {};
   const esc = escapeHtml;
@@ -7400,10 +7419,10 @@ function buildPdfBlocks(){
   let head = `<div class="h1">${esc(trip ? trip.name : "行程")}</div>`;
   const sub = [];
   if(trip && trip.startDate && trip.endDate) sub.push(`${esc(trip.startDate)} ～ ${esc(trip.endDate)}`);
-  if(trip && Array.isArray(trip.members) && trip.members.length) sub.push(trip.members.map(esc).join("、"));
+  if(!simple && trip && Array.isArray(trip.members) && trip.members.length) sub.push(trip.members.map(esc).join("、"));
   if(sub.length) head += `<div class="sub">${sub.join("　・　")}</div>`;
-  if(trip && trip.notes) head += `<div class="note">📝 ${esc(trip.notes)}</div>`;
-  if(legShown("out") || legShown("ret")){
+  if(!simple && trip && trip.notes) head += `<div class="note">📝 ${esc(trip.notes)}</div>`;
+  if(!simple && (legShown("out") || legShown("ret"))){
     const card = (k, label)=>`<div class="fl-card"><b>${legMode(k)==="hsr" ? "🚄" : "✈️"} ${label}</b><br>${esc(s[k+"Airline"]||"")} ${esc(s[k+"FlightNo"]||"")}<br>${esc(AIRPORTS[s[k+"From"]]||s[k+"From"]||"")} ${esc(s[k+"DepartTime"]||"--:--")} → ${esc(AIRPORTS[s[k+"To"]]||s[k+"To"]||"")} ${esc(s[k+"ArriveTime"]||"--:--")}</div>`;
     head += `<div class="fl">${legShown("out") ? card("out","去程") : ""}${legShown("ret") ? card("ret","回程") : ""}</div>`;
   }
@@ -7413,14 +7432,14 @@ function buildPdfBlocks(){
     const dateLabel = computeDateForDay(day);
     const dayBar = `<div class="day">第 ${di+1} 天${dateLabel ? "　"+esc(dateLabel) : ""}</div>`;
     const _mhP = mealStatusHtml(day, computeDerivedTimes(day));
-    const dayHead = dayBar + (_mhP ? `<div class="mealbar">${_mhP}</div>` : "") + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
+    const dayHead = simple ? (dayBar + `<div class="colh"><div class="t">時間</div><div class="p">地點</div></div>`) : dayBar + (_mhP ? `<div class="mealbar">${_mhP}</div>` : "") + `<div class="colh"><div class="t">時間</div><div class="p">地點</div><div class="adr">地址</div><div class="tc">如何抵達</div><div class="m">備註</div></div>`;
     const derived = computeDerivedTimes(day);
     const arr = effectiveItems(day);
-    const hasSpot = arr.some(i=>i.type==="spot") || dayNotes(day).length>0;
+    const hasSpot = arr.some(i=>i.type==="spot") || (!simple && dayNotes(day).length>0);
     if(!hasSpot){ blocks.push(dayBar + `<div class="empty">尚未安排</div>`); return; }
     let pendingTransport = "";
     let spotIndex = 0, first = true, lastSec = "";
-    [...arr, ...dayNotes(day)].sort((a,b)=>a.order-b.order).forEach(it=>{
+    [...arr, ...(simple ? [] : dayNotes(day))].sort((a,b)=>a.order-b.order).forEach(it=>{
       if(it.type==="note"){
         let u = "";
         if(first){ u += dayHead; first = false; }
@@ -7446,19 +7465,20 @@ function buildPdfBlocks(){
       const _sec = _h==null ? "" : (_h<12 ? "上午" : (_h<18 ? "下午" : "晚上"));
       if(_sec && _sec!==lastSec){ unit += `<div class="sec">${_sec}</div>`; lastSec = _sec; }
       const meal = spotMealLabel(it, displayTime, true);
+      if(simple){ unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}</div></div>`; blocks.push(unit); first = false; pendingTransport = ""; spotIndex++; return; }
       unit += `<div class="row"><div class="t">${esc(displayTime || "未定")}</div><div class="p"><b>${CATEGORY_ICON[it.category]||"📌"} ${esc(it.name)}</b>${meal ? `<span class="meal">${meal}</span>` : ""}${(Array.isArray(it.inMeals)&&it.inMeals.length) ? `<span class="meal">園內${it.inMeals.map(esc).join("、")}</span>` : ""}</div><div class="adr">${esc(it.note || "")}</div><div class="tc">${pendingTransport}</div><div class="m">${right.join("<br>")}</div></div>`;
       blocks.push(unit);
       first = false; pendingTransport = ""; spotIndex++;
     });
     // 最後一天：提醒最晚幾點離開最後一站、幾點要到機場（和行程頁的航班提醒同一組數字）
-    if(day===days[days.length-1] && s.retDepartTime){
+    if(!simple && day===days[days.length-1] && s.retDepartTime){
       const _lg = flightLegFromSettings("ret");
       if(_lg) blocks.push(`<div class="mealbar" style="background:#FFF1D6; color:#8a5a00; font-weight:600;">⏰ ${esc(flightLegText(_lg, "最後一站", legMode("ret")==="hsr"))}（僅供參考）</div>`);
     }
   });
   const _n = new Date(), _p2 = n=>String(n).padStart(2,"0");
   const _stamp = `${_n.getFullYear()}/${_p2(_n.getMonth()+1)}/${_p2(_n.getDate())} ${_p2(_n.getHours())}:${_p2(_n.getMinutes())}`;
-  blocks[blocks.length-1] += `<div class="ft">交通時間為系統估算，僅供參考　・　產生時間 ${_stamp}</div>`;   // 頁尾說明跟著最後一個區塊，不會自己單獨掉到新的一頁
+  blocks[blocks.length-1] += `<div class="ft">${simple ? "" : "交通時間為系統估算，僅供參考　・　"}產生時間 ${_stamp}</div>`;   // 頁尾說明跟著最後一個區塊，不會自己單獨掉到新的一頁
   return blocks;
 }
 const PDF_CSS = `
@@ -7603,7 +7623,7 @@ async function exportItineraryPdf(){
 }
 
 const shareModalMask = document.getElementById("shareModalMask");
-document.getElementById("shareTripBtn").addEventListener("click", ()=>shareModalMask.classList.add("show"));
+document.getElementById("shareTripBtn").addEventListener("click", ()=>{ renderShareMode(); shareModalMask.classList.add("show"); });
 document.getElementById("shareClose").addEventListener("click", ()=>shareModalMask.classList.remove("show"));
 shareModalMask.addEventListener("click",(e)=>{ if(e.target===shareModalMask) shareModalMask.classList.remove("show"); });
 document.getElementById("shareTextBtn").addEventListener("click", async ()=>{
