@@ -730,7 +730,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field" id="fsPayerWrap" style="display:none;"><label>付款人</label><select id="fsExpPayer"></select></div>
       <div class="field" id="fsShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fsShareChips"></div></div>
       <div class="exp-sub">📝 日期與備註</div>
-      <div class="field"><label>日期（選填，付款日）</label><input id="fsExpDate" type="date"></div>
+      <div class="field"><label>付款日期（選填）</label><input id="fsExpDate" type="date"></div>
       <div class="field"><label>備註（選填）</label><textarea id="fsExpNote" placeholder="補充說明"></textarea></div>
 </div>
       <div class="sec-card" id="fsrExpCard" style="display:none;"><div class="sec-h" id="fsrExpTitle">🎫 機票花費（選填）</div>
@@ -742,7 +742,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field" id="fsrPayerWrap" style="display:none;"><label>付款人</label><select id="fsrExpPayer"></select></div>
       <div class="field" id="fsrShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fsrShareChips"></div></div>
       <div class="exp-sub">📝 日期與備註</div>
-      <div class="field"><label>日期（選填，付款日）</label><input id="fsrExpDate" type="date"></div>
+      <div class="field"><label>付款日期（選填）</label><input id="fsrExpDate" type="date"></div>
       <div class="field"><label>備註（選填）</label><textarea id="fsrExpNote" placeholder="補充說明"></textarea></div>
 </div>
       <p id="fsFootNote" style="font-size:12px; color:var(--sub); text-align:center;">修改後自動儲存，航班會顯示在第 1 天與最後一天的機場卡</p>
@@ -903,7 +903,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field" id="fPayerWrap" style="display:none;"><label>付款人</label><select id="fExpPayer"></select></div>
       <div class="field" id="fShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="fShareChips"></div></div>
       <div class="exp-sub">📝 日期</div>
-      <div class="field"><label>日期（選填，付款日）</label><input id="fExpDate" type="date"></div>
+      <div class="field"><label>付款日期（選填）</label><input id="fExpDate" type="date"></div>
     </div>
     </div>
     <div class="sec-card"><div class="sec-h">📝 備註</div>
@@ -988,7 +988,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
       <div class="field" id="tShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="tShareChips"></div></div>
       <div class="exp-sub">📝 日期</div>
-      <div class="field"><label>日期（選填，付款日）</label><input id="tExpDate" type="date"></div>
+      <div class="field"><label>付款日期（選填）</label><input id="tExpDate" type="date"></div>
     </div>
     </div>
     <div class="sec-card"><div class="sec-h"><span>📝 備註</span></div>
@@ -1040,7 +1040,6 @@ header #mapBtn, header #settingsBtn{
     <div class="sec-card"><div class="sec-h">💰 金額</div>
     <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行前採買的旅遊用品、伴手禮"></div>
     <div class="row2">
-      <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>類別</label>
         <select id="eCategory">
           <option value="行前採買">🧳 行前採買</option>
@@ -1052,6 +1051,7 @@ header #mapBtn, header #settingsBtn{
         </select>
         <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前已預訂的住宿、門票、交通，請在「行李清單」登錄花費；其他支出請填在這裡。</p>
       </div>
+      <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
     </div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
     </div>
@@ -1060,7 +1060,7 @@ header #mapBtn, header #settingsBtn{
     <div class="field" id="eShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="eShareChips"></div></div>
     </div>
     <div class="sec-card"><div class="sec-h">📝 日期與備註</div>
-    <div class="field"><label>日期（選填）</label><input id="eDate" type="date"></div>
+    <div class="field"><label>付款日期（選填）</label><input id="eDate" type="date"></div>
     <button type="button" class="btn btn-ghost" id="eMergePack" style="display:none; width:100%; margin-bottom:12px;">🎁 設定對應的伴手禮／清單項目</button>
     <div class="field" id="eLinkWrap" style="display:none;"><label>歸屬到</label><select id="eLink"></select></div>
     <div class="field"><label>備註（選填）</label><textarea id="eNote" placeholder="補充說明"></textarea></div>
@@ -1252,7 +1252,7 @@ header #mapBtn, header #settingsBtn{
       <div class="field" id="pPayerWrap" style="display:none;"><label>付款人</label><select id="pExpPayer"></select></div>
       <div class="field" id="pShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="pShareChips"></div></div>
       <div class="exp-sub">📝 日期</div>
-      <div class="field"><label>日期（選填，付款日）</label><input id="pExpDate" type="date"></div>
+      <div class="field"><label>付款日期（選填）</label><input id="pExpDate" type="date"></div>
       </div>
     </div>
     <div class="sec-card" id="sovExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
@@ -1265,6 +1265,7 @@ header #mapBtn, header #settingsBtn{
       <div id="sPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="sPayerWrap" style="display:none;"><label>付款人</label><select id="sExpPayer"></select></div>
       <div class="field" id="sShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="sShareChips"></div></div>
+      <div class="field"><label>付款日期（選填）</label><input id="sExpDate" type="date"></div>
     </div>
     <div class="field"><label>備註（選填）</label><textarea id="packNote" placeholder="品牌、給誰的..."></textarea></div>
     <div class="field" id="packPhotoWrap" style="display:none;"><label>照片（選填，例如想買的商品、包裝）</label>
@@ -1536,7 +1537,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-251";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-253";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5021,6 +5022,25 @@ function expCatIdx(c){ const k = EXP_CAT_ORDER.indexOf(c); return k>=0 ? k : EXP
 let expSelMode = false; const expSel = new Set();
 let expFilterCat = "", expFilterPayer = "";   // 花費篩選：點上方分類／付款人方塊，再點一次取消
 const EXP_CAT_ICON = { "代購":"🧳", "行前辦理":"🧾", "行前採買":"🧳", "衣物":"👕", "兌換":"💱", "購物":"🛍️", "餐飲":"🍜", "交通":"🚆", "門票":"🎫", "住宿":"🏨", "其他":"📌" };
+// 花費明細每一列的「日期 時間」：不管從花費頁、行程、清單哪裡建立，都用同一個格式（例：10/30（四） 15:11）
+function fmtIsoMD(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||""); if(!m) return "";
+  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  return (+m[2]) + "/" + (+m[3]) + "（" + ["日","一","二","三","四","五","六"][d.getDay()] + "）";
+}
+function expRowWhen(i){
+  const iso = i.type==="expense" ? (i.date||"") : ((i.expense && i.expense.date) || "");
+  let t = fmtIsoMD(iso);
+  if(!t){
+    if(i.type==="expense") t = "行程外";
+    else if(i.type==="packing") t = SOUVENIR_CATS.includes(i.category) ? (i.category||"") : "行前";
+    else t = computeDateForDay(i.day) || dayLabel(i.day);
+  }
+  const tm = (i.type==="expense" || i.type==="packing") ? (expBillTime(i) || ((i.billTime)||"")) : "";
+  return t + (tm ? " " + tm : "") + ((i.type==="packing" && i.expense && i.expense.category==="代購" && i.who) ? " · 給" + i.who : "");
+}
+function expRowSource(i){ return i.type==="spot" || i.type==="transport" ? "來自行程" : (i.type==="packing" ? "來自清單" : (i.type==="flight" ? "來自航班" : "")); }
+function expRowNote(i){ return String(i.note||"").replace(/支付帳單匯入\s*(\d{1,2}:\d{2})?/g,"").trim(); }
 function renderExpense(){
   { const _fr = document.getElementById("expFilterRow"); if(_fr) _fr.style.display = "none"; }
   const _dup = expDupInfo(); updateExpDupBanner(getActiveTrip() ? _dup : null);
@@ -5178,21 +5198,21 @@ function renderExpense(){
     row.className = "exp-item" + ((i.type==="expense" && _dup.has(i.id)) ? " exp-dup" : "");
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
-    const dayTxt = i.type==="expense" ? (i.date || "行程外") : ((i.expense && i.expense.date) ? i.expense.date : (i.type==="packing" ? (SOUVENIR_CATS.includes(i.category) ? ((i.category||"") + ((i.expense.category==="代購" && i.who) ? " · 給"+i.who : "")) : "行前") : dayLabel(i.day)));
+    const dayTxt = expRowWhen(i);
     const payTxt = (i.expense.payer) ? (i.expense.payer===POOL_PAYER ? (" · " + POOL_PAYER) : (" · " + i.expense.payer + "付")) : "";
     // 金額：粗體＝目前顯示幣別（加起來等於小計和總額）；原幣別不同時，下面用小灰字保留當初記的金額
     const origCur = i.expense.currency || primaryCurrencyForTrip();
     const sameCur = origCur===expDisplayCurrency;
     const amtMain = sym + (sameCur ? Number(i.expense.amount).toLocaleString() : Math.round(converted(i)).toLocaleString());
     const amtSub = sameCur ? "" : `<span class="sub">${origSym}${escapeHtml(Number(i.expense.amount).toLocaleString())}</span>`;
-    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}${(_lk && _lk.get(i.id)) ? " · 📍 " + escapeHtml(linkLabelOf(_lk.get(i.id).itemId)) : ""}</div>${(i.type!=="spot" && i.note) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(i.note)}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
+    row.innerHTML = `<div style="flex:1; min-width:0;"><div class="l">${escapeHtml(label)}</div><div class="d">${escapeHtml(dayTxt)}${escapeHtml(payTxt)}${(_lk && _lk.get(i.id)) ? " · 📍 " + escapeHtml(linkLabelOf(_lk.get(i.id).itemId)) : ""}${expRowSource(i) ? " · " + expRowSource(i) : ""}</div>${(i.type!=="spot" && expRowNote(i)) ? `<div class="d" style="white-space:pre-wrap;">📝 ${escapeHtml(expRowNote(i))}</div>` : ""}</div><div class="r">${amtMain}${amtSub}</div>`;
     row.style.cursor = "pointer";
     if(row.classList.contains("exp-dup")){ const _l = row.querySelector(".l"); if(_l) _l.insertAdjacentHTML("afterbegin", "⚠ 重複　"); const _d = row.querySelector(".d"); if(_d) _d.insertAdjacentText("beforeend", " · " + (expDupWhy.get(i.id)||"")); }
     if(expSelMode){
       if(i.type==="expense"){
         const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = expSel.has(i.id); cb.style.cssText = "width:20px; height:20px; flex:none; pointer-events:none;";
         row.insertBefore(cb, row.firstChild); row.dataset.sel = i.id;
-      } else { row.style.opacity = "0.45"; row.dataset.locked = "1"; const _d = row.querySelector(".d"); if(_d) _d.insertAdjacentText("beforeend", " · 來自行程／清單"); }
+      } else { row.style.opacity = "0.45"; row.dataset.locked = "1"; }
     }
     row.addEventListener("click", ()=>{
       if(expSelMode){
@@ -6557,6 +6577,7 @@ function openPackModal(item){
   setCurrencyChip(document.getElementById("sCurrencyChips"), isSov ? pe.currency : "", refreshSovUI);
   populatePayerSelect(document.getElementById("sExpPayer"), document.getElementById("sPayerWrap"), isSov ? (pe.payer||"") : "", document.getElementById("sProxy").checked);
   renderShareChipsIn("sShareWrap", "sShareChips", isSov ? pe.sharedBy : null);
+  document.getElementById("sExpDate").value = isSov ? (pe.date||"") : "";
   refreshSovUI();
   packModalMask.classList.add("show");
 }
@@ -6612,7 +6633,7 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   data.expense = (selectedPackCat==="行前辦理")
     ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")), sharedBy: readSharedByIn("pShareChips"), date: document.getElementById("pExpDate").value || "" }
     : (_gift && sAmt>0)
-      ? { amount: sAmt, category: sProxy ? "代購" : "購物", payer: document.getElementById("sExpPayer").value||"", currency: getCurrencyChip(document.getElementById("sCurrencyChips")), sharedBy: sProxy ? [] : readSharedByIn("sShareChips") }
+      ? { amount: sAmt, category: sProxy ? "代購" : "購物", payer: document.getElementById("sExpPayer").value||"", currency: getCurrencyChip(document.getElementById("sCurrencyChips")), sharedBy: sProxy ? [] : readSharedByIn("sShareChips"), date: document.getElementById("sExpDate").value || "" }
       : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
   try{
     if(editingPackId){
