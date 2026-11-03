@@ -1547,7 +1547,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-257";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-258";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5111,6 +5111,11 @@ function renderExpense(){
   const proxySum = proxyList.reduce((s,i)=>s+converted(i),0);
   const exchList = all.filter(isExch);
   const exchSum = exchList.reduce((s,i)=>s+converted(i),0);
+  // 兌換只算實際用掉的現金（公費現金付掉的花費合計），分給換匯的人；跟結算同一個算法
+  const _mem = (getActiveTrip().members||[]);
+  const _poolUsed = counted.filter(i=>i.expense.payer===POOL_PAYER).reduce((n,i)=>n+converted(i),0);
+  const _exchOk = exchList.filter(i=>i.expense.payer && _mem.includes(i.expense.payer)).reduce((n,i)=>n+converted(i),0);
+  const exchF = _exchOk>0 ? Math.min(1, _poolUsed/_exchOk) : 0;
   const total = counted.reduce((s,i)=>s+converted(i),0);
   document.getElementById("expTotal").textContent = sym+Math.round(total).toLocaleString();
   const avgNote = document.getElementById("expAvgNote");
@@ -5142,6 +5147,7 @@ function renderExpense(){
     const byMember = {};
     trip.members.forEach(m=>{ byMember[m] = 0; });
     counted.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i); });
+    exchList.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i)*exchF; });   // 換匯的人：加上實際用掉的現金
     trip.members.forEach(m=>{
       const p = document.createElement("div");
       p.className = "exp-cat-pill";
@@ -5190,10 +5196,10 @@ function renderExpense(){
   { const fb = document.getElementById("expFilterBar"), on = !!(expFilterCat || expFilterPayer);
     fb.style.display = on ? "flex" : "none";
     if(on){
-      const _nc = i => isExch(i) || isProxy(i);   // 兌換、代購不計入總額，這裡的合計跟上方方塊一致，另外標出
-      const sum = view.reduce((n,i)=>n+(_nc(i) ? 0 : converted(i)),0);
-      const _ex = view.reduce((n,i)=>n+(_nc(i) ? converted(i) : 0),0);
-      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && ("👤 " + expFilterPayer + " 付")].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString() + (_ex>0 ? "　（另有兌換／代購 " + sym + Math.round(_ex).toLocaleString() + "，不計入）" : "");
+      // 合計跟上方方塊同一算法：兌換只算實際用掉的現金，代購不計入（另外標出）
+      const sum = view.reduce((n,i)=>n+(isProxy(i) ? 0 : isExch(i) ? converted(i)*exchF : converted(i)),0);
+      const _ex = view.reduce((n,i)=>n+(isProxy(i) ? converted(i) : 0),0);
+      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && ("👤 " + expFilterPayer + " 付")].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString() + (_ex>0 ? "　（另有代購 " + sym + Math.round(_ex).toLocaleString() + "，不計入）" : "");
     } }
   view.forEach(i=>{ const g = groupMeta.find(x=>x.c===expCatOf(i)); if(g){ g.fn = (g.fn||0)+1; g.fa = (g.fa||0)+converted(i); } });
   if(!view.length) listWrap.innerHTML = `<div class="empty"><span class="esub">沒有符合的花費</span></div>`;
