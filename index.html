@@ -351,7 +351,8 @@
   #mapBtn.hdr-on{background:var(--accent); border-radius:8px;}
 
   /* ---------- Modal ---------- */
-  .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:flex-end; z-index:210;}   /* 比設定頁(200)高，才能從設定頁打開視窗 */
+  .nopay-hide{ display:none !important; }
+.modal-mask{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:flex-end; z-index:210;}   /* 比設定頁(200)高，才能從設定頁打開視窗 */
   .modal-mask.fullscreen{align-items:stretch; background:var(--bg);}
   .modal-mask.fullscreen .modal{
     width:100%; max-width:520px; margin:0 auto; border-radius:0; height:100vh; max-height:100vh;
@@ -658,7 +659,7 @@ header #mapBtn, header #settingsBtn{
       <div id="expSelHint" style="display:none; margin:8px 20px 0; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--sub); font-size:12px; line-height:1.6;">💡 灰色為行程、機票或清單帶入的金額，請點進去在原處修改。</div>
       <div class="exp-cats" id="expCats" data-h="分類"></div>
       <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
-      <div id="expReconcile" style="display:none; margin:8px 20px 0; padding:9px 12px; border-radius:10px; background:var(--bg); border:1px dashed var(--line); font-size:12.5px; color:var(--sub); line-height:1.7;"></div>
+
       <div id="expSettle" style="margin:0 20px 14px;"></div>
       <div id="expFilterRow" style="display:none; gap:8px; margin:0 20px 10px;"><select id="expFilterCatSel" aria-label="分類" style="flex:1; min-width:0; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:14px;"></select><select id="expFilterPayerSel" aria-label="付款人" style="flex:1; min-width:0; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:14px;"></select></div>
       <div id="expDupBanner" style="display:none; align-items:center; gap:10px; margin:0 20px 10px; padding:10px 12px; border-radius:10px; background:#d9534f; color:#fff; font-size:14px; font-weight:600;"><span id="expDupText" style="flex:1; min-width:0;"></span><button type="button" id="expDupDel" style="border:none; background:#fff; color:#d9534f; border-radius:8px; padding:7px 12px; font-size:14px; font-weight:700;">一鍵刪除重複</button></div>
@@ -894,7 +895,6 @@ header #mapBtn, header #settingsBtn{
           <option value="交通">🚆 交通</option>
           <option value="其他">📌 其他</option>
         </select>
-        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">預設依上方地點類別帶入，可依實際花費調整。例如在景點內買小吃，可改選「餐飲」。</p>
       </div>
       <div class="field"><label>金額</label><input id="fExpAmount" type="number" placeholder="0"></div>
       <div class="field"><label>幣別</label>
@@ -1045,12 +1045,10 @@ header #mapBtn, header #settingsBtn{
   <div class="modal">
     <button class="close-x" id="expModalClose">✕</button>
     <h2 id="expModalTitle">新增花費</h2>
-    <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">記錄不屬於特定景點的支出，例如購物、餐飲、行前採買。</p>
     <div class="sec-card"><div class="sec-h">💰 花費</div>
-    <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行前採買的旅遊用品、伴手禮"></div>
+    <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：晚餐、計程車、伴手禮"></div>
     <div class="field"><label>類別</label>
         <select id="eCategory">
-          <option value="行前採買">🧳 行前採買</option>
           <option value="兌換">💱 兌換（不計入總額）</option>
           <option value="購物">🛍️ 購物</option>
           <option value="門票">🎫 門票</option>
@@ -1059,7 +1057,6 @@ header #mapBtn, header #settingsBtn{
           <option value="餐飲">🍜 餐飲</option>
           <option value="其他">📌 其他</option>
         </select>
-        <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前已預訂的住宿、門票、交通，請在「行李清單」登錄花費；其他支出請填在這裡。</p>
     </div>
     <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
@@ -1244,15 +1241,15 @@ header #mapBtn, header #settingsBtn{
     <div class="field"><label id="packNameLabel">項目名稱</label><input id="packName" type="text" placeholder="例：感冒藥"></div>
     <div class="field"><label>數量（選填）</label><input id="packQty" type="number" inputmode="numeric" min="1" placeholder="例：5"></div>
     <div class="sec-card" id="packExpCard" style="display:none;"><div class="sec-h">💰 花費（選填）</div>
-      <p id="pExpHint" style="font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;">出發前已付款的費用（如住宿、機票、保險）請填在這裡，會自動計入花費；當地才付的，請填在行程項目。</p>
-      <p id="pFlightNote" style="display:none; font-size:13px; color:var(--sub); margin:0; line-height:1.6;">✈️ 機票金額請到「航班」設定輸入，這裡不用填。</p>
+<p id="pFlightNote" style="display:none; font-size:13px; color:var(--sub); margin:0; line-height:1.6;">✈️ 機票金額請到「航班」設定輸入，這裡不用填。</p>
       <div id="pExpFields">
       <div class="field"><label>花費類別</label>
         <select id="pExpCat">
-          <option value="行前辦理">🧾 行前辦理（保險、網路等）</option>
           <option value="住宿">🏨 住宿</option>
           <option value="門票">🎫 門票</option>
           <option value="交通">🚆 交通</option>
+          <option value="購物">🛍️ 購物</option>
+          <option value="餐飲">🍜 餐飲</option>
           <option value="兌換">💱 兌換（不計入總額）</option>
           <option value="其他">📌 其他</option>
         </select>
@@ -1548,7 +1545,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-260";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-263";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -3449,7 +3446,9 @@ const fPayerWrap = document.getElementById("fPayerWrap");
 fName.addEventListener("input", ()=>{ fSelectedLatLng = null; });
 document.getElementById("hName").addEventListener("input", ()=>{ hSelectedLatLng = null; });
 
-const POOL_PAYER = "公費現金";
+const POOL_PAYER = "公費現金";   // 舊資料才有：新增時已不提供
+const NONE_PAYER = "__none";   // 篩選用：付款人沒填、已不在名單、或舊的公費現金
+const NOPAY_PAYER = "不歸屬";   // 禮券、贈送：算進總額，但不算任何人的已付、不進結算
 function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   const trip = getActiveTrip();
   const members = trip && trip.members ? trip.members : [];
@@ -3464,20 +3463,26 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   if(nm) nm.style.display = "none";
   wrapEl.style.display = "block";
   selectEl.innerHTML = "";
-  let poolNote = wrapEl.querySelector(".pool-note");
-  if(!poolNote){ poolNote = document.createElement("p"); poolNote.className = "pool-note"; poolNote.style.cssText = "font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;"; poolNote.textContent = "選「公費現金」代表用共同現金支付，不算個人代墊。"; wrapEl.appendChild(poolNote); }
-  poolNote.style.display = (members.length>=2 && !noPool && !isTaiwanTrip()) ? "" : "none";
+  { const pn = wrapEl.querySelector(".pool-note"); if(pn) pn.remove(); }
   members.forEach(m=>{
     const opt = document.createElement("option");
     opt.value = m; opt.textContent = m;
     if(m===currentValue) opt.selected = true;
     selectEl.appendChild(opt);
   });
-  // 多人時多一個「公費現金」：用換來的現金付的，不算任何人墊款（兌換那筆已經平分過了）
-  if(members.length>=2 && !noPool && (!isTaiwanTrip() || currentValue===POOL_PAYER)){   // 台灣沒有換匯，不提供公費現金（舊資料已選的照常顯示）
+  // 選「不歸屬」時不分攤，分攤對象那排自動隱藏
+  { let sw = wrapEl.nextElementSibling; while(sw && sw.classList.contains("nomem-note")) sw = sw.nextElementSibling;
+    if(sw && /ShareWrap$/.test(sw.id||"")){
+      const tg = ()=>sw.classList.toggle("nopay-hide", selectEl.value===NOPAY_PAYER);
+      selectEl.onchange = tg; setTimeout(tg, 0);
+    } }
+  const no = document.createElement("option");
+  no.value = NOPAY_PAYER; no.textContent = NOPAY_PAYER + "（禮券、贈送）";
+  if(currentValue===NOPAY_PAYER) no.selected = true;
+  selectEl.appendChild(no);
+  if(currentValue===POOL_PAYER){   // 舊資料的「公費現金」：保留顯示，請改選實際先墊的人
     const po = document.createElement("option");
-    po.value = POOL_PAYER; po.textContent = POOL_PAYER + "（用換來的現金付）";
-    if(currentValue===POOL_PAYER) po.selected = true;
+    po.value = POOL_PAYER; po.textContent = POOL_PAYER + "（請改選先墊的人）"; po.selected = true;
     selectEl.appendChild(po);
   }
 }
@@ -5112,18 +5117,13 @@ function renderExpense(){
   const proxySum = proxyList.reduce((s,i)=>s+converted(i),0);
   const exchList = all.filter(isExch);
   const exchSum = exchList.reduce((s,i)=>s+converted(i),0);
-  // 兌換只算實際用掉的現金（公費現金付掉的花費合計），分給換匯的人；跟結算同一個算法
-  const _mem = (getActiveTrip().members||[]);
-  const _poolUsed = counted.filter(i=>i.expense.payer===POOL_PAYER).reduce((n,i)=>n+converted(i),0);
-  const _exchOk = exchList.filter(i=>i.expense.payer && _mem.includes(i.expense.payer)).reduce((n,i)=>n+converted(i),0);
-  const exchF = _exchOk>0 ? Math.min(1, _poolUsed/_exchOk) : 0;
   const total = counted.reduce((s,i)=>s+converted(i),0);
   document.getElementById("expTotal").textContent = sym+Math.round(total).toLocaleString();
   const avgNote = document.getElementById("expAvgNote");
   const nMem = (getActiveTrip().members||[]).length;
   avgNote.textContent = (nMem>=2 && total>0) ? `平均每人約 ${sym}${Math.round(total/nMem).toLocaleString()}（${nMem} 人）` : "";
   const exNote = document.getElementById("expExchNote");
-  exNote.textContent = exchList.length ? `另有兌換 ${sym}${Math.round(exchSum).toLocaleString()}，不計入總額與分類` : "";
+  exNote.textContent = "";
 
   const cats = {}, catN = {};
   counted.forEach(i=>{ const c=i.expense.category||"其他"; cats[c]=(cats[c]||0)+converted(i); catN[c]=(catN[c]||0)+1; });
@@ -5148,7 +5148,6 @@ function renderExpense(){
     const byMember = {};
     trip.members.forEach(m=>{ byMember[m] = 0; });
     counted.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i); });
-    exchList.forEach(i=>{ const p = i.expense.payer; if(p && byMember.hasOwnProperty(p)) byMember[p] += converted(i)*exchF; });   // 換匯的人：加上實際用掉的現金
     trip.members.forEach(m=>{
       const p = document.createElement("div");
       p.className = "exp-cat-pill";
@@ -5159,36 +5158,9 @@ function renderExpense(){
       p.addEventListener("click", ()=>{ expFilterPayer = (expFilterPayer===m) ? "" : m; renderExpense(); });
       memberWrap.appendChild(p);
     });
-    { // 對帳：各人已付加起來 + 沒歸到個人的 = 總額，把沒歸到個人的列出來
-      const _m = trip.members, _f = n => sym + Math.round(n).toLocaleString();
-      let noPayer = 0, noPayerN = 0, gone = 0, goneN = 0;
-      counted.forEach(i=>{ const pp = i.expense.payer; if(pp===POOL_PAYER) return; if(!pp){ noPayer += converted(i); noPayerN++; } else if(!_m.includes(pp)){ gone += converted(i); goneN++; } });
-      const poolLeft = Math.max(0, _poolUsed - exchF*_exchOk);
-      const parts = [];
-      if(poolLeft>0.5) parts.push(`公費現金 ${_f(poolLeft)}（沒有對到兌換）`);
-      if(noPayer>0.5) parts.push(`沒填付款人 ${noPayerN} 筆 ${_f(noPayer)}`);
-      if(gone>0.5) parts.push(`付款人不在成員名單 ${goneN} 筆 ${_f(gone)}`);
-      const sumM = _m.reduce((n,m)=>n+byMember[m],0);
-      const note = document.createElement("div");
-      note.style.cssText = "grid-column:1/-1; font-size:12px; color:var(--sub); line-height:1.7; padding:2px 4px;";
-      note.textContent = `對帳：各人已付合計 ${_f(sumM)}` + (parts.length ? " ＋ 沒歸到個人的 " + parts.join("、") : "") + ` ＝ 總額 ${_f(total)}` + (proxySum>0 ? `（代購 ${_f(proxySum)} 不計入）` : "");
-      memberWrap.appendChild(note);
-    }
   }
 
-  { // 公費現金付的花費已算在換匯的人身上：說明並可一鍵只看這幾筆
-    const rc = document.getElementById("expReconcile"); rc.style.display = "none"; rc.innerHTML = "";
-    const mem = (trip && trip.members) || [];
-    const pl = counted.filter(i=>i.expense.payer===POOL_PAYER);
-    const exA = exchList.filter(i=>i.expense.payer && mem.includes(i.expense.payer)).reduce((n,i)=>n+converted(i)*exchF,0);
-    if(pl.length && exA>0.5){
-      const who = [...new Set(exchList.filter(i=>i.expense.payer && mem.includes(i.expense.payer)).map(i=>i.expense.payer))].join("、");
-      rc.innerHTML = `其中 ${pl.length} 筆是「${POOL_PAYER}」付的 ${sym}${Math.round(pl.reduce((n,i)=>n+converted(i),0)).toLocaleString()}，算在換匯的 ${escapeHtml(who)} 身上；<a href="#" id="expReconPool" style="color:var(--seal); font-weight:700;">只看這幾筆</a>`;
-      rc.style.display = "";
-      document.getElementById("expReconPool").addEventListener("click", ev=>{ ev.preventDefault(); expFilterPayer = POOL_PAYER; renderExpense(); });
-    }
-  }
-  renderExpenseSettlement(counted.concat(exchList), converted, sym, rate, primary, trip);
+  renderExpenseSettlement(counted, converted, sym, rate, primary, trip);
 
   const listWrap = document.getElementById("expList");
   listWrap.innerHTML = "";
@@ -5209,8 +5181,9 @@ function renderExpense(){
   groupMeta.sort((a,b)=>((a.exch?1:0)-(b.exch?1:0)) || (expCatIdx(a.c)-expCatIdx(b.c)));   // 固定順序：行前→住宿→交通→門票→購物→餐飲…，「其他」是計入總額的最後一類；不計入總額的（兌換、代購）照舊放在最底下
   groupMeta.forEach(x=> sorted.forEach(i=>{ if(expCatOf(i)===x.c) ordered.push(i); }));
   if(expFilterCat && !groupMeta.some(x=>x.c===expFilterCat)) expFilterCat = "";   // 該分類已經沒有花費了
-  if(expFilterPayer && expFilterPayer!==POOL_PAYER && !((getActiveTrip().members||[]).includes(expFilterPayer))) expFilterPayer = "";
-  if(expFilterPayer===POOL_PAYER && !all.some(i=>i.expense.payer===POOL_PAYER)) expFilterPayer = "";
+  const _members = getActiveTrip().members||[];
+  const payerUnset = i => { if(!_members.length) return false; const q = i.expense.payer; return !q || q===POOL_PAYER || (q!==NOPAY_PAYER && !_members.includes(q)); };
+  if(expFilterPayer && !_members.includes(expFilterPayer) && !(expFilterPayer===NOPAY_PAYER && all.some(i=>i.expense.payer===NOPAY_PAYER)) && !(expFilterPayer===NONE_PAYER && all.some(payerUnset))) expFilterPayer = "";
   { // 篩選列：分類、付款人兩個下拉，跟上方方塊同步
     const fr = document.getElementById("expFilterRow"), cs = document.getElementById("expFilterCatSel"), ps = document.getElementById("expFilterPayerSel");
     const mem = getActiveTrip().members || [];
@@ -5218,17 +5191,15 @@ function renderExpense(){
     cs.innerHTML = '<option value="">全部分類</option>' + groupMeta.map(x=>'<option value="' + escapeHtml(x.c) + '">' + (EXP_CAT_ICON[x.c]||"📌") + " " + escapeHtml(x.c) + '</option>').join("");
     cs.value = expFilterCat;
     ps.style.display = mem.length ? "" : "none";
-    ps.innerHTML = '<option value="">全部付款人</option>' + mem.map(m=>'<option value="' + escapeHtml(m) + '">👤 ' + escapeHtml(m) + '</option>').join("") + (all.some(i=>i.expense.payer===POOL_PAYER) ? '<option value="' + POOL_PAYER + '">💵 ' + POOL_PAYER + '</option>' : "");
+    ps.innerHTML = '<option value="">全部付款人</option>' + mem.map(m=>'<option value="' + escapeHtml(m) + '">👤 ' + escapeHtml(m) + '</option>').join("") + (all.some(i=>i.expense.payer===NOPAY_PAYER) ? '<option value="' + NOPAY_PAYER + '">' + NOPAY_PAYER + '</option>' : "") + (all.some(payerUnset) ? '<option value="' + NONE_PAYER + '">⚠ 付款人未填</option>' : "");
     ps.value = expFilterPayer;
   }
-  const view = ordered.filter(i=>(!expFilterCat || expCatOf(i)===expFilterCat) && (!expFilterPayer || i.expense.payer===expFilterPayer));
+  const view = ordered.filter(i=>(!expFilterCat || expCatOf(i)===expFilterCat) && (!expFilterPayer || (expFilterPayer===NONE_PAYER ? payerUnset(i) : i.expense.payer===expFilterPayer)));
   { const fb = document.getElementById("expFilterBar"), on = !!(expFilterCat || expFilterPayer);
     fb.style.display = on ? "flex" : "none";
     if(on){
-      // 合計跟上方方塊同一算法：兌換只算實際用掉的現金，代購不計入（另外標出）
-      const sum = view.reduce((n,i)=>n+(isProxy(i) ? 0 : isExch(i) ? converted(i)*exchF : converted(i)),0);
-      const _ex = view.reduce((n,i)=>n+(isProxy(i) ? converted(i) : 0),0);
-      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && ("👤 " + expFilterPayer + " 付")].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString() + (_ex>0 ? "　（另有代購 " + sym + Math.round(_ex).toLocaleString() + "，不計入）" : "");
+      const sum = view.reduce((n,i)=>n+((isProxy(i) || isExch(i)) ? 0 : converted(i)),0);   // 跟上方方塊同一算法：兌換、代購不計入
+      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && (expFilterPayer===NOPAY_PAYER ? NOPAY_PAYER : expFilterPayer===NONE_PAYER ? "付款人未填" : ("👤 " + expFilterPayer + " 付"))].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString();
     } }
   view.forEach(i=>{ const g = groupMeta.find(x=>x.c===expCatOf(i)); if(g){ g.fn = (g.fn||0)+1; g.fa = (g.fa||0)+converted(i); } });
   if(!view.length) listWrap.innerHTML = `<div class="empty"><span class="esub">沒有符合的花費</span></div>`;
@@ -5250,7 +5221,7 @@ function renderExpense(){
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
     const dayTxt = expRowWhen(i);
-    const payTxt = (i.expense.payer) ? (i.expense.payer===POOL_PAYER ? (" · " + POOL_PAYER) : (" · " + i.expense.payer + "付")) : "";
+    const payTxt = (i.expense.payer) ? ((i.expense.payer===POOL_PAYER || i.expense.payer===NOPAY_PAYER) ? (" · " + i.expense.payer) : (" · " + i.expense.payer + "付")) : "";
     // 金額：粗體＝目前顯示幣別（加起來等於小計和總額）；原幣別不同時，下面用小灰字保留當初記的金額
     const origCur = i.expense.currency || primaryCurrencyForTrip();
     const sameCur = origCur===expDisplayCurrency;
@@ -5335,19 +5306,13 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   }
   const paid = {}, owed = {};
   members.forEach(m=>{ paid[m]=0; owed[m]=0; });
-  let skipped = 0, poolCount = 0, exchCount = 0, gone = 0; const goneNames = new Set();
-  const isExchItem = i => (i.expense.category||"")==="兌換";
-  // 兌換只算「實際用掉的現金」：用公費現金付掉的花費合計＝用掉的額度；沒用到的現金不分攤（還是換匯人自己的錢）
-  const poolUsed = all.filter(i=>i.expense.payer===POOL_PAYER).reduce((n,i)=>n+converted(i),0);
-  const exchTotal = all.filter(i=>isExchItem(i) && i.expense.payer && members.includes(i.expense.payer)).reduce((n,i)=>n+converted(i),0);
-  const exchF = exchTotal>0 ? Math.min(1, poolUsed/exchTotal) : 0;
+  let skipped = 0, gone = 0; const goneNames = new Set();
   all.forEach(i=>{
     const payer = i.expense.payer;
-    if(payer===POOL_PAYER){ poolCount++; return; }   // 公費現金：兌換時已平分，這裡不再算
-    if(!payer){ skipped++; return; }
+    if(payer===NOPAY_PAYER) return;   // 禮券、贈送：不歸屬任何人
+    if(payer===POOL_PAYER || !payer){ skipped++; return; }   // 沒填付款人（舊資料的公費現金也要改選）
     if(!paid.hasOwnProperty(payer)){ gone++; goneNames.add(payer); return; }
-    if(isExchItem(i) && exchF>0) exchCount++;
-    const amt = isExchItem(i) ? converted(i)*exchF : converted(i);
+    const amt = converted(i);
     let who = Array.isArray(i.expense.sharedBy) ? i.expense.sharedBy.filter(m=>owed.hasOwnProperty(m)) : [];
     if(who.length===0) who = members;
     paid[payer] += amt;
@@ -5383,11 +5348,9 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   } else {
     html += `<div style="font-size:13px;color:var(--sub);margin-top:8px;">目前沒有需要互相結清的金額</div>`;
   }
-  const rateNote = `以 ${sym} 計算；匯率 1${currencySymbol(primary)} = ${rate} NT$（存在這支手機，換裝置可能不同）`;
-  html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(isTaiwanTrip() ? ("以 "+sym+" 計算") : rateNote)}`;
-  if(exchTotal>0) html += `<br>兌換 ${fmt(exchTotal)}，只有用「${POOL_PAYER}」付掉的 ${fmt(Math.min(poolUsed,exchTotal))} 由全員平分；沒用到的現金不分攤。刷卡或自己付的花費請選付款人。`;
-  if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
-  if(gone>0) html += `<br>⚠️ 有 ${gone} 筆花費的付款人（${escapeHtml([...goneNames].join('、'))}）已不在成員名單，未納入結算；請把他加回成員或改付款人`;
+  html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">`;
+  if(skipped>0) html += `⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算<br>`;
+  if(gone>0) html += `<br>⚠️ 有 ${gone} 筆花費的付款人（${escapeHtml([...goneNames].join('、'))}）已不在成員名單，未納入結算；請把他加回成員或改付款人<br>`;
   html += `</div></div>`;
   box.innerHTML = html;
 }
@@ -5428,14 +5391,14 @@ function renderShareChips(selected){ renderShareChipsIn("eShareWrap", "eShareChi
 function shareNonePicked(chipsId){
   const trip = getActiveTrip();
   if(!trip || (trip.members||[]).length<2) return false;
-  if(document.getElementById(chipsId).parentElement.style.display==="none") return false;
+  { const pe = document.getElementById(chipsId).parentElement; if(pe.style.display==="none" || pe.classList.contains("nopay-hide")) return false; }
   return document.querySelectorAll("#"+chipsId+" .chip.active").length===0;
 }
 // 新增花費時，付款人預設帶「上一筆花費的付款人」（還在成員名單裡才帶）
 function lastExpensePayer(){
   const trip = getActiveTrip(); const ms = (trip && trip.members) || [];
   const last = items.filter(i=>i.tripId===activeTripId && i.type==="expense" && i.expense && i.expense.payer).sort((a,b)=>(b.order||0)-(a.order||0))[0];
-  return (last && (ms.includes(last.expense.payer) || last.expense.payer===POOL_PAYER)) ? last.expense.payer : "";
+  return (last && ms.includes(last.expense.payer)) ? last.expense.payer : "";
 }
 // 某一天的日期（yyyy-mm-dd，給日期欄用）
 function isoDateForDay(day){
@@ -5460,7 +5423,7 @@ function openExpenseModal(it, prefill){
     const xo = document.createElement("option"); xo.value = e.category; xo.dataset.extra = "1";
     xo.textContent = (EXP_CAT_ICON[e.category]||"📌") + " " + e.category; eCatSel.appendChild(xo);
   }
-  eCatSel.value = e.category || "行前採買";
+  eCatSel.value = e.category || "餐飲";
   if(!it && prefill && prefill.category && [...eCatSel.options].some(o=>o.value===prefill.category)) eCatSel.value = prefill.category;
   eCurTouched = false;
   setCurrencyChip(eCurrencyChips, it ? e.currency : (prefill ? primaryCurrencyForTrip() : defaultCurrencyForCategory(eCatSel.value)), ()=>{ eCurTouched = true; });   // 新增時依類別帶幣別；你自己點過幣別就不再自動換；從景點記帳是在當地花的，預設當地幣別
@@ -5668,7 +5631,7 @@ document.getElementById("bulkPayerOk").addEventListener("click", async ()=>{
 });
 
 // ================= 貼上帳單（支付寶／微信）=================
-const BILL_CATS = ["餐飲","交通","購物","門票","行前採買","其他"];
+const BILL_CATS = ["餐飲","交通","購物","門票","住宿","其他"];
 const BILL_HEADER_WORDS = new Set(["支出","收入","餘額","合計","總計","共計","全部","轉賬","轉帳","退款","篩選","筛选","收支分析","貼紙","贴纸","搜尋","搜索","搜尋交易記錄","账单","帳單"]);
 function billMapCategory(alipayCat, name){
   const c = alipayCat || "", n = name || "";
@@ -6518,7 +6481,7 @@ function packExpDefaultCat(name){
   if(/住宿|飯店|旅館|民宿/.test(n)) return "住宿";
   if(/火車|高鐵|交通|接送|租車|巴士|船票|機場/.test(n)) return "交通";
   if(/門票|票券|景點|樂園|迪士尼/.test(n)) return "門票";
-  return "行前辦理";
+  return "其他";
 }
 let _packExpCatTouched = false, _packExpHadAmount = false;
 function refreshPackExpUI(){
@@ -6527,7 +6490,6 @@ function refreshPackExpUI(){
   const isFlight = (d==="flight") && !_packExpHadAmount;     // 已經填過金額的舊資料照常顯示，不隱藏
   document.getElementById("pFlightNote").style.display = isFlight ? "block" : "none";
   document.getElementById("pExpFields").style.display = isFlight ? "none" : "block";
-  document.getElementById("pExpHint").style.display = isFlight ? "none" : "block";
   if(!_packExpCatTouched && d!=="flight" && [...sel.options].some(o=>o.value===d)) sel.value = d;
 }
 document.getElementById("pExpCat").addEventListener("change", ()=>{ _packExpCatTouched = true; });
@@ -6577,7 +6539,7 @@ function refreshSovUI(){
   document.getElementById("sProxyHint").style.display = proxy ? "block" : "none";
   const payerSel = document.getElementById("sExpPayer");
   const keep = payerSel.value;
-  populatePayerSelect(payerSel, document.getElementById("sPayerWrap"), (proxy && keep===POOL_PAYER) ? "" : keep, proxy);
+  populatePayerSelect(payerSel, document.getElementById("sPayerWrap"), (proxy && (keep===POOL_PAYER || keep===NOPAY_PAYER)) ? "" : keep, proxy);
   document.getElementById("sShareWrap").style.display = (proxy || (getActiveTrip().members||[]).length<2) ? "none" : "block";
   document.getElementById("sPaySub").style.display = (document.getElementById("sPayerWrap").style.display!=="none") ? "block" : "none";
   const amt = Number(document.getElementById("sExpAmount").value);
@@ -6686,7 +6648,7 @@ document.getElementById("packSave").addEventListener("click", async ()=>{
   // 「行前辦理」項目可填花費，會自動出現在花費頁（類別固定為行前辦理）；其他類別不帶花費
   const pAmt = document.getElementById("pExpAmount").value;
   data.expense = (selectedPackCat==="行前辦理")
-    ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "行前辦理"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")), sharedBy: readSharedByIn("pShareChips"), date: document.getElementById("pExpDate").value || "" }
+    ? { amount: pAmt ? Number(pAmt) : 0, category: (document.getElementById("pExpCat").value || "其他"), payer: document.getElementById("pExpPayer").value||"", currency: getCurrencyChip(document.getElementById("pCurrencyChips")), sharedBy: readSharedByIn("pShareChips"), date: document.getElementById("pExpDate").value || "" }
     : (_gift && sAmt>0)
       ? { amount: sAmt, category: sProxy ? "代購" : "購物", payer: document.getElementById("sExpPayer").value||"", currency: getCurrencyChip(document.getElementById("sCurrencyChips")), sharedBy: sProxy ? [] : readSharedByIn("sShareChips"), date: document.getElementById("sExpDate").value || "" }
       : { amount:0, category:"", payer:"", currency: primaryCurrencyForTrip() };
@@ -7769,7 +7731,7 @@ document.querySelectorAll("#trRegionChips .chip").forEach(chip=>{
 // 從這個行程已記的花費找出付款人／分攤對象的名字，成員不見時可以一鍵找回
 function memberRecoverNames(){
   const names = new Set();
-  items.forEach(i=>{ if(i.tripId!==activeTripId || !i.expense) return; const p = i.expense.payer; if(p && p!==POOL_PAYER) names.add(p); (i.expense.sharedBy||[]).forEach(n=>{ if(n) names.add(n); }); });
+  items.forEach(i=>{ if(i.tripId!==activeTripId || !i.expense) return; const p = i.expense.payer; if(p && p!==POOL_PAYER && p!==NOPAY_PAYER) names.add(p); (i.expense.sharedBy||[]).forEach(n=>{ if(n) names.add(n); }); });
   return [...names].filter(n=>!trMembersTemp.includes(n));
 }
 function renderMemberRecover(){
