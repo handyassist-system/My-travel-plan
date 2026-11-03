@@ -658,6 +658,7 @@ header #mapBtn, header #settingsBtn{
       <div id="expSelHint" style="display:none; margin:8px 20px 0; padding:8px 12px; border-radius:10px; background:var(--seal-soft); color:var(--sub); font-size:12px; line-height:1.6;">💡 灰色為行程、機票或清單帶入的金額，請點進去在原處修改。</div>
       <div class="exp-cats" id="expCats" data-h="分類"></div>
       <div class="exp-cats" id="expByMember" data-h="各人已付" style="margin-top:0;"></div>
+      <div id="expReconcile" style="display:none; margin:8px 20px 0; padding:9px 12px; border-radius:10px; background:var(--bg); border:1px dashed var(--line); font-size:12.5px; color:var(--sub); line-height:1.7;"></div>
       <div id="expSettle" style="margin:0 20px 14px;"></div>
       <div id="expFilterRow" style="display:none; gap:8px; margin:0 20px 10px;"><select id="expFilterCatSel" aria-label="分類" style="flex:1; min-width:0; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:14px;"></select><select id="expFilterPayerSel" aria-label="付款人" style="flex:1; min-width:0; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:14px;"></select></div>
       <div id="expDupBanner" style="display:none; align-items:center; gap:10px; margin:0 20px 10px; padding:10px 12px; border-radius:10px; background:#d9534f; color:#fff; font-size:14px; font-weight:600;"><span id="expDupText" style="flex:1; min-width:0;"></span><button type="button" id="expDupDel" style="border:none; background:#fff; color:#d9534f; border-radius:8px; padding:7px 12px; font-size:14px; font-weight:700;">一鍵刪除重複</button></div>
@@ -1547,7 +1548,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-258";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-259";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5158,8 +5159,43 @@ function renderExpense(){
       p.addEventListener("click", ()=>{ expFilterPayer = (expFilterPayer===m) ? "" : m; renderExpense(); });
       memberWrap.appendChild(p);
     });
+    { // 對帳：各人已付加起來 + 沒歸到個人的 = 總額，把沒歸到個人的列出來
+      const _m = trip.members, _f = n => sym + Math.round(n).toLocaleString();
+      let noPayer = 0, noPayerN = 0, gone = 0, goneN = 0;
+      counted.forEach(i=>{ const pp = i.expense.payer; if(pp===POOL_PAYER) return; if(!pp){ noPayer += converted(i); noPayerN++; } else if(!_m.includes(pp)){ gone += converted(i); goneN++; } });
+      const poolLeft = Math.max(0, _poolUsed - exchF*_exchOk);
+      const parts = [];
+      if(poolLeft>0.5) parts.push(`公費現金 ${_f(poolLeft)}（沒有對到兌換）`);
+      if(noPayer>0.5) parts.push(`沒填付款人 ${noPayerN} 筆 ${_f(noPayer)}`);
+      if(gone>0.5) parts.push(`付款人不在成員名單 ${goneN} 筆 ${_f(gone)}`);
+      const sumM = _m.reduce((n,m)=>n+byMember[m],0);
+      const note = document.createElement("div");
+      note.style.cssText = "grid-column:1/-1; font-size:12px; color:var(--sub); line-height:1.7; padding:2px 4px;";
+      note.textContent = `對帳：各人已付合計 ${_f(sumM)}` + (parts.length ? " ＋ 沒歸到個人的 " + parts.join("、") : "") + ` ＝ 總額 ${_f(total)}` + (proxySum>0 ? `（代購 ${_f(proxySum)} 不計入）` : "");
+      memberWrap.appendChild(note);
+    }
   }
 
+  { // 對帳：總額 ＝ 各人已付 ＋ 還沒歸到任何人的部分，缺的是哪幾筆一次列出
+    const rc = document.getElementById("expReconcile"); rc.style.display = "none"; rc.innerHTML = "";
+    if(trip && trip.members && trip.members.length){
+      const mem = trip.members; let tiles = 0, noPayer = 0, noPayerN = 0, gone = 0, goneN = 0, pool = 0, poolN = 0;
+      counted.forEach(i=>{ const p = i.expense.payer, a = converted(i);
+        if(p===POOL_PAYER){ pool += a; poolN++; }
+        else if(!p){ noPayer += a; noPayerN++; }
+        else if(!mem.includes(p)){ gone += a; goneN++; }
+        else tiles += a; });
+      const exA = exchList.filter(i=>i.expense.payer && mem.includes(i.expense.payer)).reduce((n,i)=>n+converted(i)*exchF,0);
+      tiles += exA;
+      const poolLeft = pool - exA;   // 用公費現金付、已算到換匯的人身上的不再列
+      const lines = [];
+      const m = n => sym + Math.round(n).toLocaleString();
+      if(noPayerN) lines.push(`${noPayerN} 筆沒填付款人 ${m(noPayer)}`);
+      if(goneN) lines.push(`${goneN} 筆付款人不在成員名單 ${m(gone)}`);
+      if(poolLeft>0.5) lines.push(`${poolN} 筆公費現金超出兌換金額 ${m(poolLeft)}（沒有對應的兌換，或兌換不足）`);
+      if(lines.length){ rc.innerHTML = `各人已付合計 ${m(tiles)}，總額 ${m(total)}，差 ${m(total - tiles)}：<br>` + lines.join("<br>"); rc.style.display = ""; }
+    }
+  }
   renderExpenseSettlement(counted.concat(exchList), converted, sym, rate, primary, trip);
 
   const listWrap = document.getElementById("expList");
