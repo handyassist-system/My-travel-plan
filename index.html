@@ -1545,7 +1545,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-263";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-265";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -2210,10 +2210,12 @@ function recomputeDays(){
 // ---------- Trips ----------
 // 旅伴名單是空的、但花費上已有付款人／分攤對象時，先用花費上的名字當旅伴（只在畫面上用，不改資料；到「編輯行程」按「加入」才會存回去）
 function getActiveTrip(){
-  const t = trips.find(t=>t.id===activeTripId) || null;
+  let t = trips.find(t=>t.id===activeTripId) || null;
+  // 「不歸屬」「公費現金」不是人名：之前被誤推成旅伴而存進名單的，這裡一律拿掉
+  if(t && t.members && t.members.some(n=>n==="不歸屬"||n==="公費現金")) t = Object.assign({}, t, { members: t.members.filter(n=>n!=="不歸屬"&&n!=="公費現金") });
   if(!t || (t.members && t.members.length) || typeof items==="undefined") return t;
   const names = [];
-  items.forEach(i=>{ if(i.tripId!==t.id || !i.expense) return; const add = n=>{ if(n && n!=="公費現金" && !names.includes(n)) names.push(n); }; add(i.expense.payer); (i.expense.sharedBy||[]).forEach(add); });
+  items.forEach(i=>{ if(i.tripId!==t.id || !i.expense) return; const add = n=>{ if(n && n!=="公費現金" && n!=="不歸屬" && !names.includes(n)) names.push(n); }; add(i.expense.payer); (i.expense.sharedBy||[]).forEach(add); });
   return names.length ? Object.assign({}, t, { members: names, _derivedMembers: true }) : t;
 }
 
@@ -3455,6 +3457,7 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
   let nm = wrapEl.nextElementSibling && wrapEl.nextElementSibling.classList.contains("nomem-note") ? wrapEl.nextElementSibling : null;
   if(members.length===0){
     wrapEl.style.display = "none"; selectEl.innerHTML = "";
+    { const r0 = wrapEl.previousElementSibling; if(r0 && r0.classList.contains("nopay-row")) r0.style.display = "none"; }
     // 沒有成員時不是壞掉：說明為什麼沒有付款人可選
     if(!nm){ nm = document.createElement("p"); nm.className = "nomem-note"; nm.style.cssText = "font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6;"; nm.innerHTML = '💡 還沒有旅伴，所以沒有「付款人」可選。 <button type="button" class="nomem-go" style="border:none; background:var(--seal); color:#fff; border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700;">加入旅伴</button>'; nm.querySelector(".nomem-go").addEventListener("click", ()=>{ const t = getActiveTrip(); if(t) openTripModal(t); }); wrapEl.parentNode.insertBefore(nm, wrapEl.nextSibling); }
     nm.style.display = "";
@@ -3470,16 +3473,31 @@ function populatePayerSelect(selectEl, wrapEl, currentValue, noPool){
     if(m===currentValue) opt.selected = true;
     selectEl.appendChild(opt);
   });
-  // 選「不歸屬」時不分攤，分攤對象那排自動隱藏
+  // 「不分攤」開關（禮券、贈送）：不是付款人。打開後付款人和分攤對象都收起來，花費只算進總額
   { let sw = wrapEl.nextElementSibling; while(sw && sw.classList.contains("nomem-note")) sw = sw.nextElementSibling;
-    if(sw && /ShareWrap$/.test(sw.id||"")){
-      const tg = ()=>sw.classList.toggle("nopay-hide", selectEl.value===NOPAY_PAYER);
-      selectEl.onchange = tg; setTimeout(tg, 0);
-    } }
-  const no = document.createElement("option");
-  no.value = NOPAY_PAYER; no.textContent = NOPAY_PAYER + "（禮券、贈送）";
-  if(currentValue===NOPAY_PAYER) no.selected = true;
-  selectEl.appendChild(no);
+    const shareWrap = (sw && /ShareWrap$/.test(sw.id||"")) ? sw : null;
+    let row = wrapEl.previousElementSibling && wrapEl.previousElementSibling.classList.contains("nopay-row") ? wrapEl.previousElementSibling : null;
+    if(!row){
+      row = document.createElement("label"); row.className = "nopay-row";
+      row.style.cssText = "display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:14px; color:var(--sub);";
+      row.innerHTML = '<input type="checkbox" style="width:18px; height:18px;"><span>🎁 不分攤（禮券、贈送）</span>';
+      wrapEl.parentNode.insertBefore(row, wrapEl);
+    }
+    row.style.display = noPool ? "none" : "";
+    const cb = row.querySelector("input");
+    let prev = members.includes(currentValue) ? currentValue : members[0];
+    const apply = on=>{
+      [...selectEl.querySelectorAll("option[value='" + NOPAY_PAYER + "']")].forEach(o=>o.remove());
+      if(on){ const o = document.createElement("option"); o.value = NOPAY_PAYER; o.textContent = NOPAY_PAYER; selectEl.appendChild(o); selectEl.value = NOPAY_PAYER; }
+      else if(selectEl.value===NOPAY_PAYER || !selectEl.value){ selectEl.value = prev; }
+      wrapEl.classList.toggle("nopay-hide", on);
+      if(shareWrap) shareWrap.classList.toggle("nopay-hide", on);
+    };
+    selectEl.onchange = ()=>{ if(selectEl.value!==NOPAY_PAYER) prev = selectEl.value; };
+    cb.onchange = ()=>apply(cb.checked);
+    cb.checked = currentValue===NOPAY_PAYER;
+    setTimeout(()=>apply(cb.checked), 0);
+  }
   if(currentValue===POOL_PAYER){   // 舊資料的「公費現金」：保留顯示，請改選實際先墊的人
     const po = document.createElement("option");
     po.value = POOL_PAYER; po.textContent = POOL_PAYER + "（請改選先墊的人）"; po.selected = true;
@@ -5191,7 +5209,7 @@ function renderExpense(){
     cs.innerHTML = '<option value="">全部分類</option>' + groupMeta.map(x=>'<option value="' + escapeHtml(x.c) + '">' + (EXP_CAT_ICON[x.c]||"📌") + " " + escapeHtml(x.c) + '</option>').join("");
     cs.value = expFilterCat;
     ps.style.display = mem.length ? "" : "none";
-    ps.innerHTML = '<option value="">全部付款人</option>' + mem.map(m=>'<option value="' + escapeHtml(m) + '">👤 ' + escapeHtml(m) + '</option>').join("") + (all.some(i=>i.expense.payer===NOPAY_PAYER) ? '<option value="' + NOPAY_PAYER + '">' + NOPAY_PAYER + '</option>' : "") + (all.some(payerUnset) ? '<option value="' + NONE_PAYER + '">⚠ 付款人未填</option>' : "");
+    ps.innerHTML = '<option value="">全部付款人</option>' + mem.map(m=>'<option value="' + escapeHtml(m) + '">👤 ' + escapeHtml(m) + '</option>').join("") + (all.some(i=>i.expense.payer===NOPAY_PAYER) ? '<option value="' + NOPAY_PAYER + '">🎁 不分攤</option>' : "") + (all.some(payerUnset) ? '<option value="' + NONE_PAYER + '">⚠ 付款人未填</option>' : "");
     ps.value = expFilterPayer;
   }
   const view = ordered.filter(i=>(!expFilterCat || expCatOf(i)===expFilterCat) && (!expFilterPayer || (expFilterPayer===NONE_PAYER ? payerUnset(i) : i.expense.payer===expFilterPayer)));
@@ -5199,7 +5217,7 @@ function renderExpense(){
     fb.style.display = on ? "flex" : "none";
     if(on){
       const sum = view.reduce((n,i)=>n+((isProxy(i) || isExch(i)) ? 0 : converted(i)),0);   // 跟上方方塊同一算法：兌換、代購不計入
-      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && (expFilterPayer===NOPAY_PAYER ? NOPAY_PAYER : expFilterPayer===NONE_PAYER ? "付款人未填" : ("👤 " + expFilterPayer + " 付"))].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString();
+      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && (expFilterPayer===NOPAY_PAYER ? "不分攤" : expFilterPayer===NONE_PAYER ? "付款人未填" : ("👤 " + expFilterPayer + " 付"))].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString();
     } }
   view.forEach(i=>{ const g = groupMeta.find(x=>x.c===expCatOf(i)); if(g){ g.fn = (g.fn||0)+1; g.fa = (g.fa||0)+converted(i); } });
   if(!view.length) listWrap.innerHTML = `<div class="empty"><span class="esub">沒有符合的花費</span></div>`;
@@ -5221,7 +5239,7 @@ function renderExpense(){
     const label = i.type==="transport" ? (TRANSPORT_LABEL[i.mode]||"交通") : i.name;
     const origSym = currencySymbol(i.expense.currency||primaryCurrencyForTrip());
     const dayTxt = expRowWhen(i);
-    const payTxt = (i.expense.payer) ? ((i.expense.payer===POOL_PAYER || i.expense.payer===NOPAY_PAYER) ? (" · " + i.expense.payer) : (" · " + i.expense.payer + "付")) : "";
+    const payTxt = (i.expense.payer) ? ((i.expense.payer===POOL_PAYER || i.expense.payer===NOPAY_PAYER) ? (" · " + (i.expense.payer===NOPAY_PAYER ? "不分攤" : i.expense.payer)) : (" · " + i.expense.payer + "付")) : "";
     // 金額：粗體＝目前顯示幣別（加起來等於小計和總額）；原幣別不同時，下面用小灰字保留當初記的金額
     const origCur = i.expense.currency || primaryCurrencyForTrip();
     const sameCur = origCur===expDisplayCurrency;
@@ -7715,7 +7733,7 @@ function openTripModal(trip){
   const region = trip ? (trip.region||"china") : "japan";   // 舊行程沒有地區欄位時，其他畫面都當大陸處理，這裡也要一致，否則一編輯儲存就被改成日本
   document.querySelectorAll("#trRegionChips .chip").forEach(c=>c.classList.toggle("active", c.dataset.v===region));
   document.getElementById("trName").placeholder = "例：" + regionExample("trip", region);
-  { const _prev = getActiveTrip() || trips[trips.length-1]; trMembersTemp = trip ? (trip.members ? [...trip.members] : []) : ((_prev && _prev.members) ? [..._prev.members] : []); }   // 新行程預設帶入上一個行程的旅伴
+  { const _prev = getActiveTrip() || trips[trips.length-1]; trMembersTemp = trip ? (trip.members ? trip.members.filter(n=>n!=="不歸屬"&&n!=="公費現金") : []) : ((_prev && _prev.members) ? [..._prev.members] : []); }   // 新行程預設帶入上一個行程的旅伴
   renderMemberChips();
   document.getElementById("trBackfillWrap").style.display = trip ? "block" : "none";
   tripListMask.classList.remove("show");
