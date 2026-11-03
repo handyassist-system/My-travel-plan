@@ -1547,7 +1547,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-255";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-257";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -5190,8 +5190,10 @@ function renderExpense(){
   { const fb = document.getElementById("expFilterBar"), on = !!(expFilterCat || expFilterPayer);
     fb.style.display = on ? "flex" : "none";
     if(on){
-      const sum = view.reduce((n,i)=>n+converted(i),0);
-      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && ("👤 " + expFilterPayer + " 付")].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString();
+      const _nc = i => isExch(i) || isProxy(i);   // 兌換、代購不計入總額，這裡的合計跟上方方塊一致，另外標出
+      const sum = view.reduce((n,i)=>n+(_nc(i) ? 0 : converted(i)),0);
+      const _ex = view.reduce((n,i)=>n+(_nc(i) ? converted(i) : 0),0);
+      document.getElementById("expFilterText").textContent = "只看：" + [expFilterCat, expFilterPayer && ("👤 " + expFilterPayer + " 付")].filter(Boolean).join("、") + "　" + view.length + " 筆　" + sym + Math.round(sum).toLocaleString() + (_ex>0 ? "　（另有兌換／代購 " + sym + Math.round(_ex).toLocaleString() + "，不計入）" : "");
     } }
   view.forEach(i=>{ const g = groupMeta.find(x=>x.c===expCatOf(i)); if(g){ g.fn = (g.fn||0)+1; g.fa = (g.fa||0)+converted(i); } });
   if(!view.length) listWrap.innerHTML = `<div class="empty"><span class="esub">沒有符合的花費</span></div>`;
@@ -5300,13 +5302,17 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   members.forEach(m=>{ paid[m]=0; owed[m]=0; });
   let skipped = 0, poolCount = 0, exchCount = 0, gone = 0; const goneNames = new Set();
   const isExchItem = i => (i.expense.category||"")==="兌換";
+  // 兌換只算「實際用掉的現金」：用公費現金付掉的花費合計＝用掉的額度；沒用到的現金不分攤（還是換匯人自己的錢）
+  const poolUsed = all.filter(i=>i.expense.payer===POOL_PAYER).reduce((n,i)=>n+converted(i),0);
+  const exchTotal = all.filter(i=>isExchItem(i) && i.expense.payer && members.includes(i.expense.payer)).reduce((n,i)=>n+converted(i),0);
+  const exchF = exchTotal>0 ? Math.min(1, poolUsed/exchTotal) : 0;
   all.forEach(i=>{
     const payer = i.expense.payer;
     if(payer===POOL_PAYER){ poolCount++; return; }   // 公費現金：兌換時已平分，這裡不再算
     if(!payer){ skipped++; return; }
     if(!paid.hasOwnProperty(payer)){ gone++; goneNames.add(payer); return; }
-    if(isExchItem(i)) exchCount++;
-    const amt = converted(i);
+    if(isExchItem(i) && exchF>0) exchCount++;
+    const amt = isExchItem(i) ? converted(i)*exchF : converted(i);
     let who = Array.isArray(i.expense.sharedBy) ? i.expense.sharedBy.filter(m=>owed.hasOwnProperty(m)) : [];
     if(who.length===0) who = members;
     paid[payer] += amt;
@@ -5344,7 +5350,7 @@ function renderExpenseSettlement(all, converted, sym, rate, primary, trip){
   }
   const rateNote = `以 ${sym} 計算；匯率 1${currencySymbol(primary)} = ${rate} NT$（存在這支手機，換裝置可能不同）`;
   html += `<div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;">${escapeHtml(isTaiwanTrip() ? ("以 "+sym+" 計算") : rateNote)}`;
-  if(exchCount>0 || poolCount>0) html += `<br>兌換由付款人先墊、全員平分；選「${POOL_PAYER}」的花費不再重複計算。換來的現金沒花完，請另外結清。`;
+  if(exchTotal>0) html += `<br>兌換 ${fmt(exchTotal)}，只有用「${POOL_PAYER}」付掉的 ${fmt(Math.min(poolUsed,exchTotal))} 由全員平分；沒用到的現金不分攤。刷卡或自己付的花費請選付款人。`;
   if(skipped>0) html += `<br>⚠️ 有 ${skipped} 筆花費沒填付款人，未納入結算`;
   if(gone>0) html += `<br>⚠️ 有 ${gone} 筆花費的付款人（${escapeHtml([...goneNames].join('、'))}）已不在成員名單，未納入結算；請把他加回成員或改付款人`;
   html += `</div></div>`;
