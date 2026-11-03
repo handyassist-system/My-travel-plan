@@ -907,7 +907,7 @@ header #mapBtn, header #settingsBtn{
     </div>
     </div>
     <div class="sec-card"><div class="sec-h">📝 備註</div>
-    <div class="field"><label>備註（只是記事）</label><textarea id="fMemo" placeholder="例：要先訂位、營業時間、注意事項"></textarea></div>
+    <div class="field"><label>備註（選填）</label><textarea id="fMemo" placeholder="例：要先訂位、營業時間、注意事項"></textarea></div>
     </div>
     <button type="button" id="fMoreToggle" style="display:block; width:100%; padding:11px; border:1px dashed var(--line); background:var(--bg); color:var(--sub); border-radius:var(--radius-md); font-size:13px; margin-bottom:12px;">＋ 更多選項（照片）</button>
     <div class="sec-card" id="fMoreFields" style="display:none;"><div class="sec-h">📷 照片</div>
@@ -978,11 +978,19 @@ header #mapBtn, header #settingsBtn{
     <button type="button" id="tExpToggle" style="display:none; padding:7px 16px; border:1px solid var(--seal); background:var(--seal-soft); color:var(--seal); border-radius:999px; font-size:14px; font-weight:600; margin-bottom:14px;">＋ 記錄這裡的花費</button>
     <div class="sec-card" id="tExpCard"><div class="sec-h" data-for="tExpFields"><span>💰 花費（選填）</span></div>
     <div id="tExpFields" style="display:none;">
-      <div class="row2">
-        <div class="field"><label>金額</label><input id="tExpAmount" type="number" placeholder="0"></div>
-        <div class="field"><label>幣別</label>
-          <div class="chip-row" id="tCurrencyChips"></div>
-        </div>
+      <div class="field"><label>花費類別</label>
+        <select id="tExpCat">
+          <option value="交通">🚆 交通</option>
+          <option value="餐飲">🍜 餐飲</option>
+          <option value="購物">🛍️ 購物</option>
+          <option value="門票">🎫 門票</option>
+          <option value="住宿">🏨 住宿</option>
+          <option value="其他">📌 其他</option>
+        </select>
+      </div>
+      <div class="field"><label>金額</label><input id="tExpAmount" type="number" placeholder="0"></div>
+      <div class="field"><label>幣別</label>
+        <div class="chip-row" id="tCurrencyChips"></div>
       </div>
       <div id="tPaySub" style="display:none;"><div class="exp-sub">👥 付款與分攤</div></div>
       <div class="field" id="tPayerWrap" style="display:none;"><label>付款人</label><select id="tExpPayer"></select></div>
@@ -1037,32 +1045,34 @@ header #mapBtn, header #settingsBtn{
     <button class="close-x" id="expModalClose">✕</button>
     <h2 id="expModalTitle">新增花費</h2>
     <p style="font-size:12px; color:var(--sub); margin:-8px 0 12px;">記錄不屬於特定景點的支出，例如購物、餐飲、行前採買。</p>
-    <div class="sec-card"><div class="sec-h">💰 金額</div>
+    <div class="sec-card"><div class="sec-h">💰 花費</div>
     <div class="field"><label>名稱</label><input id="eName" type="text" placeholder="例：行前採買的旅遊用品、伴手禮"></div>
-    <div class="row2">
-      <div class="field"><label>類別</label>
+    <div class="field"><label>類別</label>
         <select id="eCategory">
           <option value="行前採買">🧳 行前採買</option>
           <option value="兌換">💱 兌換（不計入總額）</option>
           <option value="購物">🛍️ 購物</option>
           <option value="門票">🎫 門票</option>
+          <option value="交通">🚆 交通</option>
+          <option value="住宿">🏨 住宿</option>
           <option value="餐飲">🍜 餐飲</option>
           <option value="其他">📌 其他</option>
         </select>
         <p style="font-size:12px; color:var(--sub); margin:6px 0 0; line-height:1.6;">行前已預訂的住宿、門票、交通，請在「行李清單」登錄花費；其他支出請填在這裡。</p>
-      </div>
-      <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
     </div>
+    <div class="field"><label>金額</label><input id="eAmount" type="number" inputmode="decimal" placeholder="0"></div>
     <div class="field"><label>幣別</label><div class="chip-row" id="eCurrencyChips"></div></div>
     </div>
     <div class="sec-card" id="ePaySec"><div class="sec-h">👥 付款與分攤</div>
     <div class="field" id="ePayerWrap" style="display:none;"><label>付款人</label><select id="eExpPayer"></select></div>
     <div class="field" id="eShareWrap" style="display:none;"><label>分攤對象（預設全員，點選可取消）</label><div class="chip-row" id="eShareChips"></div></div>
     </div>
-    <div class="sec-card"><div class="sec-h">📝 日期與備註</div>
+    <div class="sec-card"><div class="sec-h">📝 日期</div>
     <div class="field"><label>付款日期（選填）</label><input id="eDate" type="date"></div>
     <button type="button" class="btn btn-ghost" id="eMergePack" style="display:none; width:100%; margin-bottom:12px;">🎁 設定對應的伴手禮／清單項目</button>
     <div class="field" id="eLinkWrap" style="display:none;"><label>歸屬到</label><select id="eLink"></select></div>
+    </div>
+    <div class="sec-card"><div class="sec-h">📝 備註</div>
     <div class="field"><label>備註（選填）</label><textarea id="eNote" placeholder="補充說明"></textarea></div>
     </div>
     <div class="modal-actions">
@@ -1537,7 +1547,7 @@ const bottomNav = document.getElementById("bottomNav");
 
 const ADMIN_EMAIL = "mp65p@hotmail.com";
 const LINE_SUPPORT_URL = "https://line.me/R/ti/p/@373pfdee";
-const APP_VER = "v1.0", BUILD_ID = "1009-253";   // 版本號只改這裡；更新編號只有管理員看得到
+const APP_VER = "v1.0", BUILD_ID = "1009-255";   // 版本號只改這裡；更新編號只有管理員看得到
 const AUTH_KEY = "travel_auth_email";
 const EMAIL_FOR_SIGNIN_KEY = "travelEmailForSignIn";
 const SUBS_PATH = "travel_subscribers/";
@@ -4320,6 +4330,10 @@ function openTransportModal(it, prevTime, prevSpotOverride, nextSpotOverride, is
   durationIsAutoEstimated = true;
   document.getElementById("tDurationAutoNote").style.display = "none";
   updateDurationSourceNote();
+  { const cs = document.getElementById("tExpCat"); [...cs.querySelectorAll("option[data-extra]")].forEach(o=>o.remove());
+    const c0 = (it && it.expense && it.expense.category) || "交通";
+    if(![...cs.options].some(o=>o.value===c0)){ const xo = document.createElement("option"); xo.value = c0; xo.dataset.extra = "1"; xo.textContent = (EXP_CAT_ICON[c0]||"📌") + " " + c0; cs.appendChild(xo); }
+    cs.value = c0; }
   tExpAmount.value = it && it.expense ? (it.expense.amount||"") : "";
   setCurrencyChip(tCurrencyChips, it && it.expense ? it.expense.currency : primaryCurrencyForTrip());
   populatePayerSelect(tExpPayer, tPayerWrap, it && it.expense ? it.expense.payer : "");
@@ -4586,7 +4600,7 @@ document.getElementById("transSave").addEventListener("click", async ()=>{
     manualDepartTime: currentTransportIsLeading ? (document.getElementById("tManualDepartTime").value || "") : "",
     manualFromStation: document.getElementById("tJrFromStation").value==="__custom__" ? "" : (document.getElementById("tJrFromStation").value || ""),
     manualToStation: document.getElementById("tJrToStation").value==="__custom__" ? "" : (document.getElementById("tJrToStation").value || ""),
-    expense: { amount: tExpAmount.value ? Number(tExpAmount.value) : 0, category: "交通", payer: tExpPayer.value||"", currency: getCurrencyChip(tCurrencyChips), sharedBy: readSharedByIn("tShareChips"), date: document.getElementById("tExpDate").value || "" },
+    expense: { amount: tExpAmount.value ? Number(tExpAmount.value) : 0, category: document.getElementById("tExpCat").value || "交通", payer: tExpPayer.value||"", currency: getCurrencyChip(tCurrencyChips), sharedBy: readSharedByIn("tShareChips"), date: document.getElementById("tExpDate").value || "" },
     note: document.getElementById("tExpNote").value.trim()
   };
   try{
